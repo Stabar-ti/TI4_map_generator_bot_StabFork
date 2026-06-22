@@ -22,12 +22,14 @@ import ti4.game.Tile;
 import ti4.game.persistence.GameManager;
 import ti4.helpers.ButtonHelper;
 import ti4.helpers.Constants;
+import ti4.helpers.MapTemplateHelper;
 import ti4.helpers.TIGLHelper;
 import ti4.helpers.settingsFramework.menus.MiltySettings;
 import ti4.image.Mapper;
 import ti4.image.PositionMapper;
 import ti4.message.MessageHelper;
 import ti4.model.FactionModel;
+import ti4.model.MapTemplateModel;
 import ti4.model.Source.ComponentSource;
 import ti4.service.rules.ThundersEdgeRulesService;
 
@@ -82,6 +84,9 @@ public class MiltyService {
         if (specs.presetSlices != null) {
             if (specs.presetSlices.size() < specs.playerIDs.size())
                 return "Not enough slices for the number of players. Please remove the preset slice string or include enough slices";
+        }
+        if (Boolean.TRUE.equals(specs.preserveMap) && specs.presetSlices == null) {
+            return "Preserve Map requires preset slices. Please provide a preset slice string or disable Preserve Map";
         }
 
         // Milty Draft Manager Setup --------------------------------------------------------------
@@ -169,13 +174,23 @@ public class MiltyService {
         }
 
         String startMsg = "## Generating the milty draft!!";
-        startMsg +=
-                "\n - Also clearing out any tiles that may have already been on the map so that the draft will fill in tiles properly.";
+        if (Boolean.TRUE.equals(specs.preserveMap)) {
+            startMsg +=
+                    "\n - Preserving the existing map and deriving draft positions from its colored placeholder tiles.";
+            MapTemplateModel derivedTemplate = MapTemplateHelper.deriveTemplateFromGameMap(game);
+            Mapper.registerTransientMapTemplate(derivedTemplate);
+            specs.template = derivedTemplate;
+            draftManager.setMapTemplate(specs.template.getAlias());
+            game.setMapTemplateID(specs.template.getAlias());
+        } else {
+            startMsg +=
+                    "\n - Also clearing out any tiles that may have already been on the map so that the draft will fill in tiles properly.";
+            game.clearTileMap();
+        }
         if (specs.numSlices == maxSlices) {
             startMsg += "\n - *You asked for the max number of slices, so this may take several seconds*";
         }
 
-        game.clearTileMap();
         try {
             MiltyDraftHelper.buildPartialMap(game, event);
         } catch (Exception e) {

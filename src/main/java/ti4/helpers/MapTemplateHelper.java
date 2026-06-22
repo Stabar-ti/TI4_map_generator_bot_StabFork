@@ -3,6 +3,7 @@ package ti4.helpers;
 import java.awt.Graphics2D;
 import java.awt.Point;
 import java.awt.image.BufferedImage;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -34,6 +35,40 @@ import ti4.service.milty.MiltyDraftSlice;
 public final class MapTemplateHelper {
 
     private static final String NUCLEUS_COLOR = "rainbow";
+
+    // Index = playerNumber - 1. Shared between getTileFromTemplateTile (playerNumber -> placeholder tile ID)
+    // and deriveTemplateFromGameMap (placeholder tile ID -> playerNumber).
+    private static final List<String> DRAFT_PLACEHOLDER_COLORS = Arrays.asList(
+            "red",
+            "blue",
+            "yellow",
+            "emerald",
+            "lavender",
+            "petrol",
+            "chocolate",
+            "ethereal",
+            "forest",
+            "gold",
+            "green",
+            "grey",
+            "navy",
+            "spring",
+            "teal",
+            "black",
+            "lightgrey",
+            "rainbow",
+            "turquoise",
+            "lightbrown",
+            "orange",
+            "pink",
+            "sunset",
+            "bloodred",
+            "brown",
+            "chrome",
+            "purple",
+            "rose",
+            "white",
+            "tan");
 
     public static void buildMapFromMiltyData(Game game, String mapTemplate) throws Exception {
         MiltyDraftManager manager = game.getMiltyDraftManager();
@@ -112,42 +147,10 @@ public final class MapTemplateHelper {
     }
 
     public static Tile getTileFromTemplateTile(MapTemplateTile tile) {
-        List<String> backupColors = Arrays.asList(
-                "red",
-                "blue",
-                "yellow",
-                "emerald",
-                "lavender",
-                "petrol",
-                "chocolate",
-                "ethereal",
-                "forest",
-                "gold",
-                "green",
-                "grey",
-                "navy",
-                "spring",
-                "teal",
-                "black",
-                "lightgrey",
-                "rainbow",
-                "turquoise",
-                "lightbrown",
-                "orange",
-                "pink",
-                "sunset",
-                "bloodred",
-                "brown",
-                "chrome",
-                "purple",
-                "rose",
-                "white",
-                "tan");
-
         String tileID = null;
         if (tile.getStaticTileId() != null) tileID = tile.getStaticTileId();
         else if (tile.getPlayerNumber() != null) {
-            String color = backupColors.get(tile.getPlayerNumber());
+            String color = DRAFT_PLACEHOLDER_COLORS.get(tile.getPlayerNumber());
             if (tile.getMiltyTileIndex() != null) {
                 tileID = color + (tile.getMiltyTileIndex() + 1);
             } else if (tile.getHome() != null) {
@@ -175,6 +178,46 @@ public final class MapTemplateHelper {
             return outputTile;
         }
         return null;
+    }
+
+    /**
+     * Scans the game's current tile map for draft-placeholder tiles (the same color-coded tiles
+     * produced by getTileFromTemplateTile, e.g. "red1", "blueblank") and builds a MapTemplateModel
+     * from their positions. Every other tile already on the board is ignored, so it's left alone
+     * by anything that consumes the resulting template (e.g. buildPartialMapFromMiltyData).
+     */
+    public static MapTemplateModel deriveTemplateFromGameMap(Game game) {
+        List<MapTemplateTile> templateTiles = new ArrayList<>();
+        int maxPlayerNumber = 0;
+        for (Tile tile : game.getTileMap().values()) {
+            String tileID = tile.getTileID();
+            for (int playerNumber = 0; playerNumber < DRAFT_PLACEHOLDER_COLORS.size(); playerNumber++) {
+                String color = DRAFT_PLACEHOLDER_COLORS.get(playerNumber);
+                if (!tileID.startsWith(color)) continue;
+                String suffix = tileID.substring(color.length());
+
+                MapTemplateTile templateTile = new MapTemplateTile();
+                if ("blank".equals(suffix)) {
+                    templateTile.setHome(true);
+                } else if (Helper.isInteger(suffix)) {
+                    templateTile.setMiltyTileIndex(Integer.parseInt(suffix) - 1);
+                } else {
+                    break; // tileID just happens to share this color's prefix, not an actual placeholder
+                }
+
+                templateTile.setPos(tile.getPosition());
+                templateTile.setPlayerNumber(playerNumber);
+                templateTiles.add(templateTile);
+                maxPlayerNumber = Math.max(maxPlayerNumber, playerNumber);
+                break;
+            }
+        }
+
+        MapTemplateModel model = new MapTemplateModel();
+        model.setAlias("virtual_" + game.getName());
+        model.setPlayerCount(maxPlayerNumber);
+        model.setTemplateTiles(templateTiles);
+        return model;
     }
 
     public static void buildPartialMapFromMiltyData(

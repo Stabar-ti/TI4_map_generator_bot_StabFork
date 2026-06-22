@@ -45,6 +45,7 @@ public class SliceGenerationSettings extends SettingsMenu {
     private final IntegerSetting minimumInf;
     private final IntegerRangeSetting totalValue;
     private final IntegerRangeSetting numLegends;
+    private final BooleanSetting preserveMap;
 
     // This is handled fully manually as there's a lot of validation to do
     private String presetSlices;
@@ -67,6 +68,10 @@ public class SliceGenerationSettings extends SettingsMenu {
         totalValue = new IntegerRangeSetting("TotVal", "Total Optimal Value", 9, 0, 11, 13, 9, 20, 1);
         extraWorms = new BooleanSetting("ExtraWH", "More Wormholes", true);
         numLegends = new IntegerRangeSetting("Legends", "Legendary Count", 1, 0, 6, 2, 0, 20, 1);
+        preserveMap = new BooleanSetting("PreserveMap", "Preserve Map", false);
+        preserveMap.setExtraInfo(
+                "When using preset slices, derive draft positions from existing colored draft-placeholder tiles"
+                        + " instead of wiping the map and applying a map template.");
 
         // Emojis
         minimumRes.setEmoji(MiscEmojis.resources);
@@ -97,6 +102,7 @@ public class SliceGenerationSettings extends SettingsMenu {
             totalValue.initialize(json.get("totalValue"));
             extraWorms.initialize(json.get("extraWorms"));
             numLegends.initialize(json.get("numLegends"));
+            preserveMap.initialize(json.get("preserveMap"));
 
             if (json.has("presetSlices")) {
                 setPresetSlices(json.get("presetSlices").asText(null));
@@ -112,6 +118,7 @@ public class SliceGenerationSettings extends SettingsMenu {
         List<SettingInterface> ls = new ArrayList<>();
         ls.add(numFactions);
         if (presetSlices != null) {
+            ls.add(preserveMap);
             return ls;
         }
         ls.add(numSlices);

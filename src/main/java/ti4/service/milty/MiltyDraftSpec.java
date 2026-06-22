@@ -30,6 +30,7 @@ public class MiltyDraftSpec {
 
     // other
     public List<MiltyDraftSlice> presetSlices;
+    public Boolean preserveMap = false;
 
     public MiltyDraftSpec(Game game) {
         this.game = game;
@@ -92,6 +93,7 @@ public class MiltyDraftSpec {
         if (sliceSettings.getParsedSlices() != null) {
             specs.presetSlices = sliceSettings.getParsedSlices();
         }
+        specs.preserveMap = sliceSettings.getPreserveMap().isVal();
 
         return specs;
     }

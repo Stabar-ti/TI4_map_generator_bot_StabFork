@@ -920,6 +920,12 @@ public class Mapper {
         return mapTemplates.containsKey(id);
     }
 
+    // Registers a MapTemplateModel that wasn't loaded from the map_templates resource folder,
+    // e.g. one derived at runtime from a game's existing tiles. Lives only as long as the JVM.
+    public static void registerTransientMapTemplate(MapTemplateModel model) {
+        mapTemplates.put(model.getAlias(), model);
+    }
+
     // no source field in map_templates data, missing 'private List<String> getMapTemplatesSources(ComponentSource
     // compSource)'
 
