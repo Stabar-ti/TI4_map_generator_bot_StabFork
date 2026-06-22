@@ -33,6 +33,7 @@ public class FractureService {
 
     public static boolean isFractureInPlay(Game game) {
         return game.getTileFromPlanet("styx") != null
+                || game.getTileMap().values().stream().anyMatch(Tile::isFracture)
                 || Stream.of("frac1", "frac2", "frac3", "frac4", "frac5", "frac6", "frac7")
                         .allMatch(pos -> game.getTileByPosition(pos) != null);
     }

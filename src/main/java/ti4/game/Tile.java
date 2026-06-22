@@ -606,6 +606,11 @@ public class Tile {
     }
 
     @JsonIgnore
+    public boolean isFracture() {
+        return getTileModel().isFracture();
+    }
+
+    @JsonIgnore
     public boolean isScar(Game game) {
         if (hasAnyToken("token_entropicscar_async.png")) return true;
         if (game != null) {

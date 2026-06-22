@@ -13,6 +13,7 @@
         "ZETA"
     ],
     "tileBack": "fracture",
+    "isFracture": true,
     "isGravityRift": true,
     "source": "other"
 }
