@@ -226,7 +226,7 @@ public class TkHelperActionCards {
             TeHelperActionCards.resolvePiratesGeneric(event, game, player, tile, units);
             String message = player.getRepresentation() + " 'commissioned' some mercenaries to post up at "
                     + Helper.getPlanetRepresentation(planet, game) + ".";
-            if (tile != null && tile.getPosition().contains("frac")) {
+            if (tile != null && tile.isFractureSystem()) {
                 Planet uh = game.getUnitHolderFromPlanet(planet);
                 if (uh != null) {
                     uh.addToken("token_relictoken.png");

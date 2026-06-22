@@ -387,7 +387,7 @@ public class AddPlanetService {
                 && alreadyOwned
                 && !setup
                 && tile != null
-                && tile.getPosition().startsWith("frac")) {
+                && tile.isFractureSystem()) {
             OnyxxaCommanderButtonHandler.onGainFracturePlanet(event, player, game, previousOwner);
         }
         if (game.playerHasLeaderUnlockedOrAlliance(player, "naazcommander") && !setup) {
@@ -429,7 +429,7 @@ public class AddPlanetService {
                         || game.getActivePlayerID() != null && !"".equalsIgnoreCase(game.getActivePlayerID()))
                 && player.hasUnlockedBreakthrough("zealotsbt")
                 && tile != null
-                && (tile.getPosition().contains("frac") || unitHolder.isLegendary())
+                && (tile.isFractureSystem() || unitHolder.isLegendary())
                 && !doubleCheck
                 && !setup) {
             List<Button> buttons = new ArrayList<>();

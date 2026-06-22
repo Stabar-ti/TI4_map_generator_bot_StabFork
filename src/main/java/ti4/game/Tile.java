@@ -132,7 +132,7 @@ public class Tile {
             if (tile.getTilePath().toLowerCase().contains("hyperlane")) return false;
             if (!tile.getPlanetUnitHolders().isEmpty()) return false;
             if (tile.isSupernova()) return false;
-            if (tile.getPosition().contains("frac")) return false;
+            if (tile.isFractureSystem()) return false;
             return !tile.getTileModel().hasWormhole();
         };
     }
@@ -608,6 +608,12 @@ public class Tile {
     @JsonIgnore
     public boolean isFracture() {
         return getTileModel().isFracture();
+    }
+
+    @JsonIgnore
+    public boolean isFractureSystem() {
+        String pos = getPosition();
+        return (pos != null && pos.startsWith("frac")) || isFracture();
     }
 
     @JsonIgnore

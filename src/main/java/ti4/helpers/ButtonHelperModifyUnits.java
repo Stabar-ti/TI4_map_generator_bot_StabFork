@@ -1762,7 +1762,7 @@ public final class ButtonHelperModifyUnits {
             }
         }
 
-        if (tile2 != null && tile2.getPosition().startsWith("frac")) {
+        if (tile2 != null && tile2.isFractureSystem()) {
             CommanderUnlockCheckService.checkPlayer(player, "obsidian");
         }
     }
@@ -2104,7 +2104,7 @@ public final class ButtonHelperModifyUnits {
         if ("warsun".equalsIgnoreCase(unitLong)) {
             CommanderUnlockCheckService.checkPlayer(player, "muaat");
         }
-        if (tile != null && tile.getPosition().startsWith("frac")) {
+        if (tile != null && tile.isFractureSystem()) {
             CommanderUnlockCheckService.checkPlayer(player, "obsidian");
         }
 
@@ -2425,7 +2425,7 @@ public final class ButtonHelperModifyUnits {
                 AgendaHelper.ministerOfIndustryCheck(player, game, tile, event);
             }
         }
-        if (tile != null && tile.getPosition().startsWith("frac")) {
+        if (tile != null && tile.isFractureSystem()) {
             CommanderUnlockCheckService.checkPlayer(player, "obsidian");
         }
 

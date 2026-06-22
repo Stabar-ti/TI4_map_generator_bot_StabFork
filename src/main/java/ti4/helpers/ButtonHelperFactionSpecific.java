@@ -3441,7 +3441,7 @@ public final class ButtonHelperFactionSpecific {
                     && isNotBlank(planetReal.getOriginalPlanetType())
                     && List.of("industrial", "cultural", "hazardous").contains(planetReal.getOriginalPlanetType());
             boolean fracture = game.getTileFromPlanet(planet) != null
-                    && game.getTileFromPlanet(planet).getPosition().contains("frac");
+                    && game.getTileFromPlanet(planet).isFractureSystem();
             if (oneOfThree || fracture || extraAllowedPlanets.contains(planet.toLowerCase())) {
                 buttons.add(Buttons.green("terraformPlanet_" + planet, Helper.getPlanetRepresentation(planet, game)));
             }

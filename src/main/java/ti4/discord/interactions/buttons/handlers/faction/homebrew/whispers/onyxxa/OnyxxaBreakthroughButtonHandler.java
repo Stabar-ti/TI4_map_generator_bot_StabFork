@@ -129,7 +129,7 @@ public class OnyxxaBreakthroughButtonHandler {
         int infantryCount = unitHolder.getUnitCount(UnitType.Infantry, player.getColorID());
         if (infantryCount < 1) return;
 
-        boolean inFracture = tile.getPosition().startsWith("frac");
+        boolean inFracture = tile.isFractureSystem();
         boolean inNexus = "82b".equals(tile.getTileID()) || "82bh".equals(tile.getTileID());
         if (!inFracture && !inNexus) return;
 

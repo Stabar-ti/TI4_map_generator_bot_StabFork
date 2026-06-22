@@ -183,7 +183,7 @@ public class TacticalActionService {
                 "vyserix");
         CommanderUnlockCheckService.checkAllPlayersInGame(game, "empyrean");
 
-        if (tile.getPosition().startsWith("frac")) {
+        if (tile.isFractureSystem()) {
             CommanderUnlockCheckService.checkPlayer(player, "obsidian");
         }
         if (!game.isL1Hero() && !ctx.playersWithPds2.isEmpty()) {
