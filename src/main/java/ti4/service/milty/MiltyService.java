@@ -85,8 +85,17 @@ public class MiltyService {
             if (specs.presetSlices.size() < specs.playerIDs.size())
                 return "Not enough slices for the number of players. Please remove the preset slice string or include enough slices";
         }
-        if (Boolean.TRUE.equals(specs.preserveMap) && specs.presetSlices == null) {
-            return "Preserve Map requires preset slices. Please provide a preset slice string or disable Preserve Map";
+        MapTemplateModel preservedTemplate = null;
+        if (Boolean.TRUE.equals(specs.preserveMap)) {
+            if (specs.presetSlices == null)
+                return "Preserve Map requires preset slices. Please provide a preset slice string or disable Preserve Map";
+            preservedTemplate = MapTemplateHelper.deriveTemplateFromGameMap(game);
+            if (preservedTemplate.getTemplateTiles().isEmpty())
+                return "Preserve Map found no colored draft-placeholder tiles (e.g. `blue1`, `blueblank`) on the map. Please add them or disable Preserve Map";
+            if (preservedTemplate.getPlayerCount() < specs.playerIDs.size())
+                return "Preserve Map found placeholder tiles for only " + preservedTemplate.getPlayerCount()
+                        + " players, but the draft has " + specs.playerIDs.size()
+                        + " players. Please add placeholder tiles for every player";
         }
 
         // Milty Draft Manager Setup --------------------------------------------------------------
@@ -174,14 +183,13 @@ public class MiltyService {
         }
 
         String startMsg = "## Generating the milty draft!!";
-        if (Boolean.TRUE.equals(specs.preserveMap)) {
+        if (preservedTemplate != null) {
             startMsg +=
                     "\n - Preserving the existing map and deriving draft positions from its colored placeholder tiles.";
-            MapTemplateModel derivedTemplate = MapTemplateHelper.deriveTemplateFromGameMap(game);
-            Mapper.registerTransientMapTemplate(derivedTemplate);
-            specs.template = derivedTemplate;
-            draftManager.setMapTemplate(specs.template.getAlias());
-            game.setMapTemplateID(specs.template.getAlias());
+            game.setStoredValue(
+                    MapTemplateHelper.PRESERVED_MAP_STORE_KEY, MapTemplateHelper.serializeTemplate(preservedTemplate));
+            draftManager.setMapTemplate(MapTemplateHelper.PRESERVED_MAP_TEMPLATE_ALIAS);
+            game.setMapTemplateID(null); // honest "no standard template" state, handled everywhere
         } else {
             startMsg +=
                     "\n - Also clearing out any tiles that may have already been on the map so that the draft will fill in tiles properly.";

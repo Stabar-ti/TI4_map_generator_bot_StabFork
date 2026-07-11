@@ -50,7 +50,8 @@ class FinishDraftService {
                 Player player = game.getPlayer(playerId);
                 PlayerDraft picks = manager.getPlayerDraft(playerId);
                 String faction = picks.getFaction();
-                String pos = MapTemplateHelper.getPlayerHomeSystemLocation(picks, manager.getMapTemplate());
+                String pos = MapTemplateHelper.getPlayerHomeSystemLocation(
+                        picks, MapTemplateHelper.resolveTemplate(game, manager.getMapTemplate()));
                 boolean speaker = picks.getPosition() == 1;
 
                 if (faction.startsWith("keleres")) {

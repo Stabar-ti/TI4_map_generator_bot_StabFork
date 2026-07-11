@@ -57,7 +57,7 @@ public class MiltyDraftHelper {
     public static FileUpload generateImage(Game game) {
         MiltyDraftManager manager = game.getMiltyDraftManager();
         List<MiltyDraftSlice> slices = manager.getSlices();
-        MapTemplateModel mapTemplate = Mapper.getMapTemplate(manager.getMapTemplate());
+        MapTemplateModel mapTemplate = MapTemplateHelper.resolveTemplate(game, manager.getMapTemplate());
 
         int sliceCount = slices.size();
         int spanW = (int) Math.ceil(Math.sqrt(sliceCount));
@@ -87,7 +87,7 @@ public class MiltyDraftHelper {
             if (game.isFowMode()) {
                 sliceImage = partialSliceImage(slice, mapTemplate, playerPicked != null);
             } else {
-                sliceImage = sliceImageWithPlayerInfo(slice, manager, playerPicked);
+                sliceImage = sliceImageWithPlayerInfo(slice, manager, mapTemplate, playerPicked);
             }
 
             BufferedImage resizedSlice = ImageHelper.scale(sliceImage, scale);
@@ -223,8 +223,7 @@ public class MiltyDraftHelper {
     }
 
     private static BufferedImage sliceImageWithPlayerInfo(
-            MiltyDraftSlice slice, MiltyDraftManager manager, Player player) {
-        MapTemplateModel mapTemplate = Mapper.getMapTemplate(manager.getMapTemplate());
+            MiltyDraftSlice slice, MiltyDraftManager manager, MapTemplateModel mapTemplate, Player player) {
         List<Point> tilePositions = mapTemplate.tileDisplayCoords();
         Point hs = tilePositions.getFirst();
 

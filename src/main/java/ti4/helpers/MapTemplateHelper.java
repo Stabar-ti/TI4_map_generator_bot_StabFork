@@ -70,9 +70,15 @@ public final class MapTemplateHelper {
             "white",
             "tan");
 
+    // Sentinel alias marking a milty draft that runs on a preserved (pre-placed) map. The derived
+    // template is never registered in Mapper; it is serialized into the game's stored values and
+    // resolved per-game via resolveTemplate.
+    public static final String PRESERVED_MAP_TEMPLATE_ALIAS = "miltyPreservedMap";
+    public static final String PRESERVED_MAP_STORE_KEY = "preservedMapTemplate";
+
     public static void buildMapFromMiltyData(Game game, String mapTemplate) throws Exception {
         MiltyDraftManager manager = game.getMiltyDraftManager();
-        MapTemplateModel template = Mapper.getMapTemplate(mapTemplate);
+        MapTemplateModel template = resolveTemplate(game, mapTemplate);
         List<PlayerDraft> speakerOrdered = manager.getDraft().values().stream()
                 .sorted(Comparator.comparing(PlayerDraft::getPosition))
                 .toList();
@@ -132,10 +138,19 @@ public final class MapTemplateHelper {
         return getPlayerHomeSystemLocation(pd.getPosition(), mapTemplate);
     }
 
+    public static String getPlayerHomeSystemLocation(PlayerDraft pd, MapTemplateModel template) {
+        if (pd.getFaction() == null) return null;
+        return getPlayerHomeSystemLocation(pd.getPosition(), template);
+    }
+
     public static String getPlayerHomeSystemLocation(Integer speakerPosition, String mapTemplate) {
         if (speakerPosition == null) return null;
+        return getPlayerHomeSystemLocation(speakerPosition, Mapper.getMapTemplate(mapTemplate));
+    }
 
-        MapTemplateModel template = Mapper.getMapTemplate(mapTemplate);
+    public static String getPlayerHomeSystemLocation(Integer speakerPosition, MapTemplateModel template) {
+        if (speakerPosition == null) return null;
+
         for (MapTemplateTile t : template.getTemplateTiles()) {
             if (t.getPlayerNumber() != null && t.getPlayerNumber().equals(speakerPosition)) {
                 if (t.getHome() != null && t.getHome()) {
@@ -214,16 +229,68 @@ public final class MapTemplateHelper {
         }
 
         MapTemplateModel model = new MapTemplateModel();
-        model.setAlias("virtual_" + game.getName());
+        model.setAlias(PRESERVED_MAP_TEMPLATE_ALIAS);
         model.setPlayerCount(maxPlayerNumber);
         model.setTemplateTiles(templateTiles);
+        return model;
+    }
+
+    /**
+     * Serializes a derived preserve-map template into a compact string suitable for a game
+     * stored value: tiles joined by ";", each "pos,playerNumber,miltyTileIndex" with a literal
+     * "H" instead of an index for home tiles.
+     */
+    public static String serializeTemplate(MapTemplateModel model) {
+        List<String> parts = new ArrayList<>();
+        for (MapTemplateTile tile : model.getTemplateTiles()) {
+            String index = Boolean.TRUE.equals(tile.getHome()) ? "H" : String.valueOf(tile.getMiltyTileIndex());
+            parts.add(tile.getPos() + "," + tile.getPlayerNumber() + "," + index);
+        }
+        return String.join(";", parts);
+    }
+
+    public static MapTemplateModel deserializeTemplate(String saved) {
+        if (saved == null || saved.isEmpty()) return null;
+        List<MapTemplateTile> templateTiles = new ArrayList<>();
+        int maxPlayerNumber = 0;
+        for (String part : saved.split(";")) {
+            String[] fields = part.split(",");
+            MapTemplateTile tile = new MapTemplateTile();
+            tile.setPos(fields[0]);
+            int playerNumber = Integer.parseInt(fields[1]);
+            tile.setPlayerNumber(playerNumber);
+            if ("H".equals(fields[2])) {
+                tile.setHome(true);
+            } else {
+                tile.setMiltyTileIndex(Integer.parseInt(fields[2]));
+            }
+            templateTiles.add(tile);
+            maxPlayerNumber = Math.max(maxPlayerNumber, playerNumber);
+        }
+        MapTemplateModel model = new MapTemplateModel();
+        model.setAlias(PRESERVED_MAP_TEMPLATE_ALIAS);
+        model.setPlayerCount(maxPlayerNumber);
+        model.setTemplateTiles(templateTiles);
+        return model;
+    }
+
+    /**
+     * Resolves a map template alias for a specific game. Regular templates come straight from
+     * Mapper; the preserve-map sentinel is rehydrated from the game's stored values, so it
+     * survives restarts without any global registration.
+     */
+    public static MapTemplateModel resolveTemplate(Game game, String alias) {
+        MapTemplateModel model = Mapper.getMapTemplate(alias);
+        if (model == null && PRESERVED_MAP_TEMPLATE_ALIAS.equals(alias)) {
+            model = deserializeTemplate(game.getStoredValue(PRESERVED_MAP_STORE_KEY));
+        }
         return model;
     }
 
     public static void buildPartialMapFromMiltyData(
             Game game, GenericInteractionCreateEvent event, String mapTemplate) {
         MiltyDraftManager manager = game.getMiltyDraftManager();
-        MapTemplateModel template = Mapper.getMapTemplate(mapTemplate);
+        MapTemplateModel template = resolveTemplate(game, mapTemplate);
         List<Player> players =
                 manager.getPlayers().stream().map(game::getPlayer).toList();
         boolean somethingHappened = false;
