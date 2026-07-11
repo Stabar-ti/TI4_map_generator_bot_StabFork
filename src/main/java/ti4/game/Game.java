@@ -1,7 +1,7 @@
 package ti4.game;
 
-import static java.util.function.Predicate.not;
-import static org.apache.commons.collections4.CollectionUtils.isNotEmpty;
+import static java.util.function.Predicate.*;
+import static org.apache.commons.collections4.CollectionUtils.*;
 
 import java.awt.Point;
 import java.util.AbstractMap.SimpleEntry;
@@ -293,6 +293,10 @@ public class Game extends GameProperties implements StoredValueHelper, TwilightF
     private TIGLRank minimumTIGLRankAtGameStart;
 
     private Map<String, String> debtPoolIcons = new HashMap<>();
+
+    public Game getSelf() {
+        return this;
+    }
 
     public Game() {
         long currentTimeMillis = System.currentTimeMillis();
@@ -2340,35 +2344,50 @@ public class Game extends GameProperties implements StoredValueHelper, TwilightF
     }
 
     public boolean removeLaw(String id) {
-        if (!id.isEmpty()) {
-            if (Constants.VOICE_OF_THE_COUNCIL_ID.equalsIgnoreCase(id)) {
-                VoiceOfTheCouncilHelper.ResetVoiceOfTheCouncil(this);
-                return true;
-            }
-            if ("warrant".equalsIgnoreCase(id)) {
-                for (Player p2 : getRealPlayers()) {
-                    if (IsPlayerElectedService.isPlayerElected(this, p2, id)) {
-                        p2.setSearchWarrant(false);
-                    }
-                }
-            }
-            if ("censure".equalsIgnoreCase(id)) {
-                if (customPublicVP.get("Political Censure") != null) {
-                    Map<String, Integer> customPOs = new HashMap<>(revealedPublicObjectives);
-                    for (Entry<String, Integer> entry : customPOs.entrySet()) {
-                        if (entry.getKey().toLowerCase().contains("political censure")) {
-                            removeCustomPO(entry.getValue());
-                        }
-                    }
-                }
-            }
-            laws.remove(id);
-            lawsInfo.remove(id);
-            addDiscardAgenda(id);
+        if (id.isEmpty()) {
+            return false;
+        }
 
+        boolean isVoiceOfTheCouncil = Constants.VOICE_OF_THE_COUNCIL_ID.equalsIgnoreCase(id);
+        if (!laws.containsKey(id) && !isVoiceOfTheCouncil) {
+            return false;
+        }
+
+        if (isVoiceOfTheCouncil) {
+            VoiceOfTheCouncilHelper.ResetVoiceOfTheCouncil(this);
             return true;
         }
-        return false;
+
+        if ("warrant".equalsIgnoreCase(id)) {
+            removeSearchWarrant(id);
+        } else if ("censure".equalsIgnoreCase(id)) {
+            removePoliticalCensure();
+        }
+
+        laws.remove(id);
+        lawsInfo.remove(id);
+        addDiscardAgenda(id);
+        return true;
+    }
+
+    private void removeSearchWarrant(String id) {
+        for (Player p : getRealPlayers()) {
+            if (IsPlayerElectedService.isPlayerElected(this, p, id)) {
+                p.setSearchWarrant(false);
+            }
+        }
+    }
+
+    private void removePoliticalCensure() {
+        if (customPublicVP.get("Political Censure") == null) {
+            return;
+        }
+        Map<String, Integer> customPOs = new HashMap<>(revealedPublicObjectives);
+        for (Entry<String, Integer> entry : customPOs.entrySet()) {
+            if (entry.getKey().toLowerCase().contains("political censure")) {
+                removeCustomPO(entry.getValue());
+            }
+        }
     }
 
     public boolean putEventTop(Integer idNumber, Player player) {
@@ -2723,6 +2742,13 @@ public class Game extends GameProperties implements StoredValueHelper, TwilightF
         if (isTwilightsFallMode()) {
             techDeck.add("wavelength");
             techDeck.add("antimatter");
+        }
+        if (isTwilightDS()) {
+            for (TechnologyModel tech : Mapper.getTechs().values()) {
+                if (tech.getSource() == ComponentSource.twilight_ds) {
+                    techDeck.add(tech.getID());
+                }
+            }
         }
         return techDeck;
     }
@@ -4075,6 +4101,27 @@ public class Game extends GameProperties implements StoredValueHelper, TwilightF
         }
 
         if ("sardakkcommander".equalsIgnoreCase(leaderID) && player.hasTech("tf-valkyrie")) {
+            return true;
+        }
+        if ("lanefircommander".equalsIgnoreCase(leaderID) && player.hasTech("tf-dslaner")) {
+            return true;
+        }
+        if ("ghoticommander".equalsIgnoreCase(leaderID) && player.hasTech("tf-abyssaltunneling")) {
+            return true;
+        }
+        if ("kollecccommander".equalsIgnoreCase(leaderID) && player.hasTech("tf-logisticalcoordination")) {
+            return true;
+        }
+        if ("kolumecommander".equalsIgnoreCase(leaderID) && player.hasTech("tf-kinematicstarfall")) {
+            return true;
+        }
+        if ("nivyncommander".equalsIgnoreCase(leaderID) && player.hasTech("tf-inquisition")) {
+            return true;
+        }
+        if ("vayleriancommander".equalsIgnoreCase(leaderID) && player.hasTech("tf-striketeams")) {
+            return true;
+        }
+        if ("vadencommander".equalsIgnoreCase(leaderID) && player.hasTech("tf-ruthlessbanking")) {
             return true;
         }
         if ("edyncommander".equalsIgnoreCase(leaderID) && player.hasTech("tf-rampantgrace")) {

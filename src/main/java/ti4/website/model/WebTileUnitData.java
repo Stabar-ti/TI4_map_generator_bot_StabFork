@@ -68,7 +68,7 @@ public final class WebTileUnitData {
         WebTileUnitData tileData = new WebTileUnitData();
 
         // Set anomaly status
-        tileData.isAnomaly = tile.isAnomaly(game);
+        tileData.isAnomaly = tile.isAnomaly(game, null);
 
         // Extract command tokens from space
         UnitHolder spaceHolder = tile.getUnitHolders().get(Constants.SPACE);
@@ -388,6 +388,7 @@ public final class WebTileUnitData {
             case TyrantsLament -> "tyrantslament";
             case Lady -> "lady";
             case Celagrom -> "celagrom";
+            case Aurelion -> "aurelion";
             case Cavalry -> "cavalry";
             case StarfallPds -> "starfallpds";
             default -> null;

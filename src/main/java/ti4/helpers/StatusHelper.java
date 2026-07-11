@@ -14,6 +14,7 @@ import net.dv8tion.jda.api.events.interaction.GenericInteractionCreateEvent;
 import net.dv8tion.jda.api.events.interaction.component.ButtonInteractionEvent;
 import org.apache.commons.lang3.function.Consumers;
 import ti4.discord.interactions.buttons.Buttons;
+import ti4.discord.interactions.buttons.handlers.faction.homebrew.beans.natau.NatauAbilityHandler;
 import ti4.discord.interactions.buttons.handlers.faction.homebrew.beans.netrunners.NetrunnersAbilitiesHandler;
 import ti4.discord.interactions.buttons.handlers.faction.homebrew.beans.netrunners.NetrunnersFactionTechsHandler;
 import ti4.game.Game;
@@ -50,6 +51,10 @@ import ti4.service.objectives.ScorePublicObjectiveService;
 import ti4.service.planet.EronousPlanetService;
 import ti4.service.turn.StartTurnService;
 import ti4.settings.users.UserSettingsManager;
+import ti4.spring.service.gameevent.GameEventDraft;
+import ti4.spring.service.gameevent.GameEventService;
+import ti4.spring.service.gameevent.GameEventType;
+import ti4.spring.service.gameevent.GameSubEvent;
 
 @UtilityClass
 public final class StatusHelper {
@@ -153,7 +158,11 @@ public final class StatusHelper {
     }
 
     public static void beginScoring(GenericInteractionCreateEvent event, Game game, MessageChannel gameChannel) {
+        // On a re-entered scoring phase, commit the previously staged scores instead of letting open() wipe them.
+        commitStatusScoringEvent(game);
         game.setPhaseOfGame("statusScoring");
+        GameEventService.commit(game, GameEventType.PHASE_STARTED, null, Map.of("phase", "status"));
+        GameEventDraft.open(game);
         game.setStoredValue("startTimeOfRound" + game.getRound() + "StatusScoring", System.currentTimeMillis() + "");
         GMService.logActivity(game, "**StatusScoring** Phase for Round " + game.getRound() + " started.", true);
         for (Player player : game.getRealPlayers()) {
@@ -170,6 +179,9 @@ public final class StatusHelper {
         for (Player player : game.getRealPlayers()) {
             if (player.getTotalVictoryPoints() > maxVP) {
                 maxVP = player.getTotalVictoryPoints();
+            }
+            if (player.hasAbility("paradigm")) {
+                NatauAbilityHandler.resolveParadigmStartOfStatus(event, game, player);
             }
             if (game.playerHasLeaderUnlockedOrAlliance(player, "vadencommander")) {
                 int numScoredSOs = player.getSoScored();
@@ -265,7 +277,7 @@ public final class StatusHelper {
             MessageHelper.sendMessageToChannelWithButtons(
                     event.getMessageChannel(),
                     game.getPing()
-                            + ", players will be forced to score in order. Any preemptive scores will be queued. You may turn this off at any time by pressing this button.",
+                            + ", players will be forced to score in order. Any preemptive scores will be queued. In the event of a bug, you may turn this off at any time by pressing this button, but that will not resolve the queue, it will just abandon it.",
                     buttons);
             for (Player player : getPlayersInScoringOrder(game)) {
                 game.setStoredValue(key3, game.getStoredValue(key3) + player.getFaction() + "*");
@@ -516,7 +528,23 @@ public final class StatusHelper {
                         player.getCorrectChannel(),
                         player.getRepresentationUnfogged()
                                 + ", you may use the button to pay 3 trade goods and get a technology, using _Sentient Datapool_.",
-                        List.of(Buttons.GET_A_TECH));
+                        List.of(Buttons.GET_A_TECH, Buttons.DONE_DELETE_BUTTONS));
+            }
+
+            if (player.hasTech("dsaugug")) {
+                MessageHelper.sendMessageToChannel(
+                        player.getCorrectChannel(),
+                        player.getRepresentationUnfogged()
+                                + ", this is a reminder that you can score an additional public objective instead of a secret objective due to your Psychographics.");
+            }
+            if (player.hasTech("tf-sentientdatapool") && player.getTg() > 3) {
+                MessageHelper.sendMessageToChannelWithButtons(
+                        player.getCorrectChannel(),
+                        player.getRepresentationUnfogged()
+                                + ", you may use the button to pay 4 trade goods and get an ability, using _Sentient Datapool_.",
+                        List.of(
+                                Buttons.green("drawSingularNewSpliceCard_ability_sentient", "Pay 4tg for Ability"),
+                                Buttons.DONE_DELETE_BUTTONS));
             }
             Leader playerLeader = player.getLeader("kyrohero").orElse(null);
             if (player.hasLeader("kyrohero")
@@ -1058,5 +1086,37 @@ public final class StatusHelper {
         }
         ButtonHelper.deleteMessage(event);
         ReactionCheckService.checkForAllReactions(event, game);
+    }
+
+    public static boolean isStatusScoring(Game game) {
+        return "statusScoring".equalsIgnoreCase(game.getPhaseOfGame());
+    }
+
+    /** Stages the score into the status-scoring draft when one is open, else commits a top-level event. */
+    public static void recordObjectiveScored(Game game, Player player, String objectiveId, String category) {
+        if (isStatusScoring(game)
+                && GameEventDraft.stage(
+                        game, new GameSubEvent.ObjectiveScored(player.getFaction(), objectiveId, category))) {
+            return;
+        }
+        GameEventService.commit(
+                game, GameEventType.OBJECTIVE_SCORED, player, Map.of("objectiveId", objectiveId, "category", category));
+    }
+
+    /**
+     * Commits the staged scoring sub-events as one STATUS_SCORING event. Safe to call from any status-scoring exit
+     * path: no-op outside the statusScoring phase (so it never drains an unrelated tactical draft) or when nothing
+     * was staged.
+     */
+    public static void commitStatusScoringEvent(Game game) {
+        if (!isStatusScoring(game)) {
+            return;
+        }
+        List<GameSubEvent> subEvents = GameEventDraft.drain(game);
+        if (subEvents.isEmpty()) {
+            return;
+        }
+        GameEventService.commit(
+                game, GameEventType.STATUS_SCORING, null, Map.of("subEvents", GameEventDraft.toJsonNode(subEvents)));
     }
 }

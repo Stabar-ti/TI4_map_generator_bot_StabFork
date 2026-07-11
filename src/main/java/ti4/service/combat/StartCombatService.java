@@ -2,6 +2,8 @@ package ti4.service.combat;
 
 import java.io.File;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
 import java.util.function.Consumer;
@@ -18,16 +20,23 @@ import net.dv8tion.jda.api.events.interaction.component.ButtonInteractionEvent;
 import net.dv8tion.jda.api.requests.restaction.ThreadChannelAction;
 import net.dv8tion.jda.api.utils.FileUpload;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.math.NumberUtils;
 import ti4.ResourceHelper;
 import ti4.contest.replay.core.CombatContestSettings;
 import ti4.contest.replay.service.CombatReplayService;
 import ti4.discord.interactions.buttons.Buttons;
 import ti4.discord.interactions.buttons.handlers.faction.homebrew.beans.DreamButtonHandler;
 import ti4.discord.interactions.buttons.handlers.faction.homebrew.beans.Iron.IronFactionTechsHandler;
+import ti4.discord.interactions.buttons.handlers.faction.homebrew.beans.crystellum.CrystellumAbilityHandler;
+import ti4.discord.interactions.buttons.handlers.faction.homebrew.beans.crystellum.CrystellumLeadersHandler;
 import ti4.discord.interactions.buttons.handlers.faction.homebrew.beans.netrunners.NetrunnersAbilitiesHandler;
 import ti4.discord.interactions.buttons.handlers.faction.homebrew.beans.netrunners.NetrunnersUnitsHandler;
-import ti4.discord.interactions.buttons.handlers.faction.homebrew.whispers.arvaxi.ArvaxiCommanderHandler;
-import ti4.discord.interactions.buttons.handlers.faction.homebrew.whispers.onyxxa.OnyxxaBreakthroughButtonHandler;
+import ti4.discord.interactions.buttons.handlers.faction.homebrew.whispers.arvaxi.ArvaxiLeaderHandler;
+import ti4.discord.interactions.buttons.handlers.faction.homebrew.whispers.kalora.KaloraAbilityHandler;
+import ti4.discord.interactions.buttons.handlers.faction.homebrew.whispers.kalora.KaloraLeaderHandler;
+import ti4.discord.interactions.buttons.handlers.faction.homebrew.whispers.onyxxa.OnyxxaBreakthroughHandler;
+import ti4.discord.interactions.buttons.handlers.faction.homebrew.whispers.onyxxa.OnyxxaUnitHandler;
+import ti4.discord.interactions.buttons.handlers.faction.homebrew.whispers.zephyrion.ZephyrionBreakthroughHandler;
 import ti4.game.Game;
 import ti4.game.Leader;
 import ti4.game.Planet;
@@ -63,9 +72,45 @@ import ti4.service.tech.BastionTechService;
 import ti4.service.turn.StartTurnService;
 import ti4.service.unit.CheckUnitContainmentService;
 import ti4.spring.context.SpringContext;
+import ti4.spring.service.gameevent.GameEventDraft;
+import ti4.spring.service.gameevent.GameSubEvent;
 
 @UtilityClass
 public class StartCombatService {
+
+    private static final String COMBAT_ROUND_TRACKER = "combatRoundTracker";
+
+    public record CurrentCombat(String tilePosition, String unitHolderName, int round, List<String> factions) {}
+
+    public static CurrentCombat getCurrentCombat(Game game) {
+        String factionsInCombat = game.getStoredValue("factionsInCombat");
+        if (factionsInCombat.isBlank()) {
+            return null;
+        }
+        List<String> factions = Arrays.stream(factionsInCombat.split("_"))
+                .filter(f -> !f.isBlank())
+                .toList();
+
+        for (var entry : game.getStoredValueMap().entrySet()) {
+            if (!entry.getKey().startsWith(COMBAT_ROUND_TRACKER)) continue;
+            String suffix = entry.getKey().substring(COMBAT_ROUND_TRACKER.length());
+            for (String faction : factions) {
+                if (!suffix.startsWith(faction)) continue;
+                String location = suffix.substring(faction.length());
+                // Longest matching tile position wins so "30" doesn't shadow "305".
+                String tilePosition = game.getTileMap().keySet().stream()
+                        .filter(location::startsWith)
+                        .max(Comparator.comparingInt(String::length))
+                        .orElse(null);
+                if (tilePosition == null) continue;
+                String unitHolder = location.substring(tilePosition.length());
+                int round = NumberUtils.toInt(entry.getValue(), 1);
+                return new CurrentCombat(tilePosition, unitHolder.isBlank() ? null : unitHolder, round, factions);
+            }
+        }
+        // Combat flagged but no tracker key yet (combat just declared).
+        return new CurrentCombat(null, null, 1, factions);
+    }
 
     public static void combatCheck(Game game, GenericInteractionCreateEvent event, Tile tile) {
         spaceCombatCheck(game, tile, event);
@@ -140,7 +185,10 @@ public class StartCombatService {
             game.setStoredValue(
                     "currentActionSummary" + player.getFaction(),
                     game.getStoredValue("currentActionSummary" + player.getFaction()) + " Had a space combat in "
-                            + tile.getRepresentationForButtons() + " against " + player2.getFactionEmoji() + ".");
+                            + tile.getRepresentationForButtons() + " against " + player2.getFactionNameOrColor()
+                            + ".");
+            GameEventDraft.stage(
+                    game, new GameSubEvent.Combat("space", tile.getPosition(), null, player2.getFaction()));
             return;
         }
         findOrCreateCombatThread(
@@ -181,7 +229,10 @@ public class StartCombatService {
                 "currentActionSummary" + player.getFaction(),
                 game.getStoredValue("currentActionSummary" + player.getFaction()) + " Had a ground combat on "
                         + Helper.getPlanetRepresentation(unitHolder.getName(), game) + " against "
-                        + player2.getFactionEmoji() + ".");
+                        + player2.getFactionNameOrColor() + ".");
+        GameEventDraft.stage(
+                game,
+                new GameSubEvent.Combat("ground", tile.getPosition(), unitHolder.getName(), player2.getFaction()));
         if (!game.isFowMode()) {
             findOrCreateCombatThread(
                     game,
@@ -247,7 +298,7 @@ public class StartCombatService {
         }
         for (Player p : List.of(player, player2)) {
             if (p.hasUnlockedBreakthrough("onyxxabt")) {
-                OnyxxaBreakthroughButtonHandler.offerGroundCombatMechButtons(game, p, unitHolder, tile);
+                OnyxxaBreakthroughHandler.offerGroundCombatMechButtons(game, p, unitHolder, tile);
             }
         }
     }
@@ -270,10 +321,14 @@ public class StartCombatService {
         game.setStoredValue("factionsInCombat", player1.getFaction() + "_" + player2.getFaction());
 
         sendStartOfCombatSecretMessages(game, player1, player2, tile, spaceOrGround, unitHolderName);
-        String combatName2 = "combatRoundTracker" + player1.getFaction() + tile.getPosition() + unitHolderName;
+        String combatName2 = COMBAT_ROUND_TRACKER + player1.getFaction() + tile.getPosition() + unitHolderName;
         game.setStoredValue(combatName2, "");
-        combatName2 = "combatRoundTracker" + player2.getFaction() + tile.getPosition() + unitHolderName;
+        combatName2 = COMBAT_ROUND_TRACKER + player2.getFaction() + tile.getPosition() + unitHolderName;
         game.setStoredValue(combatName2, "");
+        if (player1.hasAbility("refraction") || player2.hasAbility("refraction")) {
+            CrystellumAbilityHandler.resetRefractionForCombat(game, player1, tile);
+            CrystellumAbilityHandler.resetRefractionForCombat(game, player2, tile);
+        }
 
         TextChannel textChannel = (TextChannel) channel;
 
@@ -841,7 +896,7 @@ public class StartCombatService {
                         msg + ", a reminder that if you win the combat, you could score _Spark a Rebellion_.",
                         buttons2);
             }
-            if (player.getSecretsUnscored().containsKey("btv") && tile.isAnomaly(game)) {
+            if (player.getSecretsUnscored().containsKey("btv") && tile.isAnomaly(game, player)) {
                 MessageHelper.sendMessageToChannel(
                         player.getCardsInfoThread(),
                         msg + ", a reminder that if you win the combat, you could score _Brave the Void_.",
@@ -911,21 +966,13 @@ public class StartCombatService {
                         buttons);
             }
             if ("space".equalsIgnoreCase(type) && player.hasUnexhaustedLeader("kaloraagent")) {
-                buttons = new ArrayList<>();
-                buttons.add(Buttons.gray(
-                        player.factionButtonChecker() + "exhaustAgent_kaloraagent",
-                        "Use Valzor, the Kalora Agent",
-                        FactionEmojis.kalora));
-                MessageHelper.sendMessageToChannelWithButtons(
-                        player.getCardsInfoThread(),
-                        msg
-                                + ", a reminder that at the end of this space combat, you may exhaust the Kalora agent to allow a participating player to gain 1 command token.",
-                        buttons);
+                KaloraLeaderHandler.offerKaloraAgentButtons(player, msg);
             }
-            if ("space".equalsIgnoreCase(type)
-                    && (player.getLeaderIDs().contains("arvaxicommander")
-                            || game.playerHasLeaderUnlockedOrAlliance(player, "arvaxicommander"))) {
-                ArvaxiCommanderHandler.sendCombatButtons(player, otherPlayer, game, msg);
+            if ("space".equalsIgnoreCase(type) && ButtonHelper.doesPlayerHaveFSHere("onyxxa_flagship", player, tile)) {
+                OnyxxaUnitHandler.offerFlagshipWinButton(player, msg);
+            }
+            if ("space".equalsIgnoreCase(type) && game.playerHasLeaderUnlockedOrAlliance(player, "arvaxicommander")) {
+                ArvaxiLeaderHandler.sendCombatButtons(player, otherPlayer, game, msg);
             }
             if (player.hasTechReady("dskortg") && CommandCounterHelper.hasCC(player, tile)) {
                 buttons = new ArrayList<>();
@@ -947,16 +994,10 @@ public class StartCombatService {
             if (player.hasUnlockedBreakthrough("zephyrionbt")
                     && "space".equalsIgnoreCase(type)
                     && ButtonHelper.isTileInOrAdjacentToPlayersHome(game, tile, otherPlayer, player)) {
-                buttons = new ArrayList<>();
-                buttons.add(Buttons.gray(
-                        player.factionButtonChecker() + "zephyrionbtRes_" + otherPlayer.getFaction(),
-                        "Resolve Subdue Chancellor (Upon Win)",
-                        FactionEmojis.zephyrion));
-                MessageHelper.sendMessageToChannelWithButtons(
-                        player.getCardsInfoThread(),
-                        msg
-                                + ", a reminder that if you win this space combat, you may resolve _Subdue Chancellor_ to draw an unused agent.",
-                        buttons);
+                ZephyrionBreakthroughHandler.offerBtCombatButtons(player, otherPlayer, game, msg);
+            }
+            if (player.hasTechReady("bakalor") && "space".equalsIgnoreCase(type) && !tile.isHomeSystem(game)) {
+                KaloraAbilityHandler.chitinShielding(player, otherPlayer, game);
             }
             if (player.hasAbility("technological_singularity")
                     && !otherPlayer.isDummy()
@@ -1194,6 +1235,28 @@ public class StartCombatService {
                             player.getRepresentationUnfogged()
                                     + " Reminder that you have the Metal Void Armaments relic to use AFB 3x6.");
                 }
+                if (player.hasTech("tf-projectionofpow")) {
+                    MessageHelper.sendMessageToChannel(
+                            threadChannel,
+                            player.getRepresentationUnfogged()
+                                    + " Reminder that you have the Projection of Power to use AFB 2x6.");
+                }
+                if (player.hasAbility("projection_of_power")) {
+                    boolean adj = false;
+                    for (Tile tile2 : ButtonHelper.getTilesOfPlayersSpecificUnits(game, player, UnitType.Spacedock)) {
+                        if (FoWHelper.getAdjacentTiles(game, tile2.getPosition(), player, false, true)
+                                .contains(tile.getPosition())) {
+                            adj = true;
+                            break;
+                        }
+                    }
+                    if (adj) {
+                        MessageHelper.sendMessageToChannel(
+                                threadChannel,
+                                player.getRepresentationUnfogged()
+                                        + " Reminder that you have the Projection of Power to use AFB 1x6.");
+                    }
+                }
                 if ((ButtonHelper.doesPlayerHaveMechHere("naalu_mech_omega", player, tile)
                                 && !ButtonHelper.isLawInPlay(game, "articles_war"))
                         || ButtonHelper.doesPlayerHaveFSHere("sigma_naalu_flagship_1", player, tile)
@@ -1330,6 +1393,13 @@ public class StartCombatService {
             buttons.add(Buttons.gray("startFacsimile_" + tile.getPosition(), "Facsimile", FactionEmojis.mortheus));
         }
 
+        // Facet
+        if (CrystellumLeadersHandler.canUseCrystellumHero(p1)) {
+            buttons.add(CrystellumLeadersHandler.getCrystellumHeroButton(p1, tile));
+        } else if (CrystellumLeadersHandler.canUseCrystellumHero(p2)) {
+            buttons.add(CrystellumLeadersHandler.getCrystellumHeroButton(p2, tile));
+        }
+
         // mercenaries
         Player florzen = Helper.getPlayerFromAbility(game, "mercenaries");
         if (florzen != null && FoWHelper.playerHasFightersInAdjacentSystems(florzen, tile, game)) {
@@ -1442,6 +1512,12 @@ public class StartCombatService {
                         "Use Titans " + (agentHolder.hasUnexhaustedLeader("yssarilagent") ? "Clever Clever " : "")
                                 + "Agent",
                         FactionEmojis.Titans));
+            }
+            if ((!game.isFowMode() || agentHolder == p1) && agentHolder.hasRelicReady("heartofixth")) {
+                buttons.add(Buttons.blue(
+                        factionChecker + "exhaustRelic_heartofixth",
+                        "Exhaust Heart of Ixth",
+                        agentHolder.getFactionEmoji()));
             }
             if ((!game.isFowMode() || agentHolder == p1) && agentHolder.hasUnexhaustedLeader("gheminaagent")) {
                 buttons.add(Buttons.gray(
@@ -2256,6 +2332,11 @@ public class StartCombatService {
                         String id = p.factionButtonChecker() + "magenHit_" + unitH.getName();
                         String label = "Use Magen Defense Grid on " + nameOfHolder;
                         buttons.add(Buttons.gray(id, label, TechEmojis.WarfareTech));
+                    }
+                    if (p.hasTech("tf-stealthcorps") && game.getActivePlayer() == p && isGroundCombat) {
+                        String id = p.factionButtonChecker() + "stealthcorpsHit_" + unitH.getName();
+                        String label = "Use Stealth Corps on " + nameOfHolder;
+                        buttons.add(Buttons.gray(id, label, FactionEmojis.tnelis));
                     }
                     if (p.hasUnit("tk-blacktrenchbulwark")
                             && unitH.getUnitCount(Units.UnitType.Pds, p.getColor()) > 0) {

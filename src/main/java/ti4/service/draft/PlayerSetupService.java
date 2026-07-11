@@ -12,6 +12,11 @@ import net.dv8tion.jda.api.entities.MessageEmbed;
 import net.dv8tion.jda.api.events.interaction.GenericInteractionCreateEvent;
 import org.apache.commons.lang3.StringUtils;
 import ti4.discord.interactions.buttons.Buttons;
+import ti4.discord.interactions.buttons.handlers.faction.homebrew.beans.natau.NatauAbilityHandler;
+import ti4.discord.interactions.buttons.handlers.faction.homebrew.luminous.opa.OpaAbilitiesHandler;
+import ti4.discord.interactions.buttons.handlers.faction.homebrew.theodisi.Arcanum.ArcanumAbilityHandler;
+import ti4.discord.interactions.buttons.handlers.faction.homebrew.theodisi.LostLegaciesStartingTechsHandler;
+import ti4.discord.interactions.buttons.handlers.faction.homebrew.theodisi.Revenant.RevenantAbilityHandler;
 import ti4.discord.interactions.commands.tokens.AddTokenCommand;
 import ti4.game.Game;
 import ti4.game.Player;
@@ -310,7 +315,9 @@ public class PlayerSetupService {
         PromissoryNoteHelper.sendPromissoryNoteInfo(game, player, false, event);
 
         if (player.getTechs().isEmpty() && !player.getFaction().contains("sardakk")) {
-            if (player.getFaction().contains("keleres")) {
+            if (LostLegaciesStartingTechsHandler.offerStartingTechButtons(game, player, null)) {
+                // Lost Legacies starting-tech restrictions are handled by their faction handler.
+            } else if (player.getFaction().contains("keleres")) {
                 Button getTech = Buttons.green(
                         player.factionButtonChecker() + "getKeleresTechOptions", "Get Keleres Technology Options");
                 String msg = player.getRepresentationUnfogged()
@@ -410,6 +417,10 @@ public class PlayerSetupService {
                     "Set mech unit maximum to 6 for " + player.getRepresentation()
                             + ", due to their **Machine Cult** ability.");
         }
+        if (player.hasAbility("occupational_hazard")) {
+            game.setStoredValue("opaBelterWayResolved", "");
+            OpaAbilitiesHandler.offerOccupationalHazardButtons(game, player);
+        }
         if (game.isAgeOfFightersMode()) {
             String tech = "ff2";
             for (String factionTech : player.getNotResearchedFactionTechs()) {
@@ -501,11 +512,31 @@ public class PlayerSetupService {
                     "Set mech unit maximum to 6 for " + player.getRepresentation()
                             + ", due to their **Mechanized Military** ability.");
         }
+        if (player.hasAbility("doctrine") && player.hasAbility("paradigm") && player.hasAbility("natau_decree")) {
+            NatauAbilityHandler.offerDoctrineSetupButtons(event, game, player);
+        }
+        if (player.hasAbility("primordial_secrets")) {
+            ArcanumAbilityHandler.offerPrimordialSecretsButtons(game, player);
+        }
+        if (player.hasAbility("call_of_the_haunted")) {
+            RevenantAbilityHandler.offerCallOfTheHauntedButtons(game, player);
+        }
+        if (player.hasAbility("factory_lease")) {
+            MessageHelper.sendMessageToChannel(
+                    player.getCorrectChannel(),
+                    player.getRepresentation()
+                            + " added the three \"Factory Lease\" promissory notes to their reinforcements.");
+        }
+        if (player.hasAbility("cycle_of_reclamation")) {
+            MessageHelper.sendMessageToChannel(
+                    player.getCorrectChannel(),
+                    player.getRepresentation() + " added the 5 _Moon Phase_ cards to their play area.");
+        }
         CardsInfoService.sendVariousAdditionalButtons(game, player);
 
         if (!game.isFowMode()) {
             MessageHelper.sendMessageToChannel(
-                    game.getMainGameChannel(), "Player: " + player.getRepresentation() + " has been set up");
+                    game.getMainGameChannel(), "Player: " + player.getRepresentationNoPing() + " has been set up");
         } else {
             MessageHelper.sendMessageToChannel(event.getMessageChannel(), "Player was set up.");
         }

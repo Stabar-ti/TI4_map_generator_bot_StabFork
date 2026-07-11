@@ -22,8 +22,7 @@ import org.apache.commons.lang3.StringUtils;
 import ti4.contest.replay.core.CombatReplayTrackedEvent;
 import ti4.contest.replay.service.CombatReplayService;
 import ti4.discord.interactions.buttons.Buttons;
-import ti4.discord.interactions.buttons.handlers.agenda.VoteButtonHandler;
-import ti4.discord.interactions.buttons.handlers.faction.homebrew.whispers.arvaxi.ArvaxiAgentButtonHandler;
+import ti4.discord.interactions.buttons.handlers.faction.homebrew.whispers.arvaxi.ArvaxiLeaderHandler;
 import ti4.discord.interactions.commands.CommandHelper;
 import ti4.discord.interactions.routing.ButtonHandler;
 import ti4.game.Game;
@@ -55,6 +54,10 @@ import ti4.service.leader.CommanderUnlockCheckService;
 import ti4.service.turn.StartTurnService;
 import ti4.service.unit.AddUnitService;
 import ti4.spring.context.SpringContext;
+import ti4.spring.service.gameevent.GameEventDraft;
+import ti4.spring.service.gameevent.GameEventService;
+import ti4.spring.service.gameevent.GameEventType;
+import ti4.spring.service.gameevent.GameSubEvent;
 
 @UtilityClass
 public class ActionCardHelper {
@@ -752,6 +755,14 @@ public class ActionCardHelper {
             }
         }
         recordTrackedActionCardPlay(game, player, actionCardTitle);
+        if (!GameEventDraft.stage(
+                game, new GameSubEvent.ActionCardPlayed(player.getFaction(), acID, actionCardTitle))) {
+            GameEventService.commit(
+                    game,
+                    GameEventType.CARD_PLAY_ACTION_CARD,
+                    player,
+                    Map.of("cardId", acID, "cardName", actionCardTitle));
+        }
 
         boolean hasUnyieldingWill = player.hasTech("baarvag");
         boolean actionCardIsCancelable = isActionCardCancelable(actionCard) && !twinned && !hasUnyieldingWill;
@@ -1094,6 +1105,16 @@ public class ActionCardHelper {
 
             if ("survey".equals(automationID)) {
                 codedButtons.add(Buttons.green(player.factionButtonChecker() + "resolveSurvey", buttonLabel));
+                MessageHelper.sendMessageToChannelWithButtons(channel2, introMsg, codedButtons);
+            }
+
+            if ("prisoners_of_war".equals(automationID)) {
+                codedButtons.add(Buttons.green(player.factionButtonChecker() + "resolvePrisonersOfWar", buttonLabel));
+                MessageHelper.sendMessageToChannelWithButtons(channel2, introMsg, codedButtons);
+            }
+
+            if ("mobilization".equals(automationID)) {
+                codedButtons.add(Buttons.green(player.factionButtonChecker() + "resolveMobilization", buttonLabel));
                 MessageHelper.sendMessageToChannelWithButtons(channel2, introMsg, codedButtons);
             }
 
@@ -1976,7 +1997,7 @@ public class ActionCardHelper {
                             riderButtons);
                     for (Player p2 : game.getRealPlayers()) {
                         if (!game.getStoredValue("preVoting" + p2.getFaction()).isEmpty()) {
-                            VoteButtonHandler.erasePreVoteDueToAfterPlay(p2, game);
+                            AgendaWhensAftersHelper.erasePreVoteDueToAfterPlay(p2, game);
                         }
                     }
                 }
@@ -2009,7 +2030,7 @@ public class ActionCardHelper {
                             channel2, introMsg + String.format(targetMsg, "player"), codedButtons);
                     for (Player p2 : game.getRealPlayers()) {
                         if (!game.getStoredValue("preVoting" + p2.getFaction()).isEmpty()) {
-                            VoteButtonHandler.erasePreVoteDueToAfterPlay(p2, game);
+                            AgendaWhensAftersHelper.erasePreVoteDueToAfterPlay(p2, game);
                         }
                     }
                 }
@@ -2043,7 +2064,7 @@ public class ActionCardHelper {
                     MessageHelper.sendMessageToChannelWithButtons(channel2, message2, buttons2);
                 }
             }
-            ArvaxiAgentButtonHandler.postInitialButtons(game, player, acID);
+            ArvaxiLeaderHandler.postAgentOfferButtons(game, player, acID);
         }
 
         // Fog of war ping

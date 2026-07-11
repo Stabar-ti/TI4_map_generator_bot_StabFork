@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import lombok.experimental.UtilityClass;
 import net.dv8tion.jda.api.components.buttons.Button;
@@ -16,8 +17,10 @@ import org.apache.commons.lang3.function.Consumers;
 import ti4.contest.replay.service.CombatReplayService;
 import ti4.discord.interactions.buttons.Buttons;
 import ti4.discord.interactions.buttons.handlers.faction.homebrew.beans.ashen.AshenLeadersHandler;
+import ti4.discord.interactions.buttons.handlers.faction.homebrew.beans.natau.NatauDoctrineHandler;
 import ti4.discord.interactions.buttons.handlers.faction.homebrew.beans.ta.TaFactionTechHandler;
-import ti4.discord.interactions.buttons.handlers.faction.homebrew.whispers.zephyrion.ZephyrionBountyButtonHandler;
+import ti4.discord.interactions.buttons.handlers.faction.homebrew.whispers.tyris.TyrisAbilityHandler;
+import ti4.discord.interactions.buttons.handlers.faction.homebrew.whispers.zephyrion.ZephyrionBountyHandler;
 import ti4.discord.interactions.routing.ButtonHandler;
 import ti4.game.Game;
 import ti4.game.Player;
@@ -39,6 +42,7 @@ import ti4.helpers.StringHelper;
 import ti4.helpers.Units;
 import ti4.helpers.Units.UnitType;
 import ti4.helpers.ignis_aurora.IgnisAuroraHelperTechs;
+import ti4.helpers.thundersedge.TeHelperActionCards;
 import ti4.helpers.thundersedge.TeHelperTechs;
 import ti4.image.Mapper;
 import ti4.logging.BotLogger;
@@ -64,6 +68,10 @@ import ti4.service.unit.AddUnitService;
 import ti4.service.unit.CheckUnitContainmentService;
 import ti4.settings.users.UserSettingsManager;
 import ti4.spring.context.SpringContext;
+import ti4.spring.service.gameevent.GameEventDraft;
+import ti4.spring.service.gameevent.GameEventService;
+import ti4.spring.service.gameevent.GameEventType;
+import ti4.spring.service.gameevent.GameSubEvent;
 
 @UtilityClass
 public class PlayerTechService {
@@ -87,7 +95,7 @@ public class PlayerTechService {
                 message += "\nAutomatically flipped _The Queens’ Wrath_ and applied Tribune dreadnoughts.";
             }
         }
-        CommanderUnlockCheckService.checkPlayer(player, "mirveda", "jolnar", "nekro", "dihmohn");
+        CommanderUnlockCheckService.checkPlayer(player, "mirveda", "jolnar", "nekro", "dihmohn", "kryxos", "arcanum");
         MessageHelper.sendMessageToEventChannel(event, message);
     }
 
@@ -226,6 +234,9 @@ public class PlayerTechService {
         }
 
         player.exhaustTech(tech);
+        if (!GameEventDraft.stage(game, new GameSubEvent.TechExhausted(player.getFaction(), tech))) {
+            GameEventService.commit(game, GameEventType.CARD_PLAY_TECH_EXHAUST, player, Map.of("cardId", tech));
+        }
 
         // Handle Ignis Aurora Techs
         if (tech.startsWith("baldrick_")) {
@@ -330,6 +341,8 @@ public class PlayerTechService {
             }
             case "td", "absol_td" -> // Transit Diodes
                 ButtonHelper.resolveTransitDiodesStep1(game, player);
+            case "batyriy" -> // Temporal Displacement
+                TyrisAbilityHandler.resolveTemporalDisplacementStep1(game, player);
             case "miltymod_hm" -> { // MiltyMod Hyper Metabolism (Gain a CC)
                 Button gainCC = Buttons.green(
                         player.factionButtonChecker() + "gain_CCdeletethismessage", "Gain Command Tokens");
@@ -366,7 +379,31 @@ public class PlayerTechService {
                             .queue(Consumers.nop(), BotLogger::catchRestError);
                 }
             }
-            case "pi", "absol_pi" -> { // Predictive Intelligence
+            case "tf-singularitypoint" -> {
+                deleteTheOneButtonIfButtonEvent(event);
+                List<Button> buttons = new ArrayList<>();
+                for (Tile tile : game.getTileMap().values()) {
+                    boolean adjToUnits = false;
+                    for (String pos2 : FoWHelper.getAdjacentTiles(game, tile.getPosition(), player, false, true)) {
+                        Tile tile2 = game.getTileByPosition(pos2);
+                        if (tile2.containsPlayersUnits(player)) {
+                            adjToUnits = true;
+                            break;
+                        }
+                    }
+                    if (adjToUnits) {
+                        buttons.add(Buttons.green(
+                                "nivynMechStep2_" + tile.getPosition(),
+                                tile.getRepresentationForButtons(game, player)));
+                    }
+                }
+                MessageHelper.sendMessageToChannelWithButtons(
+                        player.getCorrectChannel(),
+                        player.getRepresentationUnfogged()
+                                + ", please choose the system where you wish to place the **Wound** token.",
+                        buttons);
+            }
+            case "pi", "absol_pi", "tf-predictivecommand" -> { // Predictive Intelligence
                 deleteTheOneButtonIfButtonEvent(event);
                 Button deleteButton =
                         Buttons.red("FFCC_" + player.getFaction() + "_deleteButtons", "Delete These Buttons");
@@ -375,7 +412,37 @@ public class PlayerTechService {
                         event.getMessageChannel(), message, List.of(Buttons.REDISTRIBUTE_CCs, deleteButton));
             }
             case "dsvadeb" -> ButtonHelperFactionSpecific.resolveVadenTgForSpeed(player, event);
-            case "bazephy" -> ZephyrionBountyButtonHandler.offerBountyButtons(game, player);
+            case "bazephy" -> ZephyrionBountyHandler.offerBountyButtons(game, player);
+            case "tf-mercenarycaptains" -> {
+                TeHelperActionCards.beginPirates(game, player, "resolveNokarBt", 0, false);
+            }
+            case "tf-radiantsigils" -> {
+                MessageHelper.sendMessageToChannel(
+                        player.getCorrectChannel(),
+                        player.getRepresentation()
+                                + " unfortunately at this time I am too lazy to offer an elegant solution to this tech. Use ./add_token token:sigil tile_name: to add the sigil, and /remove_token if you're moving it from somewhere.");
+            }
+            case "tf-oracularalgorithms" -> {
+                List<Button> buttons = new ArrayList<>();
+                for (int loc = 1; loc <= game.getPublicObjectives1Peekable().size(); loc++) {
+                    String id = player.factionButtonChecker() + "foretellPeak_1_" + loc + "_oracular";
+                    String label = "Stage 1, Position " + loc;
+                    buttons.add(Buttons.green(id, label, CardEmojis.Public1alt));
+                }
+                for (int loc = 1; loc <= game.getPublicObjectives2Peekable().size(); loc++) {
+                    String id = player.factionButtonChecker() + "foretellPeak_2_" + loc + "_oracular";
+                    String label = "Stage 2, Position " + loc;
+                    buttons.add(Buttons.blue(id, label, CardEmojis.Public2alt));
+                }
+                buttons.add(Buttons.DONE_DELETE_BUTTONS.withLabel("Done Peeking"));
+                MessageHelper.sendMessageToChannelWithButtons(
+                        player.getCorrectChannel(),
+                        player.getRepresentationNoPing() + " use buttons to resolve.",
+                        buttons);
+                MessageHelper.sendMessageToChannel(
+                        game.getMainGameChannel(),
+                        "## A rules note: the speaker can choose which objective to reveal during status phase. Normally this doesnt matter, but if certain objectives have been peeked at, the speaker can purposely choose to reveal or not reveal those particular objectives (provided there are other valid options to choose from).");
+            }
             case "mi" -> { // Mageon
                 deleteIfButtonEvent(event);
                 List<Button> buttons = getMageonImplantsButtons(game, player);
@@ -397,7 +464,7 @@ public class PlayerTechService {
                 MessageHelper.sendMessageToChannelWithButtons(event.getMessageChannel(), message, buttons);
                 sendNextActionButtonsIfButtonEvent(event, game, player);
             }
-            case "dslaneb" -> {
+            case "dslaneb", "tf-dslaneb" -> {
                 deleteIfButtonEvent(event);
                 MessageHelper.sendMessageToChannel(
                         player.getCorrectChannel(),
@@ -649,6 +716,8 @@ public class PlayerTechService {
             CommanderUnlockCheckService.checkPlayer(player, "zealots");
         }
         player.addTech(techID);
+        GameEventService.commit(
+                game, GameEventType.TECH_RESEARCHED, player, Map.of("techId", techID, "paymentType", paymentType));
         if (techM.isUnitUpgrade()) {
             AshenLeadersHandler.offerCommanderPlacementButtons(event, game, player, techM);
             if (player.hasUnexhaustedLeader("mirvedaagent") && player.getStrategicCC() > 0) {
@@ -787,7 +856,7 @@ public class PlayerTechService {
             MessageHelper.sendMessageToChannel(player.getCorrectChannel(), text);
             MessageHelper.sendMessageToChannelWithButtons(player.getCorrectChannel(), buttonText, buttons);
         }
-        CommanderUnlockCheckService.checkPlayer(player, "jolnar", "nekro", "mirveda", "dihmohn");
+        CommanderUnlockCheckService.checkPlayer(player, "jolnar", "nekro", "mirveda", "dihmohn", "kryxos", "arcanum");
 
         if (game.isTwilightsFallMode()
                 && game.getRound() == 1
@@ -850,6 +919,14 @@ public class PlayerTechService {
             List<Button> buttons2 =
                     new ArrayList<>(Helper.getPlanetPlaceUnitButtons(player, game, "mech", "placeOneNDone_skipbuild"));
             MessageHelper.sendMessageToChannelWithButtons(player.getCardsInfoThread(), message2, buttons2);
+        }
+        if (NatauDoctrineHandler.canUseKnowledgeExhaust(player)
+                && !NatauDoctrineHandler.eligibleKnowledgePlanets(player).isEmpty()) {
+            MessageHelper.sendMessageToChannelWithButton(
+                    player.getCorrectChannel(),
+                    player.getRepresentationUnfogged()
+                            + ", after researching a technology, you may exhaust _Knowledge_ and 1 planet you control that has a technology specialty to research a technology of that color.",
+                    NatauDoctrineHandler.getUseKnowledgeButton(player));
         }
 
         ButtonHelper.deleteMessage(event);

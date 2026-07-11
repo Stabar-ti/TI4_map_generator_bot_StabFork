@@ -10,8 +10,8 @@ import net.dv8tion.jda.api.entities.emoji.Emoji;
 import net.dv8tion.jda.api.events.interaction.component.ButtonInteractionEvent;
 import org.apache.commons.lang3.function.Consumers;
 import ti4.discord.interactions.buttons.Buttons;
-import ti4.discord.interactions.buttons.handlers.faction.homebrew.whispers.onyxxa.OnyxxaBreakthroughButtonHandler;
-import ti4.discord.interactions.buttons.handlers.faction.homebrew.whispers.onyxxa.OnyxxaCommanderButtonHandler;
+import ti4.discord.interactions.buttons.handlers.faction.homebrew.whispers.onyxxa.OnyxxaBreakthroughHandler;
+import ti4.discord.interactions.buttons.handlers.faction.homebrew.whispers.onyxxa.OnyxxaLeaderHandler;
 import ti4.discord.interactions.routing.ButtonHandler;
 import ti4.game.Game;
 import ti4.game.Planet;
@@ -259,7 +259,18 @@ public class TeHelperActionCards {
         game.removeStoredValue("coexistFlag");
 
         String message = player.getRepresentation() + " placed an infantry into coexistence on the planet of "
-                + Helper.getPlanetRepresentation(planet, game) + ".";
+                + Helper.getPlanetRepresentation(planet, game) + ". ";
+
+        Player owner = null;
+        for (Player p : game.getRealPlayers()) {
+            if (p.getPlanets().contains(planet)) {
+                owner = p;
+            }
+        }
+        if (owner != null && !game.isFowMode()) {
+            message += owner.getRepresentation()
+                    + " since this is your planet, you are getting a ping here to let you know.";
+        }
         MessageHelper.sendMessageToChannel(player.getCorrectChannel(), message);
         ButtonHelper.deleteMessage(event);
         ButtonHelperAbilities.oceanBoundCheck(game);
@@ -280,7 +291,7 @@ public class TeHelperActionCards {
         ButtonHelper.deleteMessage(event);
     }
 
-    public static List<Button> getReadiedStrategyCardSecondaryButtons(Game game) {
+    public static List<Button> getReadiedStrategyCardSecondaryButtons(Game game, Player player) {
         List<Button> buttons = new ArrayList<>();
 
         if (game.getScPlayed().get(1) == null || !game.getScPlayed().get(1)) {
@@ -303,7 +314,11 @@ public class TeHelperActionCards {
             buttons.add(Buttons.green("warfareBuild", "Build At Home", CardEmojis.SC6));
         }
         if (game.getScPlayed().get(7) == null || !game.getScPlayed().get(7)) {
-            buttons.add(Buttons.GET_A_TECH.withEmoji(CardEmojis.SC7.asEmoji()));
+            if (player.hasAbility("propagation")) {
+                buttons.add(Buttons.green("leadershipGenerateCCButtons_", "Gain 3 Command Tokens (for Nekro)"));
+            } else {
+                buttons.add(Buttons.GET_A_TECH.withEmoji(CardEmojis.SC7.asEmoji()));
+            }
         }
         if (game.getScPlayed().get(8) == null || !game.getScPlayed().get(8)) {
             buttons.add(Buttons.green("non_sc_draw_so", "Draw Secret Objective", CardEmojis.SecretObjective));
@@ -314,23 +329,27 @@ public class TeHelperActionCards {
 
     @ButtonHandler("strategize")
     private static void resolveStrategize(Game game, Player player, ButtonInteractionEvent event) {
-        List<Button> buttons = getReadiedStrategyCardSecondaryButtons(game);
+        List<Button> buttons = getReadiedStrategyCardSecondaryButtons(game, player);
 
         String message = player.getRepresentationUnfogged() + ", please resolve _Strategize_ using these buttons.";
         String msg2 = player.getRepresentation()
                 + ", A strategy token was auto deducted (if possible) due to so many people forgetting to do so. If you end up resolving leadership, please gain it back (the bot wont make you pay for it).";
         if (player.getStrategicCC() > 0) {
+
             player.setStrategicCC(player.getStrategicCC() - 1);
             ButtonHelperCommanders.resolveMuaatCommanderCheck(player, game, event);
+        } else {
+            msg2 = player.getRepresentation()
+                    + ", you have no strategy tokens to deduct, so the bot did not deduct one. You should probably only resolve leadership.";
         }
         buttons.add(Buttons.red("deleteButtons", "Done Resolving"));
         MessageHelper.sendMessageToChannelWithButtons(player.getCorrectChannel(), message, buttons);
         MessageHelper.sendMessageToChannel(player.getCorrectChannel(), msg2);
         if (player.hasUnlockedBreakthrough("onyxxabt")) {
-            OnyxxaBreakthroughButtonHandler.offerSCRollButton(game, player);
+            OnyxxaBreakthroughHandler.offerSCRollButton(game, player);
         }
         if (!player.hasLeaderUnlocked("onyxxacommander") && "onyxxa".equals(player.getFaction())) {
-            OnyxxaCommanderButtonHandler.offerCommanderUnlockButton(player);
+            OnyxxaLeaderHandler.offerCommanderUnlockButton(player);
         }
         ButtonHelper.deleteMessage(event);
     }
@@ -344,7 +363,7 @@ public class TeHelperActionCards {
                         && !player.getPlanetsAllianceMode().contains(p.getName()))
                 .filter(p -> game.getTileFromPlanet(p.getName()) != null)
                 .filter(p -> game.getUnitHolderFromPlanet(p.getName()) != null
-                        && !game.getUnitHolderFromPlanet(p.getName()).isSpaceStation()
+                        && !game.getUnitHolderFromPlanet(p.getName()).isSpaceStation(game)
                         && !p.getTokenList().contains("dmz")
                         && !p.getTokenList().contains("dmz_large"))
                 .map(p -> {

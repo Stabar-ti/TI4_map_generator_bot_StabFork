@@ -4,7 +4,9 @@ import java.util.List;
 import java.util.Map.Entry;
 import lombok.experimental.UtilityClass;
 import ti4.discord.interactions.buttons.handlers.faction.homebrew.beans.DreamButtonHandler;
+import ti4.discord.interactions.buttons.handlers.faction.homebrew.beans.crystellum.CrystellumLeadersHandler;
 import ti4.discord.interactions.buttons.handlers.faction.homebrew.beans.ta.TaAbilityHandler;
+import ti4.discord.interactions.buttons.handlers.faction.homebrew.theodisi.LostLegaciesCommanderUnlockHandler;
 import ti4.game.Game;
 import ti4.game.Planet;
 import ti4.game.Player;
@@ -262,7 +264,7 @@ public class CommanderUnlockCheckService {
             case "atokera", "belkosea", "pharadn", "qhet", "toldar", "uydai", "kaltrim" -> shouldBeUnlocked = true;
 
             // Balacasi
-            case "arvaxi" -> shouldBeUnlocked = true;
+            case "arvaxi", "kalora" -> shouldBeUnlocked = true;
             case "lunarium" ->
                 shouldBeUnlocked = (ButtonHelper.getNumberOfUnitsOnTheBoard(game, player, "carrier", false) >= 4);
             case "tyris" ->
@@ -288,6 +290,24 @@ public class CommanderUnlockCheckService {
             case "ta" -> shouldBeUnlocked = (TaAbilityHandler.getControlledPlanetCountWithAnyDesign(player, game) >= 4);
             case "netrunners" ->
                 shouldBeUnlocked = (ButtonHelper.getNumberOfUnitsOnTheBoard(game, player, "pds", false) >= 4);
+            case "crystellum" ->
+                shouldBeUnlocked =
+                        (CrystellumLeadersHandler.getCrystellumCommanderCapacitySystemCount(game, player) >= 3);
+            case "natau" -> {
+                int qualifyingSystems = 0;
+                for (Tile tile : CheckUnitContainmentService.getTilesContainingPlayersUnits(game, player)) {
+                    if (tile.isAnomaly(game, player)
+                            || FoWHelper.isTileAdjacentToAnAnomaly(game, tile.getPosition(), player)) {
+                        qualifyingSystems++;
+                    }
+                }
+                shouldBeUnlocked = (qualifyingSystems >= 3);
+            }
+
+            // theodisi
+            case "ardentia", "verydith", "myrr", "kairn", "kryxos", "arcanum" ->
+                shouldBeUnlocked =
+                        LostLegaciesCommanderUnlockHandler.meetsCommanderUnlockCondition(player, game, faction);
         }
         if (shouldBeUnlocked) {
             UnlockLeaderService.unlockLeader(leaderId, game, player);

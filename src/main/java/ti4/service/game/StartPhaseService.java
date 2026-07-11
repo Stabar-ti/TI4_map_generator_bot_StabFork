@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.StringJoiner;
@@ -18,6 +19,7 @@ import net.dv8tion.jda.api.utils.messages.MessageCreateData;
 import org.apache.commons.lang3.function.Consumers;
 import ti4.discord.interactions.buttons.Buttons;
 import ti4.discord.interactions.buttons.handlers.faction.homebrew.beans.DreamButtonHandler;
+import ti4.discord.interactions.buttons.handlers.faction.homebrew.whispers.arvaxi.ArvaxiAbilityHandler;
 import ti4.game.Game;
 import ti4.game.Leader;
 import ti4.game.Planet;
@@ -65,6 +67,7 @@ import ti4.service.emoji.TI4Emoji;
 import ti4.service.emoji.TechEmojis;
 import ti4.service.fow.FowCommunicationThreadService;
 import ti4.service.fow.GMService;
+import ti4.service.fow.LoreService;
 import ti4.service.info.ListPlayerInfoService;
 import ti4.service.info.ListTurnOrderService;
 import ti4.service.leader.PlayHeroService;
@@ -73,6 +76,8 @@ import ti4.service.planet.PlanetService;
 import ti4.service.strategycard.PickStrategyCardService;
 import ti4.service.turn.StartTurnService;
 import ti4.settings.users.UserSettingsManager;
+import ti4.spring.service.gameevent.GameEventService;
+import ti4.spring.service.gameevent.GameEventType;
 
 @UtilityClass
 public class StartPhaseService {
@@ -83,7 +88,10 @@ public class StartPhaseService {
             case "voting", "agendaVoting" -> AgendaHelper.startTheVoting(game);
             case "shuffleDecks" -> game.shuffleDecks();
             case "agenda" -> {
+                StatusHelper.commitStatusScoringEvent(game);
+                LoreService.showPhaseLore(game, "agenda"); // before setPhaseOfGame: END lore reads the old phase
                 game.setPhaseOfGame("agenda");
+                GameEventService.commit(game, GameEventType.PHASE_STARTED, null, Map.of("phase", "agenda"));
                 Button flipAgenda = Buttons.blue("flip_agenda", "Flip Agenda");
                 List<Button> buttons = List.of(flipAgenda);
                 MessageHelper.sendMessageToChannelWithButtons(
@@ -210,6 +218,10 @@ public class StartPhaseService {
     }
 
     public static void startStrategyPhase(GenericInteractionCreateEvent event, Game game) {
+        StatusHelper.commitStatusScoringEvent(game);
+        // Phase-end lore must fire before the round number increments below, so "end of round N"
+        // round gates see the round they close; the matching phase-START fires after setPhaseOfGame.
+        LoreService.showPhaseEndLore(game, "strategy");
         for (Player player2 : game.getRealPlayers()) {
             if (game.getStoredValue("SpecialSession") != null
                     && game.getStoredValue("SpecialSession").contains(player2.getFaction())
@@ -242,8 +254,9 @@ public class StartPhaseService {
         if (game.isHasHadAStatusPhase()) {
             round++;
             game.setRound(round);
+            GameEventService.commit(game, GameEventType.ROUND_STARTED, null, Map.of("round", round));
         }
-        if (game.getRound() == 1) {
+        if (game.getRound() == 1 && !game.isFowMode()) {
             Helper.setOrder(game);
             if (game.getActionsChannel() != null) {
                 for (ThreadChannel threadChannel : game.getActionsChannel().getThreadChannels()) {
@@ -392,7 +405,7 @@ public class StartPhaseService {
                             ", please choose up to 3 planets you wish to ready because of _Checks and Balances_ resolving \"Against\".";
                     buttons.add(Buttons.red("deleteButtons_spitItOut", "Done Readying Planets")); // spitItOut
                 }
-                MessageHelper.sendMessageToChannelWithButtons(player2.getCardsInfoThread(), message, buttons);
+                MessageHelper.sendMessageToChannelWithButtons(player2.getCorrectChannel(), message, buttons);
             }
             MessageHelper.sendMessageToChannel(
                     game.getMainGameChannel(), "Sent buttons to ready 3 planets due to _Checks and Balances_.");
@@ -545,7 +558,9 @@ public class StartPhaseService {
         String message = firstSCPicker.getRepresentationUnfogged() + " is up to pick a strategy card.";
         game.updateActivePlayer(firstSCPicker);
         game.setPhaseOfGame("strategy");
+        GameEventService.commit(game, GameEventType.PHASE_STARTED, null, Map.of("phase", "strategy"));
         GMService.logActivity(game, "**Strategy** Phase for Round " + game.getRound() + " started.", true);
+        LoreService.showPhaseStartLore(game, "strategy");
         FowCommunicationThreadService.checkAllCommThreads(game);
         SpinService.executeSpinsForTrigger(game, SpinService.AutoTrigger.STRATEGY);
         String pickSCMsg = " Please use the buttons to pick a strategy card.";
@@ -595,16 +610,7 @@ public class StartPhaseService {
             }
             if (player2.hasAbility("underhanded_maneuver")
                     && !player2.getNeighbouringPlayers(true).isEmpty()) {
-                List<Button> buttons = new ArrayList<>();
-                buttons.add(Buttons.gray(
-                        player2.factionButtonChecker() + "underhandedManeuverPickNeighbor",
-                        "Use Underhanded Maneuver",
-                        FactionEmojis.arvaxi));
-                buttons.add(Buttons.red("deleteButtons", "Decline"));
-                MessageHelper.sendMessageToChannelWithButtons(
-                        player2.getCardsInfoThread(),
-                        player2.getRepresentationUnfogged() + ", use buttons to resolve _Underhanded Maneuver_.",
-                        buttons);
+                ArvaxiAbilityHandler.offerUndHandManeuver(player2);
             }
             for (String pn : player2.getPromissoryNotes().keySet()) {
                 if (!player2.ownsPromissoryNote("scepter") && "scepter".equalsIgnoreCase(pn)) {
@@ -852,6 +858,7 @@ public class StartPhaseService {
     }
 
     public static void startStatusHomework(GenericInteractionCreateEvent event, Game game) {
+        StatusHelper.commitStatusScoringEvent(game);
         game.setPhaseOfGame("statusHomework");
         game.setStoredValue("startTimeOfRound" + game.getRound() + "StatusHomework", System.currentTimeMillis() + "");
         GMService.logActivity(game, "**StatusHomework** Phase for Round " + game.getRound() + " started.", true);
@@ -1134,7 +1141,9 @@ public class StartPhaseService {
     public static void startActionPhase(GenericInteractionCreateEvent event, Game game, boolean incrementTgs) {
         boolean isFowPrivateGame = game.isFowMode();
         game.setStoredValue("willRevolution", "");
+        LoreService.showPhaseLore(game, "action"); // before setPhaseOfGame: END lore reads the old phase
         game.setPhaseOfGame("action");
+        GameEventService.commit(game, GameEventType.PHASE_STARTED, null, Map.of("phase", "action"));
         GMService.logActivity(game, "**Action** Phase for Round " + game.getRound() + " started.", true);
         for (Player p2 : game.getRealPlayers()) {
             ButtonHelperActionCards.checkForAssigningExtremeDuress(game, p2);
@@ -1214,6 +1223,11 @@ public class StartPhaseService {
                     "All players have picked a strategy card.\n" + nextPlayer.getRepresentationNoPing()
                             + " is first in initiative order.");
             postSurveyResults(game);
+            if (game.isShowBanners()) {
+                BannerGenerator.drawPhaseBanner("action", game.getRound(), game.getActionsChannel());
+            }
+            ListTurnOrderService.turnOrder(event, game);
+            StartTurnService.turnStart(event, game, nextPlayer);
             for (Player p2 : game.getRealPlayers()) {
                 if (p2.hasTechReady("qdn") && p2.getTg() > 2 && p2.getStrategicCC() > 0) {
                     List<Button> buttons = new ArrayList<>();
@@ -1237,11 +1251,6 @@ public class StartPhaseService {
                     hold.append((hold.isEmpty()) ? "" : " or ").append("_Imperial Arbiter_");
                 }
             }
-            if (game.isShowBanners()) {
-                BannerGenerator.drawPhaseBanner("action", game.getRound(), game.getActionsChannel());
-            }
-            ListTurnOrderService.turnOrder(event, game);
-            StartTurnService.turnStart(event, game, nextPlayer);
         }
         for (Player p2 : game.getRealPlayers()) {
             if (!game.isFowMode()) {

@@ -1,6 +1,7 @@
 package ti4.helpers;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -11,9 +12,12 @@ import net.dv8tion.jda.api.entities.channel.middleman.MessageChannel;
 import net.dv8tion.jda.api.events.interaction.component.ButtonInteractionEvent;
 import ti4.discord.interactions.buttons.Buttons;
 import ti4.discord.interactions.buttons.handlers.faction.homebrew.beans.DreamButtonHandler;
+import ti4.discord.interactions.buttons.handlers.faction.homebrew.beans.crystellum.CrystellumLeadersHandler;
+import ti4.discord.interactions.buttons.handlers.faction.homebrew.beans.natau.NatauDoctrineHandler;
 import ti4.discord.interactions.buttons.handlers.faction.homebrew.beans.netrunners.NetrunnersAbilitiesHandler;
 import ti4.discord.interactions.buttons.handlers.faction.homebrew.beans.netrunners.NetrunnersUnitsHandler;
 import ti4.discord.interactions.buttons.handlers.faction.homebrew.beans.ta.TaUnitHandler;
+import ti4.discord.interactions.buttons.handlers.faction.homebrew.theodisi.Kairn.KairnPromissoryHandler;
 import ti4.discord.interactions.commands.tokens.AddTokenCommand;
 import ti4.discord.interactions.routing.ButtonHandler;
 import ti4.game.Game;
@@ -46,10 +50,17 @@ import ti4.service.tactical.TacticalActionService;
 import ti4.service.turn.StartTurnService;
 import ti4.service.unit.CheckUnitContainmentService;
 import ti4.settings.users.UserSettingsManager;
+import ti4.spring.service.gameevent.GameEventDraft;
+import ti4.spring.service.gameevent.GameEventService;
+import ti4.spring.service.gameevent.GameEventType;
+import ti4.spring.service.gameevent.GameSubEvent;
 
 public final class ButtonHelperTacticalAction {
 
+    public static final String TACTICAL_ACTION_LOGGED = "gameEventTacticalLogged";
+
     public static void endOfTacticalActionThings(Player player, Game game, ButtonInteractionEvent event) {
+        logTacticalAction(game, player);
         if (!game.isL1Hero() && !FOWPlusService.isVoid(game, game.getActiveSystem())) {
             RiftSetModeService.concludeTacticalAction(player, game, event);
             ButtonHelper.exploreDET(player, game, event);
@@ -113,6 +124,14 @@ public final class ButtonHelperTacticalAction {
                     MessageHelper.sendMessageToChannelWithButtons(player.getCorrectChannel(), msg, buttons);
                 }
             }
+            if (player.hasAbility("doctrine_discovery")
+                    && !player.getExhaustedAbilities().contains("doctrine_discovery")) {
+                MessageHelper.sendMessageToChannelWithButton(
+                        player.getCorrectChannel(),
+                        player.getRepresentationUnfogged()
+                                + ", you may exhaust _Discovery_ to explore a frontier token in a planetless system containing your ships.",
+                        NatauDoctrineHandler.getUseDiscoveryButton(player));
+            }
             if (!game.isAbsolMode()
                     && player.getRelics().contains("emphidia")
                     && !player.getExhaustedRelics().contains("emphidia")) {
@@ -133,8 +152,10 @@ public final class ButtonHelperTacticalAction {
             if (player.hasAbility("dream_nexus")) {
                 DreamButtonHandler.offerLiturgyButtons(event, game, player);
             }
+            CrystellumLeadersHandler.clearFacetBypass(game, player);
             resetStoredValuesForTacticalAction(game);
         }
+        game.setStoredValue(TACTICAL_ACTION_LOGGED, "yes");
     }
 
     @ButtonHandler("doneWithTacticalAction")
@@ -149,8 +170,9 @@ public final class ButtonHelperTacticalAction {
         String message = player.getRepresentationUnfogged() + ", use buttons to end turn, or do another action.";
         List<Button> systemButtons = StartTurnService.getStartOfTurnButtons(player, game, true, event);
         MessageChannel channel = event.getMessageChannel();
+        LoreService.showSpaceBattleLore(player, game, game.getActiveSystem());
+        LoreService.showSystemLore(player, game, game.getActiveSystem(), LoreService.TRIGGER.CONTROLLED);
         if (game.isFowMode()) {
-            LoreService.showSystemLore(player, game, game.getActiveSystem(), LoreService.TRIGGER.CONTROLLED);
             channel = player.getPrivateChannel();
         }
         MessageHelper.sendMessageToChannelWithButtons(channel, message, systemButtons);
@@ -291,7 +313,9 @@ public final class ButtonHelperTacticalAction {
                     "tyris",
                     "lunarium",
                     "zephyrion",
-                    "vyserix");
+                    "vyserix",
+                    "crystellum",
+                    "myrr");
             CommanderUnlockCheckService.checkAllPlayersInGame(game, "empyrean");
             CommanderUnlockCheckService.checkAllPlayersInGame(game, "cabal");
             CommanderUnlockCheckService.checkAllPlayersInGame(game, "naalu");
@@ -394,7 +418,9 @@ public final class ButtonHelperTacticalAction {
         game.setNaaluAgent(false);
         game.setWarfareAction(false);
         game.setL1Hero(false);
+        game.removeStoredValue(TACTICAL_ACTION_LOGGED);
         game.removeStoredValue("violatedSystems");
+        game.removeStoredValue("mercenarycaptaintrigged");
         game.removeStoredValue("vaylerianHeroActive");
         game.removeStoredValue("tnelisCommanderTracker");
         for (Player player : game.getRealPlayers()) {
@@ -407,8 +433,29 @@ public final class ButtonHelperTacticalAction {
         game.removeStoredValue("mentakHero");
         game.removeStoredValue("ghostagent_active");
         DreamButtonHandler.clearDreamAgentAnomaly(game);
+        GameEventDraft.clear(game);
 
         game.getTacticalActionDisplacement().clear();
+    }
+
+    public static void logTacticalAction(Game game, Player player) {
+        Map<String, Object> payload = new HashMap<>();
+        addIfNotEmpty(payload, "activeSystem", game.getActiveSystem());
+        addIfNotEmpty(payload, "planetsTaken", game.getStoredValue("planetsTakenThisRound"));
+        addIfNotEmpty(payload, "combat", game.getStoredValue("factionsInCombat"));
+        addIfNotEmpty(payload, "summary", game.getStoredValue("currentActionSummary" + player.getFaction()));
+        List<GameSubEvent> subEvents = GameEventDraft.drain(game);
+        if (!subEvents.isEmpty()) {
+            payload.put("subEvents", GameEventDraft.toJsonNode(subEvents));
+        }
+        String movementState = GameEventDraft.drainMovement(game);
+        GameEventService.commit(game, GameEventType.TACTICAL_ACTION, player, payload, movementState);
+    }
+
+    private static void addIfNotEmpty(Map<String, Object> payload, String key, String value) {
+        if (value != null && !value.isEmpty()) {
+            payload.put(key, value);
+        }
     }
 
     public static void beginTacticalAction(Game game, Player player) {
@@ -521,6 +568,7 @@ public final class ButtonHelperTacticalAction {
         StringBuilder message = new StringBuilder(player.getRepresentationNoPing() + " activated "
                 + tile.getRepresentationForButtons(game, player) + ".");
 
+        LoreService.showSystemLore(player, game, pos, LoreService.TRIGGER.ACTIVATED);
         if (!game.isFowMode()) {
             for (Player player_ : game.getRealPlayers()) {
                 if (!game.isL1Hero()
@@ -542,7 +590,6 @@ public final class ButtonHelperTacticalAction {
                 }
             }
         } else {
-            LoreService.showSystemLore(player, game, pos, LoreService.TRIGGER.ACTIVATED);
             for (Player player_ : game.getRealPlayers()) {
                 if (player_ == player
                         || !FoWHelper.getTilePositionsToShow(game, player_).contains(pos)) {
@@ -559,6 +606,7 @@ public final class ButtonHelperTacticalAction {
                 "currentActionSummary" + player.getFaction(),
                 game.getStoredValue("currentActionSummary" + player.getFaction()) + " Activated "
                         + tile.getRepresentationForButtons(game, player) + ".");
+        GameEventDraft.open(game);
         if ((game.playerHasLeaderUnlockedOrAlliance(player, "celdauricommander") || player.hasTech("tf-starbasewebway"))
                 && CheckUnitContainmentService.getTilesContainingPlayersUnits(game, player, UnitType.Spacedock)
                         .contains(tile)) {
@@ -836,6 +884,13 @@ public final class ButtonHelperTacticalAction {
                 DreamButtonHandler.offerDreamAgentButtons(game, player, player);
             }
         }
+        List<Planet> planetUnitHolders = tile.getPlanetUnitHolders();
+        if (!planetUnitHolders.isEmpty()
+                && planetUnitHolders.stream()
+                        .anyMatch(planet -> player.getPlanetsAllianceMode().contains(planet.getName())
+                                && planet.getAttachments().contains("attachment_kairnoutpost.png"))) {
+            KairnPromissoryHandler.offerArchaeologicalOutpostExplore(player, game, tile);
+        }
 
         // Send buttons to move
         MessageHelper.sendMessageToChannelWithButtons(
@@ -844,6 +899,9 @@ public final class ButtonHelperTacticalAction {
                 systemButtons);
 
         // Resolve other abilities
+        if (game.playerHasLeaderUnlockedOrAlliance(player, "crystellumcommander")) {
+            CrystellumLeadersHandler.giveCommanderReminder(player, game);
+        }
         if (player.hasAbility("recycled_materials")) {
             List<Button> buttons = ButtonHelperFactionSpecific.getRohDhnaRecycleButtons(game, tile, player);
             if (!buttons.isEmpty()) {

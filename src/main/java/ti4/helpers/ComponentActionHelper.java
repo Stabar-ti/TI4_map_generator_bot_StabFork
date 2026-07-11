@@ -2,6 +2,7 @@ package ti4.helpers;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import lombok.experimental.UtilityClass;
 import net.dv8tion.jda.api.components.buttons.Button;
 import net.dv8tion.jda.api.entities.channel.middleman.MessageChannel;
@@ -13,8 +14,7 @@ import org.apache.commons.lang3.function.Consumers;
 import software.amazon.awssdk.utils.StringUtils;
 import ti4.contest.replay.service.CombatReplayService;
 import ti4.discord.interactions.buttons.Buttons;
-import ti4.discord.interactions.buttons.handlers.agenda.VoteButtonHandler;
-import ti4.discord.interactions.buttons.handlers.faction.homebrew.whispers.tyris.TyrisCommanderButtonHandler;
+import ti4.discord.interactions.buttons.handlers.faction.homebrew.whispers.tyris.TyrisLeaderHandler;
 import ti4.discord.interactions.routing.ButtonHandler;
 import ti4.game.Game;
 import ti4.game.Leader;
@@ -47,6 +47,8 @@ import ti4.service.unit.AddUnitService;
 import ti4.service.unit.CheckUnitContainmentService;
 import ti4.service.unit.DestroyUnitService;
 import ti4.spring.context.SpringContext;
+import ti4.spring.service.gameevent.GameEventService;
+import ti4.spring.service.gameevent.GameEventType;
 
 @UtilityClass
 public class ComponentActionHelper {
@@ -77,6 +79,7 @@ public class ComponentActionHelper {
                 }
                 if ("tf-fabrication".equalsIgnoreCase(tech)
                         || "tf-orbitaldrop".equalsIgnoreCase(tech)
+                        || "tf-mantlecracking".equalsIgnoreCase(tech)
                         || "tf-stalltactics".equalsIgnoreCase(tech)) {
                     continue;
                 }
@@ -313,7 +316,16 @@ public class ComponentActionHelper {
                     if (enigmaticSeen) {
                         continue;
                     }
-                    rButton = Buttons.red(factionChecker + prefix + "relic_" + relic, "Purge Enigmatic Device");
+                    String label = "Purge Enigmatic Device";
+                    if (game.isTwilightsFallMode()) {
+                        if (p1.getTechs().contains("wavelength")
+                                && p1.getTechs().contains("antimatter")) {
+                            label += " (for 2 Command tokens)";
+                        } else {
+                            label += " (for faction tech)";
+                        }
+                    }
+                    rButton = Buttons.red(factionChecker + prefix + "relic_" + relic, label);
                     enigmaticSeen = true;
                 } else {
                     List<String> exhaustRelics = List.of(
@@ -401,12 +413,8 @@ public class ComponentActionHelper {
                     Buttons.green(factionChecker + prefix + "ability_orbitalDrop", "Orbital Drop", FactionEmojis.Sol);
             compButtons.add(abilityButton);
         }
-        if (game.playerHasLeaderUnlockedOrAlliance(p1, "tyriscommander")
-                && (p1.getStrategicCC() > 0 || p1.hasRelicReady("emelpar"))) {
-            compButtons.add(Buttons.green(
-                    factionChecker + prefix + "ability_tyrisCommanderMech",
-                    "Place Mech for 1 Token",
-                    FactionEmojis.tyris));
+        if (game.playerHasLeaderUnlockedOrAlliance(p1, "tyriscommander")) {
+            TyrisLeaderHandler.addCommanderActionButton(p1, factionChecker, prefix, compButtons);
         }
         if (p1.hasAbility("mutineers")
                 && !ButtonHelperAbilities.getTilesToMutineers(game, p1).isEmpty()
@@ -582,6 +590,7 @@ public class ComponentActionHelper {
             case "relic" -> resolveRelicComponentAction(game, p1, event, buttonID);
             case "pn" -> PromissoryNoteHelper.resolvePNPlay(buttonID, p1, game, event);
             case "ability" -> {
+                GameEventService.commit(game, GameEventType.CARD_PLAY_ABILITY, p1, Map.of("cardId", buttonID));
                 game.setStoredValue(
                         "currentActionSummary" + p1.getFaction(),
                         game.getStoredValue("currentActionSummary" + p1.getFaction()) + " Used the " + buttonID
@@ -625,7 +634,7 @@ public class ComponentActionHelper {
                             Helper.getPlanetPlaceUnitButtons(p1, game, "2gf", "placeOneNDone_skipbuildorbital"));
                     MessageHelper.sendMessageToChannelWithButtons(event.getMessageChannel(), message, buttons);
                 } else if ("tyrisCommanderMech".equalsIgnoreCase(buttonID)) {
-                    TyrisCommanderButtonHandler.resolveMechAction(p1, game, event);
+                    TyrisLeaderHandler.resolveMechAction(p1, game, event);
                 } else if ("mutineers".equalsIgnoreCase(buttonID)) {
                     String factionEmoji = p1.getFactionEmoji();
                     String successMessage = factionEmoji + " spent 1 strategy token using "
@@ -844,8 +853,10 @@ public class ComponentActionHelper {
                 purgeFragButtons.add(transact2);
                 MessageHelper.sendMessageToChannelWithButtons(event.getChannel(), message, purgeFragButtons);
             }
-            case "generic" ->
+            case "generic" -> {
+                GameEventService.commit(game, GameEventType.CARD_PLAY_ABILITY, p1, Map.of("cardId", "generic"));
                 MessageHelper.sendMessageToChannel(event.getMessageChannel(), "Doing unspecified component action.");
+            }
             case "absolMOW" -> {
                 String factionEmoji = p1.getFactionEmoji();
                 MessageHelper.sendMessageToChannel(
@@ -1063,6 +1074,7 @@ public class ComponentActionHelper {
 
     private static void resolveRelicComponentAction(
             Game game, Player player, ButtonInteractionEvent event, String relicID) {
+        GameEventService.commit(game, GameEventType.CARD_PLAY_RELIC, player, Map.of("cardId", relicID));
         if (!Mapper.isValidRelic(relicID) || !player.hasRelic(relicID)) {
             MessageHelper.sendMessageToChannel(
                     event.getMessageChannel(),
@@ -1076,7 +1088,7 @@ public class ComponentActionHelper {
         String purgeOrExhaust = "purged";
         List<String> juniorRelics = List.of("titanprototype", "absol_jr");
         if (juniorRelics.contains(relicID)) { // EXHAUST THE RELIC
-            List<Button> buttons2 = VoteButtonHandler.getPlayerOutcomeButtons(game, null, "jrResolution", null);
+            List<Button> buttons2 = AgendaRiderHelper.getPlayerOutcomeButtons(game, null, "jrResolution", null);
             player.addExhaustedRelic(relicID);
             purgeOrExhaust = "exhausted";
             MessageHelper.sendMessageToChannelWithButtons(
