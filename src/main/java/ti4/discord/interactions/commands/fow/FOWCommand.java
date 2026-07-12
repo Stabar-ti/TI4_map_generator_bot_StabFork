@@ -21,6 +21,7 @@ public class FOWCommand implements ParentCommand {
                     new ShowGameAsPlayer(),
                     new PrivateCommunicationsCheck(),
                     new GMCommand(),
+                    new MiltyDraftSub(),
                     new CreateFoWGameButton())
             .collect(Collectors.toMap(Subcommand::getName, subcommand -> subcommand));
 
