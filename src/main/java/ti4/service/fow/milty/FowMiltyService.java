@@ -16,6 +16,7 @@ import ti4.image.Mapper;
 import ti4.image.PositionMapper;
 import ti4.message.MessageHelper;
 import ti4.model.FactionModel;
+import ti4.model.Source.ComponentSource;
 import ti4.model.StrategyCardModel;
 import ti4.model.StrategyCardSetModel;
 import ti4.service.draft.PlayerSetupService;
@@ -59,13 +60,22 @@ public class FowMiltyService {
             return false;
         }
 
+        // A drafter is a player with a private channel that isn't a dummy/NPC, in GM-defined table
+        // order. They have NOT been set up yet (no faction/color), so getRealPlayers() would exclude
+        // them. The GM is NOT excluded: a GM can also be a player (they'll have a private channel),
+        // in which case they draft too.
         FowMiltyDraftState state = new FowMiltyDraftState();
-        for (Player p : game.getRealPlayers()) {
+        for (Player p : game.getPlayers().values()) {
+            if (p == null || p.isDummy() || p.isNpc()) continue;
+            String privateChannelId = p.getPrivateChannelID();
+            if (privateChannelId == null || privateChannelId.isBlank()) continue;
             state.getTableOrder().add(p.getUserID());
         }
         if (state.getTableOrder().size() < 2) {
             MessageHelper.sendMessageToChannel(
-                    event.getMessageChannel(), "Need at least 2 real players to start a draft.");
+                    event.getMessageChannel(),
+                    "Need at least 2 players in the game to start a draft (found "
+                            + state.getTableOrder().size() + "). Add players and set the table order first.");
             return false;
         }
 
@@ -223,6 +233,60 @@ public class FowMiltyService {
         state.save(game);
     }
 
+    /**
+     * The faction sources enabled for this game, from the same "Expansions and Homebrew" picker
+     * that normal milty uses ({@code SourceSettings.getFactionSources()}). Falls back to the
+     * official set if the draft settings can't be initialized.
+     */
+    private static List<ComponentSource> enabledFactionSources(Game game) {
+        List<ComponentSource> sources = new ArrayList<>(List.of(
+                ComponentSource.base,
+                ComponentSource.pok,
+                ComponentSource.codex1,
+                ComponentSource.codex2,
+                ComponentSource.codex3,
+                ComponentSource.codex4));
+        try {
+            sources = new ArrayList<>(
+                    game.initializeDraftSystemSettings().getSourceSettings().getFactionSources());
+        } catch (Exception ignored) {
+            // keep the official fallback set
+        }
+        // Always honor the game's active homebrew modes even if the picker wasn't opened.
+        if (game.isDiscordantStarsMode() && !sources.contains(ComponentSource.ds)) sources.add(ComponentSource.ds);
+        if (game.isBlueReverieMode() && !sources.contains(ComponentSource.blue_reverie))
+            sources.add(ComponentSource.blue_reverie);
+        if (game.isTwilightsFallMode() && !sources.contains(ComponentSource.twilights_fall))
+            sources.add(ComponentSource.twilights_fall);
+        return sources;
+    }
+
+    /**
+     * Whether a faction belongs in the random pool: its source is enabled for this game (same
+     * picker as normal milty) and it isn't neutral/obsidian or a duplicate Keleres flavor.
+     */
+    private static boolean isEligibleFaction(FactionModel f, List<ComponentSource> sources) {
+        if (f == null || f.getAlias() == null || f.getSource() == null) return false;
+        String alias = f.getAlias().toLowerCase();
+        if (alias.contains("neutral") || alias.contains("obsidian")) return false;
+        if (alias.contains("keleres") && !"keleresm".equals(alias)) return false; // one flavor only
+        return sources.contains(f.getSource());
+    }
+
+    /** Resolve a token (faction alias or name, case-insensitive) to its alias, or null if unknown. */
+    private static String resolveFactionAlias(String token) {
+        String t = token.trim();
+        if (t.isEmpty()) return null;
+        FactionModel byAlias = Mapper.getFaction(t.toLowerCase());
+        if (byAlias != null) return byAlias.getAlias();
+        for (FactionModel f : Mapper.getFactionsValues()) {
+            if (t.equalsIgnoreCase(f.getFactionName()) || t.equalsIgnoreCase(f.getAlias())) {
+                return f.getAlias();
+            }
+        }
+        return null;
+    }
+
     /** GM custom values from a modal. One entry per comma-separated token; no origin position. */
     public static void configureCustomValues(Game game, FowMiltyDraftState state, String rawList) {
         state.setValueMode(FowMiltyDraftState.ValueMode.CUSTOM);
@@ -241,16 +305,43 @@ public class FowMiltyService {
         state.save(game);
     }
 
-    /** Build one globally-unique random faction sub-bag per player. */
-    public static void configureRandomFactions(Game game, FowMiltyDraftState state, int factionsPerSubBag) {
+    /**
+     * Build one globally-unique random faction sub-bag per player, drawing only from factions
+     * eligible for this game's expansions/homebrew, minus any GM-banned factions.
+     */
+    public static void configureRandomFactions(
+            Game game, FowMiltyDraftState state, int factionsPerSubBag, String bannedRaw) {
+        // Resolve the banned list (alias or name); report any tokens we couldn't match.
+        Set<String> banned = new java.util.HashSet<>();
+        List<String> unknownBans = new ArrayList<>();
+        for (String token : bannedRaw == null ? new String[0] : bannedRaw.split(",")) {
+            if (token.trim().isEmpty()) continue;
+            String alias = resolveFactionAlias(token);
+            if (alias == null) unknownBans.add(token.trim());
+            else banned.add(alias);
+        }
+        if (!unknownBans.isEmpty()) {
+            MessageHelper.sendMessageToChannel(
+                    GMService.getGMChannel(game), "Ignored unknown banned factions: " + unknownBans);
+        }
+
+        List<ComponentSource> sources = enabledFactionSources(game);
         List<String> pool = new ArrayList<>();
         for (FactionModel f : Mapper.getFactionsValues()) {
+            if (!isEligibleFaction(f, sources)) continue;
+            if (banned.contains(f.getAlias())) continue;
             pool.add(f.getAlias());
         }
         Collections.shuffle(pool);
 
         int players = state.playerCount();
         int perBag = Math.max(1, factionsPerSubBag);
+        if (pool.size() < players * perBag) {
+            MessageHelper.sendMessageToChannel(
+                    GMService.getGMChannel(game),
+                    "Only " + pool.size() + " eligible factions for " + players + " sub-bags of " + perBag
+                            + ". Sub-bags will be smaller than requested.");
+        }
         state.getSubBags().clear();
         int idx = 0;
         for (int b = 0; b < players; b++) {
@@ -263,21 +354,34 @@ public class FowMiltyService {
         state.save(game);
     }
 
-    /** GM custom faction bags: {@code ;}-separated sub-bags, each {@code ,}-separated faction aliases. */
+    /**
+     * GM custom faction bags: {@code ;}-separated sub-bags, each {@code ,}-separated factions
+     * (alias or name). Unknown tokens are reported to the GM rather than silently dropped.
+     */
     public static void configureCustomFactions(Game game, FowMiltyDraftState state, String raw) {
         state.getSubBags().clear();
         Set<String> seen = new LinkedHashSet<>();
+        List<String> unknown = new ArrayList<>();
         for (String bagStr : raw.split(";")) {
             List<String> bag = new ArrayList<>();
             for (String token : bagStr.split(",")) {
-                String alias = token.trim();
-                if (alias.isEmpty()) continue;
-                if (Mapper.getFaction(alias) == null) continue; // skip unknown aliases
+                if (token.trim().isEmpty()) continue;
+                String alias = resolveFactionAlias(token);
+                if (alias == null) {
+                    unknown.add(token.trim());
+                    continue;
+                }
                 if (seen.contains(alias)) continue; // never doubles across the whole set
                 seen.add(alias);
                 bag.add(alias);
             }
             if (!bag.isEmpty()) state.getSubBags().add(bag);
+        }
+        if (!unknown.isEmpty()) {
+            MessageHelper.sendMessageToChannel(
+                    GMService.getGMChannel(game),
+                    "These entries didn't match any faction and were skipped: " + unknown
+                            + ". Use the faction alias or exact name.");
         }
         state.save(game);
     }

@@ -35,6 +35,7 @@ public class FowMiltyButtonHandlers {
     private static final String CUSTOM_FACTION_MODAL = "fowmiltyFactionCustom";
     private static final String ORDER_RANGE_MODAL = "fowmiltyOrderRange";
     private static final String FIELD = "input";
+    private static final String FIELD_BANNED = "banned";
     private static final String FIELD_NX = "nx";
     private static final String FIELD_NY = "ny";
 
@@ -107,8 +108,12 @@ public class FowMiltyButtonHandlers {
                 .setPlaceholder("Factions per sub-bag (e.g. 2)")
                 .setRequired(false)
                 .build();
+        TextInput banned = TextInput.create(FIELD_BANNED, TextInputStyle.PARAGRAPH)
+                .setPlaceholder("Banned factions (alias or name), comma-separated. Optional.")
+                .setRequired(false)
+                .build();
         Modal modal = Modal.create(RANDOM_FACTION_MODAL, "Random Faction Bags")
-                .addComponents(Label.of("Factions per sub-bag", input))
+                .addComponents(Label.of("Factions per sub-bag", input), Label.of("Banned factions (optional)", banned))
                 .build();
         event.replyModal(modal).queue(Consumers.nop(), BotLogger::catchRestError);
     }
@@ -127,7 +132,9 @@ public class FowMiltyButtonHandlers {
                 // fall back to default
             }
         }
-        FowMiltyService.configureRandomFactions(game, state, perBag);
+        var bannedMapping = event.getValue(FIELD_BANNED);
+        String banned = bannedMapping == null ? "" : bannedMapping.getAsString();
+        FowMiltyService.configureRandomFactions(game, state, perBag, banned);
         MessageHelper.sendMessageToChannel(
                 event.getMessageChannel(),
                 "Random faction bags built: " + state.getSubBags().size() + " sub-bags.");
