@@ -106,5 +106,9 @@ class GeneratePainBoxMapString extends GameStateSubcommand {
 
         MessageHelper.sendMessageToChannel(event.getChannel(), sb.toString());
         MessageHelper.sendMessageToChannel(event.getChannel(), "`\n" + mapString + "\n`");
+        MessageHelper.sendMessageToChannel(
+                event.getChannel(),
+                "-# Reminder: enable **Painbox Movement** in `/fow options` → OTHER Options so movement uses"
+                        + " ordinal distance (1st system you move from is 1 away, 2nd is 2, ...).");
     }
 }

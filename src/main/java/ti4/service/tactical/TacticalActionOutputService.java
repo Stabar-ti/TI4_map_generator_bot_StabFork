@@ -31,6 +31,7 @@ import ti4.message.MessageHelper;
 import ti4.model.UnitModel;
 import ti4.service.fow.FOWPlusService;
 import ti4.service.fow.GMService;
+import ti4.service.option.FOWOptionService;
 
 @UtilityClass
 public class TacticalActionOutputService {
@@ -133,10 +134,17 @@ public class TacticalActionOutputService {
     private String buildMessageForSingleSystem(
             Game game, Player player, Tile tile, boolean condensed, boolean inclSummary) {
         String linePrefix = "> ";
-        int distance = CheckDistanceHelper.getDistanceBetweenTwoTiles(
-                game, player, tile.getPosition(), game.getActiveSystem(), true);
-        int riftDistance = CheckDistanceHelper.getDistanceBetweenTwoTiles(
-                game, player, tile.getPosition(), game.getActiveSystem(), false);
+        int distance;
+        int riftDistance;
+        if (game.getFowOption(FOWOptionService.FOWOption.PAINBOX)) {
+            // Painbox: distance is the ordinal in which you move from each system, not adjacency.
+            distance = riftDistance = getPainboxDistance(game, tile.getPosition());
+        } else {
+            distance = CheckDistanceHelper.getDistanceBetweenTwoTiles(
+                    game, player, tile.getPosition(), game.getActiveSystem(), true);
+            riftDistance = CheckDistanceHelper.getDistanceBetweenTwoTiles(
+                    game, player, tile.getPosition(), game.getActiveSystem(), false);
+        }
 
         Tile activeTile = game.getTileByPosition(game.getActiveSystem());
         if (player.hasTech("scc") && tile.containsPlayersUnits(player) && activeTile.containsPlayersUnits(player)) {
@@ -443,5 +451,32 @@ public class TacticalActionOutputService {
         return FOWPlusService.isVoid(game, game.getActiveSystem())
                 ? FOWPlusService.voidTile(game.getActiveSystem())
                 : game.getTileByPosition(game.getActiveSystem());
+    }
+
+    // Painbox mode: tiles are not adjacent, so distance is the order you move from systems -
+    // the 1st system moved from is 1 away, the 2nd is 2 away, etc. The active system is free (0).
+    private int getPainboxDistance(Game game, String position) {
+        if (position.equals(game.getActiveSystem())) return 0;
+        List<String> order = painboxSourceOrder(game);
+        int idx = order.indexOf(position);
+        return (idx >= 0 ? idx : order.size()) + 1; // committed ordinal, or preview = next slot
+    }
+
+    // Maintains the move-from order in a painbox-only stored value. Reconciled on each summary
+    // build: known-but-still-present systems keep their order, stale ones drop out, and newly
+    // moved-from systems are appended. Since the UI refreshes after each move-from, at most one
+    // new system appears per build, preserving the player's click order.
+    private List<String> painboxSourceOrder(Game game) {
+        Set<String> current = new HashSet<>(positionsMovedFrom(game));
+        current.remove(game.getActiveSystem());
+        List<String> order = new ArrayList<>();
+        for (String s : game.getStoredValue("painboxOrder").split(",")) {
+            if (!s.isEmpty() && current.contains(s) && !order.contains(s)) order.add(s);
+        }
+        for (String pos : current) {
+            if (!order.contains(pos)) order.add(pos);
+        }
+        game.setStoredValue("painboxOrder", String.join(",", order));
+        return order;
     }
 }

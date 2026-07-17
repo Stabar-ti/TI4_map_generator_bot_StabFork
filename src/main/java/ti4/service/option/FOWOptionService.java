@@ -63,6 +63,10 @@ public class FOWOptionService {
         // Other Options (max 5)
         HIDE_PLAYER_NAMES(
                 FOWOptionCategory.OTHER, "Hide real names", "Completely hide player Discord names on the map"),
+        PAINBOX(
+                FOWOptionCategory.OTHER,
+                "Painbox Movement",
+                "Movement distance = the order you move from systems (1st = 1 away, 2nd = 2, ...)"),
 
         // Hidden from normal options
         FOW_PLUS(null, "FoW Plus Mode", "Hello darkness my old friend... WIP - ask Solax for details", false),
