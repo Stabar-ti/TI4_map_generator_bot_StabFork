@@ -34,6 +34,7 @@ import ti4.message.MessageHelper;
 import ti4.model.UnitModel;
 import ti4.service.fow.FOWPlusService;
 import ti4.service.fow.GMService;
+import ti4.service.option.FOWOptionService.FOWOption;
 
 @UtilityClass
 public class TacticalActionOutputService {
@@ -269,9 +270,25 @@ public class TacticalActionOutputService {
         if (moveValue == 0) return "";
 
         StringBuilder output = new StringBuilder();
-        int maxBonus = 0;
         boolean ignoresAnomalies = ArcanumPrimordialTechHandler.planeShiftIgnoresAnomalies(game, player);
-        if (distance > moveValue && distance < 90 && !game.isL1Hero()) {
+        boolean destinationVisibleToPlayer = !game.isFowMode()
+                || !game.getFowOption(FOWOption.MOVE_RANGE_GM_REVIEW)
+                || FoWHelper.getTilePositionsToShow(game, player).contains(game.getActiveSystem());
+        if (distance > moveValue && distance < 90 && !game.isL1Hero() && !destinationVisibleToPlayer) {
+            int visibleDistance = CheckDistanceHelper.getShortestVisibleDistance(
+                    game, player, tile.getPosition(), game.getActiveSystem());
+            if (visibleDistance < 90) {
+                output.append(" (reminder: shortest distance through territory you've explored is ")
+                        .append(visibleDistance)
+                        .append(" tile")
+                        .append(visibleDistance == 1 ? "" : "s")
+                        .append(" - actual distance may differ once you've scouted more)");
+            } else {
+                output.append(
+                        " (reminder: you haven't explored a path to this system yet - double check you have the range)");
+            }
+        }
+        if (distance > moveValue && distance < 90 && !game.isL1Hero() && destinationVisibleToPlayer) {
             output.append(" (distance exceeds move value (")
                     .append(distance)
                     .append(" > ")
@@ -279,7 +296,6 @@ public class TacticalActionOutputService {
                     .append(")");
 
             if (player.hasTech("gd")) {
-                maxBonus++;
                 output.append(", may have used _Gravity Drive_)");
             } else {
                 if (!game.isTwilightsFallMode()) {
@@ -287,26 +303,22 @@ public class TacticalActionOutputService {
                 }
             }
             if (player.hasUnit("tk-voidcarver")) {
-                maxBonus++;
                 output.append(" (has _Voidcarver_ for +1 movement for one other ship moving from the same system)");
             }
             if (player.hasUnit("tk-dissident") && unit.unitType() == UnitType.Dreadnought) {
                 for (Player p2 : game.getRealPlayers()) {
                     if (!tile.containsPlayersUnits(p2)) continue;
                     if (player.getTotalVictoryPoints() < p2.getTotalVictoryPoints()) {
-                        maxBonus++;
                         output.append(" (_Dissident_ has +1 movement to this system)");
                     }
                 }
             }
             if (player.hasUnlockedBreakthrough("winnubt")
                     && game.getTileByPosition(game.getActiveSystem()).hasLegendary()) {
-                maxBonus++;
                 output.append(
                         " (has _Imperator_ for +1 movement for one ship when moving into a legendary planet's system)");
             }
             if (player.getTechs().contains("dsgledb")) {
-                maxBonus++;
                 output.append(" (has _Lightning Drives_ for +1 movement if not transporting)");
             }
             if (riftDistance < distance) {
@@ -342,6 +354,7 @@ public class TacticalActionOutputService {
                 }
             }
         }
+        int maxBonus = computeMaxMoveBonus(game, player, tile, unit, distance, riftDistance);
         if ((distance > (moveValue + maxBonus)) && game.isFowMode()) {
             GMService.logPlayerActivity(game, player, output.toString());
         }
@@ -355,6 +368,74 @@ public class TacticalActionOutputService {
             game.setStoredValue("possiblyUsedRift", "");
         }
         return output.toString();
+    }
+
+    /** Sums the move-value bonuses a player could apply to a single unit's move into the active system. */
+    private int computeMaxMoveBonus(Game game, Player player, Tile tile, UnitKey unit, int distance, int riftDistance) {
+        int maxBonus = 0;
+        if (player.hasTech("gd")) maxBonus++;
+        if (player.hasUnit("tk-voidcarver")) maxBonus++;
+        if (player.hasUnit("tk-dissident") && unit.unitType() == UnitType.Dreadnought) {
+            for (Player p2 : game.getRealPlayers()) {
+                if (!tile.containsPlayersUnits(p2)) continue;
+                if (player.getTotalVictoryPoints() < p2.getTotalVictoryPoints()) {
+                    maxBonus++;
+                }
+            }
+        }
+        if (player.hasUnlockedBreakthrough("winnubt")
+                && game.getTileByPosition(game.getActiveSystem()).hasLegendary()) {
+            maxBonus++;
+        }
+        if (player.getTechs().contains("dsgledb")) maxBonus++;
+        return maxBonus;
+    }
+
+    /**
+     * Whether any unit the player currently has staged to move into {@code destinationTile} exceeds its
+     * effective move value, or has no verifiable path there at all, where the destination is not visible
+     * to the player under Fog of War. Used to gate GM review for moves whose range the player has no way
+     * to verify for themselves.
+     */
+    public boolean anyMoveExceedsRangeIntoUnseenDestination(Game game, Player player, Tile destinationTile) {
+        if (!game.isFowMode()
+                || !game.getFowOption(FOWOption.MOVE_RANGE_GM_REVIEW)
+                || game.isL1Hero()
+                || FoWHelper.getTilePositionsToShow(game, player).contains(destinationTile.getPosition())) {
+            return false;
+        }
+
+        var displaced = game.getTacticalActionDisplacement();
+        for (String uhKey : new HashSet<>(displaced.keySet())) {
+            String sourcePos = uhKey.split("-")[0];
+            Tile sourceTile = game.getTileByPosition(sourcePos);
+            if (sourceTile == null) continue;
+
+            Map<UnitKey, List<Integer>> unitMap = displaced.get(uhKey);
+            if (unitMap == null || unitMap.isEmpty()) continue;
+
+            // No path the player could verify from their own explored territory - review regardless
+            // of what the true (hidden) distance turns out to be.
+            if (CheckDistanceHelper.getShortestVisibleDistance(game, player, sourcePos, destinationTile.getPosition())
+                    >= 90) {
+                return true;
+            }
+
+            int distance = CheckDistanceHelper.getDistanceBetweenTwoTiles(
+                    game, player, sourcePos, destinationTile.getPosition(), true);
+            int riftDistance = CheckDistanceHelper.getDistanceBetweenTwoTiles(
+                    game, player, sourcePos, destinationTile.getPosition(), false);
+
+            for (UnitKey unit : unitMap.keySet()) {
+                int moveValue = getUnitMoveValue(game, player, sourceTile, unit, unitMap.keySet(), false);
+                if (moveValue == 0) continue;
+                int maxBonus = computeMaxMoveBonus(game, player, sourceTile, unit, distance, riftDistance);
+                if (distance < 90 && distance > moveValue + maxBonus) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     private int getUnitMoveValue(

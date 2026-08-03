@@ -37,6 +37,7 @@ import ti4.service.emoji.FactionEmojis;
 import ti4.service.emoji.MiscEmojis;
 import ti4.service.fow.FOWPlusService;
 import ti4.service.fow.LoreService;
+import ti4.service.fow.MoveGmReviewService;
 import ti4.service.leader.CommanderUnlockCheckService;
 import ti4.service.planet.FlipTileService;
 import ti4.service.tactical.movement.MoveAbilityButtons;
@@ -172,13 +173,14 @@ public class TacticalActionService {
         return false;
     }
 
-    private boolean moveUnitsIntoActiveSystem(ButtonInteractionEvent event, Game game, Tile tile) {
+    private boolean moveUnitsIntoActiveSystem(ButtonInteractionEvent event, Game game, Player player, Tile tile) {
         // Flip mallice
         if (TacticalActionDisplacementService.hasPendingDisplacement(game)) {
             tile = FlipTileService.flipTileIfNeeded(event, tile, game);
             if (tile == null) {
                 MessageHelper.sendMessageToChannel(
-                        event.getMessageChannel(), "Failed to flip the Wormhole Nexus. Please yell at Jazzxhands");
+                        event != null ? event.getMessageChannel() : player.getCorrectChannel(),
+                        "Failed to flip the Wormhole Nexus. Please yell at Jazzxhands");
                 return false;
             }
         }
@@ -198,6 +200,24 @@ public class TacticalActionService {
             return;
         }
 
+        // Pre-check: move exceeds range into a system the player has not discovered under FoW
+        if (TacticalActionOutputService.anyMoveExceedsRangeIntoUnseenDestination(game, player, tile)) {
+            MoveGmReviewService.requestReview(game, player, tile);
+            ButtonHelper.deleteAllButtons(event);
+            return;
+        }
+
+        resumeFinishMovement(event, game, player, tile);
+        ButtonHelper.deleteAllButtons(event);
+    }
+
+    /**
+     * Runs the core "finish movement" logic without requiring a live player-side interaction event,
+     * so it can be resumed asynchronously once a GM accepts a move that was held for review via
+     * {@link MoveGmReviewService}. Messages are sent directly to the player's channel instead of
+     * relying on {@code event.getMessageChannel()}.
+     */
+    public void resumeFinishMovement(ButtonInteractionEvent event, Game game, Player player, Tile tile) {
         // Core logic block: movement, token placement, after-move effects, and state flags
         FinishMovementContext ctx = executeCoreFinishMovement(event, game, player, tile);
         TeHelperGeneral.checkCoexistTransfer(game);
@@ -205,7 +225,8 @@ public class TacticalActionService {
         LoreService.showSystemLore(player, game, tile.getPosition(), LoreService.TRIGGER.MOVED);
         String message = buildFinishMovementMessage(game, player, ctx);
         List<Button> systemButtons = buildFinishMovementButtons(event, game, player, ctx);
-        MessageHelper.sendMessageToChannelWithButtons(event.getMessageChannel(), message, systemButtons);
+        MessageHelper.sendMessageToChannelWithButtons(
+                event != null ? event.getMessageChannel() : player.getCorrectChannel(), message, systemButtons);
 
         // Post-core triggers
         CommanderUnlockCheckService.checkPlayer(player, "naaz", "empyrean", "ghost");
@@ -232,7 +253,11 @@ public class TacticalActionService {
                     game, player, ctx.playersWithPds2, ctx.tile);
         }
         StartCombatService.combatCheck(game, event, ctx.tile);
-        ButtonHelper.deleteAllButtons(event);
+    }
+
+    /** Overload for resuming from a GM's asynchronous Accept click, with no live player-side event. */
+    public void resumeFinishMovement(Game game, Player player, Tile tile) {
+        resumeFinishMovement(null, game, player, tile);
     }
 
     private record FinishMovementContext(
@@ -247,7 +272,7 @@ public class TacticalActionService {
         }
         ArcanumBreakthroughHandler.movePowerWordWishUnitsToActiveSystem(game, player, tile);
         XytherisLeadersHandler.moveMyrixAgentShipToActiveSystem(game, player, tile);
-        boolean unitsWereMoved = moveUnitsIntoActiveSystem(event, game, tile);
+        boolean unitsWereMoved = moveUnitsIntoActiveSystem(event, game, player, tile);
         Tile updatedTile = game.getTileByPosition(tile.getPosition());
         spendAndPlaceTokenIfNecessary(event, game, player, updatedTile);
 

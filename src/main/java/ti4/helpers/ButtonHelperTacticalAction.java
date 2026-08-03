@@ -312,7 +312,7 @@ public final class ButtonHelperTacticalAction {
                 && player.hasAbility("hired_guns")
                 && !game.getStoredValue("hiredGunsInPlay").isEmpty()) {
             MessageHelper.sendMessageToChannel(
-                    event.getMessageChannel(),
+                    event != null ? event.getMessageChannel() : player.getCorrectChannel(),
                     player.getFactionEmoji()
                             + " moved the ships to the active system. If a combat is underway,"
                             + " press refresh picture to see the ships. \nWhen the active player rolls dice or assigns hits, they should be able to use these hired ships. "
@@ -324,7 +324,7 @@ public final class ButtonHelperTacticalAction {
             empyButtons.add(Buttons.gray("exhaustAgent_empyreanagent", "Use Empyrean Agent", FactionEmojis.Empyrean));
             empyButtons.add(Buttons.red("deleteButtons", "Delete These Buttons"));
             MessageHelper.sendMessageToChannelWithButtons(
-                    event.getMessageChannel(),
+                    event != null ? event.getMessageChannel() : player.getCorrectChannel(),
                     player.getRepresentationUnfogged() + ", use button to exhaust "
                             + (player.hasUnexhaustedLeader("yssarilagent") ? "Clever Clever " : "")
                             + "Acamar, the Empyrean" + (player.hasUnexhaustedLeader("yssarilagent") ? "/Yssaril" : "")
@@ -372,7 +372,8 @@ public final class ButtonHelperTacticalAction {
             String trueIdentity = player.getRepresentationUnfogged();
             String message2 = trueIdentity + ", your current command tokens are " + player.getCCRepresentation()
                     + ". Use these buttons to gain 1 command tokens.";
-            MessageHelper.sendMessageToChannelWithButtons(event.getChannel(), message2, buttons);
+            MessageHelper.sendMessageToChannelWithButtons(
+                    event != null ? event.getChannel() : player.getCorrectChannel(), message2, buttons);
             game.setStoredValue("originalCCsFor" + player.getFaction(), player.getCCRepresentation());
         }
         boolean flagshipMoved = game.getTacticalActionDisplacement().values().stream()

@@ -27,6 +27,25 @@ public class CheckDistanceHelper {
         return countsRiftsAsNormal || !game.getTileByPosition(tilePosition1).isGravityRift(game, player) ? 100 : 99;
     }
 
+    /**
+     * Shortest hop distance from {@code sourcePos} to {@code destPos}, using the same distance rules
+     * as a normal (pre-movement) distance calculation - anomaly blocking, gravity-rift shortcuts,
+     * etc. - but only ever stepping through positions the player can currently see. The destination
+     * itself is always a valid final step even though its own contents are unknown; only tiles used
+     * as a waypoint along the way must be visible, since those are the only ones whose anomaly status
+     * the player could actually know. This is a safe, self-derivable lower bound the player could
+     * work out themselves from territory they've already explored. Returns 100 if no such path is
+     * known.
+     */
+    public static int getShortestVisibleDistance(Game game, Player player, String sourcePos, String destPos) {
+        if (sourcePos.equalsIgnoreCase(destPos)) return 0;
+
+        Set<String> visible = FoWHelper.getTilePositionsToShow(game, player);
+        Map<String, Integer> distances = getTileDistances(game, player, sourcePos, 8, true, visible);
+        Integer result = distances.get(destPos);
+        return result != null ? result : 100;
+    }
+
     private static boolean tileUnlockedForMoving(Game game, Player player, Tile tile) {
         if (ButtonHelper.canMoveOutOfLockedSystems(player, game)) return true;
         return !CommandCounterHelper.hasCC(player, tile) || tile.getPosition().equalsIgnoreCase(game.getActiveSystem());
@@ -78,6 +97,17 @@ public class CheckDistanceHelper {
 
     public static Map<String, Integer> getTileDistances(
             Game game, Player player, String tilePosition, int maxDistance, boolean forMap) {
+        return getTileDistances(game, player, tilePosition, maxDistance, forMap, null);
+    }
+
+    /**
+     * @param visibleOnly if non-null, only positions in this set (plus the starting {@code
+     *     tilePosition}) may be used as a waypoint to reach further tiles - positions outside it are
+     *     treated as impassable for expansion purposes, though they can still be recorded as a
+     *     reachable endpoint if adjacent to an allowed waypoint.
+     */
+    private static Map<String, Integer> getTileDistances(
+            Game game, Player player, String tilePosition, int maxDistance, boolean forMap, Set<String> visibleOnly) {
         Map<String, Integer> distances = new HashMap<>();
         distances.put(tilePosition, 0);
         Tile tile2 = game.getTileByPosition(tilePosition);
@@ -89,6 +119,7 @@ public class CheckDistanceHelper {
                 int distance = i;
                 if (!existingPosition.equalsIgnoreCase(tilePosition)) {
                     if (tile == null
+                            || (visibleOnly != null && !visibleOnly.contains(existingPosition))
                             || (tile.isNebula(game)
                                     && player != null
                                     && !DreamButtonHandler.playerIgnoresDreamAgentAnomaly(game, player, tile)

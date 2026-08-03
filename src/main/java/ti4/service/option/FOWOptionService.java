@@ -63,6 +63,11 @@ public class FOWOptionService {
         // Other Options (max 5)
         HIDE_PLAYER_NAMES(
                 FOWOptionCategory.OTHER, "Hide real names", "Completely hide player Discord names on the map"),
+        MOVE_RANGE_GM_REVIEW(
+                FOWOptionCategory.OTHER,
+                "Hidden Range Review",
+                "For moves into undiscovered systems, hide the distance/move-value warning and require a GM"
+                        + " to Accept, Deny, or manually resolve the move before it's finalized"),
 
         // Hidden from normal options
         FOW_PLUS(null, "FoW Plus Mode", "Hello darkness my old friend... WIP - ask Solax for details", false),
