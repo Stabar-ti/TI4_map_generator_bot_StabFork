@@ -209,6 +209,10 @@ public class ListTechService {
                     " The buttons shown correspond to technologies that the bot believes you meet the prerequisites for."
                             + " To get a technology that isn't shown, please use the \"Get Other Technology\" button.";
         }
+        if (player.hasAbility("doctrine_knowledge")) {
+            message +=
+                    "\n\n**REMINDER**: You have the _Knowledge_ doctrine and therefore may ignore 1 prerequisite on techs owned by your neighbors. This is not automated, and you must use the \"Get Other Technology\" button.";
+        }
         MessageHelper.sendMessageToChannelWithButtons(channel, message, buttons);
     }
 
@@ -216,7 +220,7 @@ public class ListTechService {
         return getTechButtons(techs, player, "normal");
     }
 
-    private static boolean isTechResearchable(TechnologyModel tech, Player player) {
+    public static boolean isTechResearchable(TechnologyModel tech, Player player) {
         Game game = player.getGame();
         String requirements = tech.getRequirements().orElse("");
         int wilds = 0;
@@ -296,7 +300,11 @@ public class ListTechService {
             }
         }
         if (game.playerHasLeaderUnlockedOrAlliance(player, "yincommander")) {
-            requirements = G.matcher(requirements).replaceFirst("");
+            if (synergies.contains(TechnologyType.valueOf("BIOTIC"))) {
+                requirements = requirements.replaceFirst("X", "");
+            } else {
+                requirements = G.matcher(requirements).replaceFirst("");
+            }
             if (ButtonHelperCommanders.getVeldyrCommanderTechs(player, game, true)
                     .contains(tech.getAlias())) {
                 requirements = "";

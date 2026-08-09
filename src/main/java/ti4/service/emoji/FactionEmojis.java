@@ -123,6 +123,26 @@ public enum FactionEmojis implements TI4Emoji {
     ashen,
     natau,
 
+    // luminous
+    arachnera,
+    psm,
+    opa,
+
+    // theodisi
+    aeterna,
+    arcanum,
+    ardentia,
+    kairn,
+    kryxos,
+    myrr,
+    oblivion,
+    ponthous,
+    revenant,
+    thrones,
+    verydith,
+    veylor,
+    xytheris,
+
     // nomadfalcon
     erock,
     explanetary,
@@ -200,11 +220,6 @@ public enum FactionEmojis implements TI4Emoji {
     franken_zor_thul_matriarchate, //
 
     // Other (random homebrew)
-    canto,
-    eidolon,
-    mechi,
-    saera,
-    shadows, // Eronous
     Lazax,
     RandomFaction,
     AdminsFaction,
@@ -323,13 +338,30 @@ public enum FactionEmojis implements TI4Emoji {
             case "sarcosa" -> sarcosa;
             case "toldar" -> toldar;
             case "belkosea" -> belkosea;
+            case "aeterna" -> aeterna;
+            case "arcanum" -> arcanum;
+            case "ardentia" -> ardentia;
+            case "kairn" -> kairn;
+            case "kryxos" -> kryxos;
+            case "myrr" -> myrr;
+            case "oblivion" -> oblivion;
+            case "ponthous" -> ponthous;
+            case "revenant" -> revenant;
+            case "thrones" -> thrones;
+            case "verydith" -> verydith;
+            case "veylor" -> veylor;
+            case "xytheris" -> xytheris;
+            case "diaspora" -> Arborec;
+            case "hlr" -> L1Z1X;
+            case "clade" -> Naalu;
+            case "archon" -> Xxcha;
+            case "moyin" -> Yin;
+            case "veilstrike" -> Yssaril;
+            case "convocation" -> Argent;
+            case "weaveway" -> Empyrean;
+            case "initiative" -> Keleres;
             case "admins" -> AdminsFaction;
             case "qulane" -> Qulane;
-            case "canto" -> canto;
-            case "eidolon" -> eidolon;
-            case "mechi" -> mechi;
-            case "saera" -> saera;
-            case "shadows" -> shadows;
             case "redtf" -> redtf;
             case "greentf" -> greentf;
             case "blacktf" -> blacktf;
@@ -395,6 +427,10 @@ public enum FactionEmojis implements TI4Emoji {
             case "netrunners" -> netrunners;
             case "crystellum" -> crystellum;
             case "natau" -> natau;
+
+            case "arachnera" -> arachnera;
+            case "psm" -> psm;
+            case "opa" -> opa;
 
             case "netharii" -> netharii;
             case "drahn" -> Drahn;

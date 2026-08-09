@@ -10,6 +10,9 @@ import ti4.discord.interactions.buttons.handlers.faction.homebrew.beans.netrunne
 import ti4.discord.interactions.buttons.handlers.faction.homebrew.beans.netrunners.NetrunnersLeadersHandler;
 import ti4.discord.interactions.buttons.handlers.faction.homebrew.beans.netrunners.NetrunnersUnitsHandler;
 import ti4.discord.interactions.buttons.handlers.faction.homebrew.beans.ta.TaUnitHandler;
+import ti4.discord.interactions.buttons.handlers.faction.homebrew.theodisi.Myrr.MyrrLeadersHandler;
+import ti4.discord.interactions.buttons.handlers.faction.homebrew.theodisi.Thrones.ThronesUnitHandler;
+import ti4.discord.interactions.buttons.handlers.faction.homebrew.theodisi.Veylor.VeylorUnitHandler;
 import ti4.game.Game;
 import ti4.game.Player;
 import ti4.game.Tile;
@@ -24,6 +27,7 @@ import ti4.helpers.Units.UnitType;
 import ti4.message.MessageHelper;
 import ti4.model.UnitModel;
 import ti4.service.emoji.ColorEmojis;
+import ti4.service.leader.CommanderUnlockCheckService;
 import ti4.service.planet.AddPlanetToPlayAreaService;
 import ti4.service.planet.FlipTileService;
 import ti4.service.unit.RemoveUnitService.RemovedUnit;
@@ -50,12 +54,8 @@ public class AddUnitService {
                 NetrunnersLeadersHandler.checkCommanderUnlock(game, unit.unitKey());
             }
             Player player = game.getPlayerFromColorOrFaction(unit.unitKey().colorID());
-            if (player != null
-                    && player.hasUnit("ta_flagship")
-                    && unit.unitKey().unitType() == UnitType.Flagship) {
-                TaUnitHandler.offerWorldshaperOnFlagshipPlacement(
-                        event, game, unit.unitKey(), unit.uh().getName(), tile);
-            }
+            handlePostAddUnitPlayerEffects(
+                    event, game, tile, unit.unitKey(), unit.uh().getName(), player);
 
             String color = unit.unitKey().colorID();
             handleFogOfWar(tile, color, game, unit.unitKey() + " " + unit.getTotalRemoved());
@@ -88,12 +88,7 @@ public class AddUnitService {
             }
             Player player =
                     game.getPlayerFromColorOrFaction(parsedUnit.unitKey().colorID());
-            if (player != null
-                    && player.hasUnit("ta_flagship")
-                    && parsedUnit.unitKey().unitType() == UnitType.Flagship) {
-                TaUnitHandler.offerWorldshaperOnFlagshipPlacement(
-                        event, game, parsedUnit.unitKey(), parsedUnit.location(), tile);
-            }
+            handlePostAddUnitPlayerEffects(event, game, tile, parsedUnit.unitKey(), parsedUnit.location(), player);
         }
 
         handleFogOfWar(tile, color, game, unitList);
@@ -119,12 +114,9 @@ public class AddUnitService {
             }
             Player player =
                     game.getPlayerFromColorOrFaction(parsedUnit.unitKey().colorID());
-            if (player != null
-                    && player.hasUnit("ta_flagship")
-                    && parsedUnit.unitKey().unitType() == UnitType.Flagship) {
-                TaUnitHandler.offerWorldshaperOnFlagshipPlacement(
-                        event, game, parsedUnit.unitKey(), parsedUnit.location(), tile);
-            }
+            handlePostAddUnitPlayerEffects(event, game, tile, parsedUnit.unitKey(), parsedUnit.location(), player);
+            MyrrLeadersHandler.resolveMyrrCommander(
+                    event, game, player, tile, parsedUnit.unitKey(), parsedUnit.location(), parsedUnit.count());
         }
 
         handleFogOfWar(tile, color, game, unitList);
@@ -199,20 +191,13 @@ public class AddUnitService {
             tile.addUnit(parsedUnit.location(), parsedUnit.unitKey(), parsedUnit.count());
             tile = FlipTileService.flipTileIfNeeded(tile, game);
             AddPlanetToPlayAreaService.addPlanetToPlayArea(event, tile, parsedUnit.location(), game);
-            if (game.getRealPlayers().stream().anyMatch(player_ -> player_.hasAbility("system_breach"))) {
-                NetrunnersAbilitiesHandler.resolveSystemBreach(game, parsedUnit.unitKey(), parsedUnit.count());
-            }
-            if (game.getRealPlayers().stream().anyMatch(player_ -> player_.hasUnit("netrunners_mech"))) {
-                NetrunnersUnitsHandler.offerDeployMechWithStructure(
-                        event, game, tile, parsedUnit.unitKey(), parsedUnit.location(), parsedUnit.count());
-            }
             if (game.getRealPlayers().stream().anyMatch(player_ -> player_.hasLeader("netrunnerscommander"))) {
                 NetrunnersLeadersHandler.checkCommanderUnlock(game, parsedUnit.unitKey());
             }
-            if (player.hasUnit("ta_flagship") && parsedUnit.unitKey().unitType() == UnitType.Flagship) {
-                TaUnitHandler.offerWorldshaperOnFlagshipPlacement(
-                        event, game, parsedUnit.unitKey(), parsedUnit.location(), tile);
+            if (parsedUnit.unitKey() == null) {
+                continue;
             }
+            handlePostAddUnitPlayerEffects(event, game, tile, parsedUnit.unitKey(), parsedUnit.location(), player);
             if (!first) {
                 unitListBuilder.append(", ");
             }
@@ -248,6 +233,30 @@ public class AddUnitService {
 
     private static void markTileAsPinged(Game game, Tile tile) {
         game.setTileAsPinged(tile.getPosition());
+    }
+
+    private static void handlePostAddUnitPlayerEffects(
+            GenericInteractionCreateEvent event,
+            Game game,
+            Tile tile,
+            Units.UnitKey unitKey,
+            String location,
+            Player player) {
+        if (player == null) {
+            return;
+        }
+
+        if (player.hasUnit("ta_flagship") && unitKey.unitType() == UnitType.Flagship) {
+            TaUnitHandler.offerWorldshaperOnFlagshipPlacement(event, game, unitKey, location, tile);
+        }
+        if (unitKey.unitType() == UnitType.Aurelion) {
+            ThronesUnitHandler.syncAurelionStation(game, player);
+        }
+        if (player.ownsUnit("veylor_mech")) {
+            VeylorUnitHandler.checkVeylorMech(game);
+        }
+
+        CommanderUnlockCheckService.checkPlayer(player, "myrr", "natau", "oblivion", "revenantponthous", "thrones");
     }
 
     private static void checkFleetCapacity(Tile tile, String color, Game game) {

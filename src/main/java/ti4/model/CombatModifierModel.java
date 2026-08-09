@@ -27,12 +27,19 @@ public class CombatModifierModel implements ModelInterface {
     private String scopeExcept;
     private String condition;
     private CombatRollType forCombatAbility;
+    private String displayUnitAlias;
     private Boolean singleUnitMod = false;
     private Boolean applyEachForQuantity = false;
     private Boolean applyToOpponent = false;
+    private Integer maxDice;
 
     public boolean isValid() {
-        return type != null && value != null && persistenceType != null && related != null && forCombatAbility != null;
+        return type != null
+                && value != null
+                && persistenceType != null
+                && related != null
+                && forCombatAbility != null
+                && (maxDice == null || maxDice > 0);
     }
 
     public boolean isRelevantTo(String relatedType, String relatedAlias) {

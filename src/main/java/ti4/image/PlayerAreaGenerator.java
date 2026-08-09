@@ -42,7 +42,10 @@ import net.dv8tion.jda.api.entities.emoji.UnicodeEmoji;
 import org.apache.commons.lang3.StringUtils;
 import ti4.ResourceHelper;
 import ti4.discord.JdaService;
-import ti4.discord.interactions.buttons.handlers.faction.homebrew.whispers.tyris.TyrisBreakthroughButtonHandler;
+import ti4.discord.interactions.buttons.handlers.faction.homebrew.theodisi.Kairn.KairnAbilityHandler;
+import ti4.discord.interactions.buttons.handlers.faction.homebrew.theodisi.Oblivion.OblivionAbilityHandler;
+import ti4.discord.interactions.buttons.handlers.faction.homebrew.theodisi.Xytheris.XytherisAbilityHandler;
+import ti4.discord.interactions.buttons.handlers.faction.homebrew.whispers.tyris.TyrisBreakthroughHandler;
 import ti4.game.Game;
 import ti4.game.Leader;
 import ti4.game.Planet;
@@ -398,6 +401,7 @@ public class PlayerAreaGenerator {
         xDeltaBottom = honorOrPathTokens(player, xDeltaBottom, yPlayAreaSecondRow);
         xDeltaBottom = crimsonRebellionTokens(player, xDeltaBottom, yPlayAreaSecondRow);
         xDeltaBottom = galvanizeTokens(player, xDeltaBottom, yPlayAreaSecondRow);
+        xDeltaBottom = theodisiTokenSupplies(player, xDeltaBottom, yPlayAreaSecondRow);
         xDeltaBottom = sleeperTokens(player, xDeltaBottom, yPlayAreaSecondRow);
         xDeltaBottom = creussWormholeTokens(player, xDeltaBottom, yPlayAreaSecondRow);
         xDeltaBottom = valefarZTokens(player, xDeltaBottom, yPlayAreaSecondRow);
@@ -799,6 +803,42 @@ public class PlayerAreaGenerator {
         return xDeltaFromRightSide;
     }
 
+    private int theodisiTokenSupplies(Player player, int xDeltaFromRightSide, int yDelta) {
+        if (player.hasAbility("expeditionary_cache")) {
+            xDeltaFromRightSide = displayTheodisiTokenSupply(
+                    "token_theodisi_kairnexpedition.png",
+                    5,
+                    KairnAbilityHandler.getAvailableExpeditionTokens(game),
+                    xDeltaFromRightSide,
+                    yDelta);
+        }
+        if (player.hasAbility("sting_of_the_hive")) {
+            xDeltaFromRightSide = displayTheodisiTokenSupply(
+                    "token_theodisi_mine.png",
+                    6,
+                    XytherisAbilityHandler.getAvailableStingOfTheHiveMines(game),
+                    xDeltaFromRightSide,
+                    yDelta);
+        }
+        if (player.hasAbility("reflections_of_the_void")) {
+            xDeltaFromRightSide = displayTheodisiTokenSupply(
+                    "token_theodisi_oblivionreflection.png",
+                    3,
+                    OblivionAbilityHandler.getAvailableReflectionTokens(game),
+                    xDeltaFromRightSide,
+                    yDelta);
+        }
+        return xDeltaFromRightSide;
+    }
+
+    private int displayTheodisiTokenSupply(
+            String tokenName, int maxTokens, int tokensRemaining, int xDeltaFromRightSide, int yDelta) {
+        BufferedImage tokenImage = ImageHelper.read(ResourceHelper.getInstance().getTokenFile(tokenName));
+        List<Point> points = new ArrayList<>();
+        IntStream.range(0, maxTokens).forEach(i -> points.add(new Point(i * 54, 50 * ((i + 1) % 2))));
+        return displayRemainingFactionTokens(points, tokenImage, tokensRemaining, xDeltaFromRightSide, yDelta);
+    }
+
     private int honorOrPathTokens(Player player, int xDeltaFromRightSide, int yDelta) {
         if (player.getDishonorCounter() < 1
                 && player.getHonorCounter() < 1
@@ -811,9 +851,7 @@ public class PlayerAreaGenerator {
         if (game.isVeiledHeartMode()) {
             DrawingUtil.superDrawStringCenteredDefault(
                     graphics,
-                    "Veiled Cards: "
-                            + ((game.getStoredValue("veiledCards" + player.getFaction()) + "spoof").split("_").length
-                                    - 1),
+                    "Veiled Cards: " + VeiledHeartService.countVeiledCards(player),
                     mapWidth - xDeltaFromRightSide - 300,
                     yDelta + 50);
         } else {
@@ -1397,6 +1435,35 @@ public class PlayerAreaGenerator {
             }
         }
 
+        Player lichPoolOwner = game.getRevenantCommanderOwner(player);
+        if (lichPoolOwner != null) {
+            deltaX += 5;
+            Collection<Player> players = game.getRealPlayersNDummies();
+            if (game.isMinorFactionsMode()) {
+                players = game.getRealPlayers();
+            }
+
+            for (Player otherPlayer : players) {
+                if (otherPlayer.equals(lichPoolOwner)
+                        || lichPoolOwner.getDebtTokenCount(otherPlayer.getColor(), "lich") < 1) {
+                    continue;
+                }
+
+                Leader commander = game.getRevenantLichCommander(lichPoolOwner, otherPlayer);
+                if (commander == null) {
+                    continue;
+                }
+
+                String status = commander.isLocked() ? "_exh" : "_rdy";
+                String overlay = "pa_leaders_lich" + status + ".png";
+                drawRectWithOverlay(graphics, x + deltaX - 2, y - 2, 44, 152, Mapper.getLeader(commander.getId()));
+                DrawingUtil.drawPlayerFactionIconImage(graphics, otherPlayer, x + deltaX - 1, y + 108, 42, 42);
+                drawPAImage(x + deltaX, y, overlay);
+                drawPAImage(x + deltaX, y, "pa_leaders_pips_ii" + status + ".png");
+                deltaX += 48;
+            }
+        }
+
         return x + deltaX + 20;
     }
 
@@ -1706,7 +1773,7 @@ public class PlayerAreaGenerator {
                         ImageHelper.read(ResourceHelper.getInstance().getDecalFile("Voltron.png"));
 
                 int numInReinforcements = unitCap - count;
-                if (player.hasUnlockedBreakthrough("freesystemsbt")
+                if ((player.hasUnlockedBreakthrough("freesystemsbt") || player.hasTech("tf-rallyingmarshalls"))
                         && model != null
                         && model.getUnitType() == UnitType.Infantry) {
                     for (String planet : player.getPlanetsAllianceMode()) {
@@ -2562,7 +2629,7 @@ public class PlayerAreaGenerator {
     private int techInfo(Player player, int x, int y, Game game) {
         List<String> techs = new ArrayList<>(player.getTechs());
         if (player.hasUnlockedBreakthrough("tyrisbt")) {
-            techs.addAll(TyrisBreakthroughButtonHandler.getTyrisBTTechs(player, game));
+            techs.addAll(TyrisBreakthroughHandler.getTyrisBTTechs(player, game));
         }
         Map<String, List<String>> techsFiltered = new HashMap<>();
         for (String tech : techs) {
@@ -2857,7 +2924,7 @@ public class PlayerAreaGenerator {
                 DrawingUtil.drawOneOrTwoLinesOfTextVertically(
                         graphics, techModel.getShortName(), x + deltaX + 7, y + 116, 116);
             }
-            if ("dslaner".equalsIgnoreCase(tech)) {
+            if ("dslaner".equalsIgnoreCase(tech) || "tf-dslaner".equalsIgnoreCase(tech)) {
                 DrawingUtil.drawTextVertically(
                         graphics, "" + player.getAtsCount(), x + deltaX + 15, y + 140, Storage.getFont16());
             }

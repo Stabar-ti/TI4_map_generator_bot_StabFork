@@ -17,6 +17,10 @@ import org.apache.commons.lang3.function.Consumers;
 import org.jetbrains.annotations.NotNull;
 import ti4.discord.interactions.buttons.Buttons;
 import ti4.discord.interactions.buttons.handlers.commandcounter.CommandCounterButtonHandler;
+import ti4.discord.interactions.buttons.handlers.faction.homebrew.theodisi.Ardentia.ArdentiaPromissoryHandler;
+import ti4.discord.interactions.buttons.handlers.faction.homebrew.theodisi.Revenant.RevenantBreakthroughHandler;
+import ti4.discord.interactions.buttons.handlers.faction.homebrew.whispers.lunarium.LunariumAbilityHandler;
+import ti4.discord.interactions.buttons.handlers.faction.homebrew.whispers.lunarium.LunariumBreakthroughHandler;
 import ti4.discord.interactions.routing.ButtonHandler;
 import ti4.game.Game;
 import ti4.game.Leader;
@@ -193,12 +197,21 @@ public final class ButtonHelperSCs {
                 && game.getPlayedSCs().contains(scModel.getInitiative())) {
             int scNum = scModel.getInitiative();
             player.addFollowedSC(scNum, event);
+            boolean followsForFree = player.hasAbility("diplomatic_immunity");
             ButtonHelperFactionSpecific.resolveVadenSCDebt(player, scNum, game, event);
-            if (player.getStrategicCC() > 0) {
-                ButtonHelperCommanders.resolveMuaatCommanderCheck(player, game, event, "followed **Diplomacy**");
+            if (!followsForFree) {
+                if (player.getStrategicCC() > 0) {
+                    ButtonHelperCommanders.resolveMuaatCommanderCheck(player, game, event, "followed **Diplomacy**");
+                }
+                String message = deductCC(game, player, scNum);
+                ReactionService.addReaction(event, game, player, message);
+            } else {
+                ReactionService.addReaction(
+                        event,
+                        game,
+                        player,
+                        "is following **Diplomacy** without spending a command token due to _Diplomatic Immunity_.");
             }
-            String message = deductCC(game, player, scNum);
-            ReactionService.addReaction(event, game, player, message);
         }
         if (scModel != null && !player.getFollowedSCs().contains(scModel.getInitiative())) {
             ButtonHelperFactionSpecific.resolveVadenSCDebt(player, scModel.getInitiative(), game, event);
@@ -410,6 +423,12 @@ public final class ButtonHelperSCs {
                     game.drawSecretObjective(player.getUserID());
                     message += " Drew a second secret objective due to **Plausible Deniability**.";
                 }
+                if (player.hasAbility("multitasking")) {
+                    LunariumAbilityHandler.offerFactionSheetCCButtons(game, player);
+                }
+                if (player.hasUnlockedBreakthrough("lunariumbt")) {
+                    LunariumBreakthroughHandler.offerDarkSideExploitationButtons(game, player);
+                }
                 SecretObjectiveInfoService.sendSecretObjectiveInfo(game, player, event);
                 break;
             }
@@ -483,6 +502,14 @@ public final class ButtonHelperSCs {
                     player.getCorrectChannel(),
                     player.getRepresentationUnfogged()
                             + " since you cannot send players commodities due to your faction ability, washing here seems likely an error. Nothing has been processed as a result. Try a different route if this correction is wrong");
+            return;
+        }
+
+        if (player.hasAbility("expeditionary_cache")) {
+            MessageHelper.sendMessageToChannel(
+                    player.getCorrectChannel(),
+                    player.getRepresentationUnfogged()
+                            + ", since **Expeditionary Cache** lets you place _Expedition Tokens_, resolving commodity washing here seems likely to be an error. Nothing has been processed. Please use a different route if that is incorrect.");
             return;
         }
 
@@ -1304,6 +1331,9 @@ public final class ButtonHelperSCs {
         }
         Button doneExhausting = Buttons.red("deleteButtons_leadership", "Done Exhausting Planets");
         buttons.add(doneExhausting);
+        if (player.hasPlayablePromissoryInHand("thpnardentia")) {
+            buttons.add(ArdentiaPromissoryHandler.getUsurpersLeaseButton(player));
+        }
         int ccCount = Helper.getCCCount(game, player.getColor());
         int limit = 16;
         if (!game.getStoredValue("ccLimit").isEmpty()) {
@@ -1352,8 +1382,14 @@ public final class ButtonHelperSCs {
         return contains;
     }
 
+    // TODO FoW leak: the scepterE/thardentiag branches below post player.getRepresentationUnfogged() to the
+    // shared SC-follow channel unconditionally (no isFowMode() guard), and the closing reaction always uses the
+    // real player.getFactionEmoji() instead of Helper.getPlayerReactionEmoji()'s fog-safe randomized emoji.
+    // These buttons are offered in FoW games too (see PlayStrategyCardService), so this is reachable. Needs the
+    // same private-channel treatment already applied to MindsieveService/StoneEmbraceService.
     @ButtonHandler("scepterE_follow_")
     @ButtonHandler("mahactA_follow_")
+    @ButtonHandler("thardentiag_follow_")
     public static void mahactAndScepterFollow(Game game, Player player, ButtonInteractionEvent event, String buttonID) {
         String lastChar = StringUtils.right(event.getButton().getLabel(), 2).replace("#", "");
         boolean setStatus = true;
@@ -1385,6 +1421,7 @@ public final class ButtonHelperSCs {
             Leader playerLeader = player.unsafeGetLeader("mahactagent");
             if (playerLeader != null) {
                 playerLeader.setExhausted(true);
+                RevenantBreakthroughHandler.exhaustRevenantRisingForAttachedAgent(game, player, playerLeader);
                 for (Player p2 : game.getPlayers().values()) {
                     for (Integer sc2 : p2.getSCs()) {
                         if (sc2 == scNum) {
@@ -1403,7 +1440,7 @@ public final class ButtonHelperSCs {
                     }
                 }
             }
-        } else {
+        } else if (buttonID.contains("scepterE")) {
             MessageHelper.sendMessageToChannel(
                     channel,
                     player.getRepresentationUnfogged() + " exhausted the _" + RelicHelper.sillySpelling()
@@ -1415,6 +1452,12 @@ public final class ButtonHelperSCs {
                         player.getRepresentation()
                                 + " Reminder that if you intend to participate in the splice, you still need to hit the participate in the splice button now.");
             }
+        } else {
+            MessageHelper.sendMessageToChannel(
+                    channel,
+                    player.getRepresentationUnfogged() + " exhausted _Cognitive Parallax Engine_ to follow "
+                            + Helper.getSCName(scNum, game) + ".");
+            player.exhaustTech("thardentiag");
         }
         Emoji emojiToUse = Emoji.fromFormatted(player.getFactionEmoji());
 
@@ -1515,7 +1558,7 @@ public final class ButtonHelperSCs {
                 setStatus = false;
             }
         }
-        if (player != null && player.getSCs().contains(scNum)) {
+        if (player != null && player.getSCs().contains(scNum) && !player.hasAbility("detachment")) {
             String message = player.getRepresentation()
                     + " you currently hold this strategy card and therefore should not be spending a command token here."
                     + "\nYou may override this protection by running `/player stats strategy_cc:-1`.";
@@ -1526,11 +1569,25 @@ public final class ButtonHelperSCs {
         if (!used
                 && !player.getFollowedSCs().contains(scNum)
                 && game.getPlayedSCs().contains(scNum)) {
-
-            String message = deductCC(game, player, scNum);
-            if (message.contains("1 command token has been spent from strategy pool")) {
-                ButtonHelperCommanders.resolveMuaatCommanderCheck(
-                        player, game, event, "followed **" + Helper.getSCName(scNum, game) + "**");
+            StrategyCardModel scModel =
+                    game.getStrategyCardModelByInitiative(scNum).orElse(null);
+            boolean followsDiplomacyForFree = player.hasAbility("diplomatic_immunity")
+                    && scModel != null
+                    && (scModel.usesAutomationForSCID("pok2diplomacy")
+                            || "pok2diplomacy".equalsIgnoreCase(scModel.getId())
+                            || "diplomacy".equalsIgnoreCase(scModel.getId())
+                            || "noctis".equalsIgnoreCase(scModel.getId())
+                            || "diplomacy".equalsIgnoreCase(scModel.getName())
+                            || "noctis".equalsIgnoreCase(scModel.getName()));
+            String message;
+            if (followsDiplomacyForFree) {
+                message = "is following **Diplomacy** without spending a command token due to _Diplomatic Immunity_.";
+            } else {
+                message = deductCC(game, player, scNum);
+                if (message.contains("1 command token has been spent from strategy pool")) {
+                    ButtonHelperCommanders.resolveMuaatCommanderCheck(
+                            player, game, event, "followed **" + Helper.getSCName(scNum, game) + "**");
+                }
             }
 
             if (setStatus) {

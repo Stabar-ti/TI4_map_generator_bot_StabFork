@@ -9,7 +9,7 @@ import net.dv8tion.jda.api.events.interaction.GenericInteractionCreateEvent;
 import net.dv8tion.jda.api.utils.FileUpload;
 import ti4.ResourceHelper;
 import ti4.discord.interactions.buttons.Buttons;
-import ti4.discord.interactions.buttons.handlers.faction.homebrew.whispers.lunarium.LunariumAbilityButtonHandler;
+import ti4.discord.interactions.buttons.handlers.faction.homebrew.whispers.lunarium.LunariumAbilityHandler;
 import ti4.game.Game;
 import ti4.game.Leader;
 import ti4.game.Planet;
@@ -21,6 +21,7 @@ import ti4.helpers.FoWHelper;
 import ti4.helpers.Helper;
 import ti4.image.ImageHelper;
 import ti4.image.Mapper;
+import ti4.logging.BotLogger;
 import ti4.message.MessageHelper;
 import ti4.service.emoji.MiscEmojis;
 import ti4.service.image.FileUploadService;
@@ -30,6 +31,10 @@ import ti4.service.leader.UnlockLeaderService;
 public class RoundOneService {
 
     public static void roundOne(GenericInteractionCreateEvent event, Game game) {
+        if (game.isAcd2()) {
+            BotLogger.info(
+                    Constants.privateStaticVoidPing() + " Action Card Deck 2 game has begun: " + game.gameJumpLinks());
+        }
         if (!game.isFowMode()) {
             StringBuilder message =
                     new StringBuilder("Here are the quick reference cards for the factions in this game.");
@@ -139,7 +144,7 @@ public class RoundOneService {
             }
 
             if (player.hasAbility("initiation")) {
-                LunariumAbilityButtonHandler.setFactionSheetCCs(game, player, 1);
+                LunariumAbilityHandler.setFactionSheetCCs(game, player, 1);
             }
 
             if (player.hasAbility("questing_prince")) {

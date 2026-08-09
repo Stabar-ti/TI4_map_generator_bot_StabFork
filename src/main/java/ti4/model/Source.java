@@ -37,6 +37,7 @@ public class Source {
         blue_reverie,
         twilight_kart,
         twilight_ds,
+        pally,
 
         // lil homebrew
         lazax,
@@ -51,6 +52,10 @@ public class Source {
         viability_patch,
         beans,
         endlesst,
+        theodisi,
+        gamma,
+        black_spectrum,
+        addiction,
 
         // async homebrew
         draft,
@@ -85,6 +90,8 @@ public class Source {
         omega_phase,
         fowplus,
         untangled_space,
+        combosloth,
+        newdawn,
 
         // eronous' stuff
         eronous,
@@ -219,6 +226,10 @@ public class Source {
                 case monuments -> "Monuments+ [Homebrew]";
                 case omega_phase -> "Omega Phase [Homebrew]";
                 case voices_of_the_council -> "Voices of the Council [Homebrew]";
+                case theodisi -> "Lost Legacies [Homebrew]";
+                case gamma -> "Gamma Galaxies [Homebrew]";
+                case black_spectrum -> "Black Spectrum [Homebrew]";
+                case addiction -> "TI Addiction [Homebrew]";
                 default -> toString();
             };
         }

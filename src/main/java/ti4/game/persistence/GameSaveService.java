@@ -422,6 +422,12 @@ class GameSaveService {
         writer.write(System.lineSeparator());
         writer.write(Constants.BUTTON_PRESS_COUNT + " " + game.getButtonPressCount());
         writer.write(System.lineSeparator());
+        writer.write(Constants.EVENT_SEQUENCE_COUNTER + " " + game.getEventSequenceCounter());
+        writer.write(System.lineSeparator());
+        writer.write(Constants.PENDING_SUB_EVENTS_JSON + " " + game.getPendingSubEventsJson());
+        writer.write(System.lineSeparator());
+        writer.write(Constants.PENDING_MOVEMENT_STATE + " " + game.getPendingMovementState());
+        writer.write(System.lineSeparator());
         writer.write(Constants.GAME_CUSTOM_NAME + " " + game.getCustomName());
         writer.write(System.lineSeparator());
 
@@ -582,6 +588,8 @@ class GameSaveService {
         writer.write(Constants.NO_SWAP_MODE + " " + game.isNoSwapMode());
         writer.write(System.lineSeparator());
         writer.write(Constants.VEILED_HEART_MODE + " " + game.isVeiledHeartMode());
+        writer.write(System.lineSeparator());
+        writer.write(Constants.LORE_MODE + " " + game.isLoreMode());
         writer.write(System.lineSeparator());
         writer.write(Constants.LIMITED_WHISPERS_MODE + " " + game.isLimitedWhispersMode());
         writer.write(System.lineSeparator());
@@ -953,6 +961,8 @@ class GameSaveService {
             writer.write(System.lineSeparator());
 
             writer.write(Constants.ABILITIES + " " + String.join(",", player.getAbilities()));
+            writer.write(System.lineSeparator());
+            writer.write(Constants.EXHAUSTED_ABILITIES + " " + String.join(",", player.getExhaustedAbilities()));
             writer.write(System.lineSeparator());
 
             writer.write(Constants.TG + " " + player.getTg());

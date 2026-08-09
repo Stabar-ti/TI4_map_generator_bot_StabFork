@@ -18,8 +18,22 @@ import ti4.discord.interactions.buttons.handlers.faction.homebrew.beans.DreamBut
 import ti4.discord.interactions.buttons.handlers.faction.homebrew.beans.ashen.AshenLeadersHandler;
 import ti4.discord.interactions.buttons.handlers.faction.homebrew.beans.netrunners.NetrunnersLeadersHandler;
 import ti4.discord.interactions.buttons.handlers.faction.homebrew.beans.ta.TaLeadersHandler;
-import ti4.discord.interactions.buttons.handlers.faction.homebrew.whispers.onyxxa.OnyxxaHeroButtonHandler;
-import ti4.discord.interactions.buttons.handlers.faction.homebrew.whispers.xan.XanHeroButtonHandler;
+import ti4.discord.interactions.buttons.handlers.faction.homebrew.theodisi.Arcanum.ArcanumLeadersHandler;
+import ti4.discord.interactions.buttons.handlers.faction.homebrew.theodisi.Ardentia.ArdentiaLeadersHandler;
+import ti4.discord.interactions.buttons.handlers.faction.homebrew.theodisi.Kairn.KairnLeadershandler;
+import ti4.discord.interactions.buttons.handlers.faction.homebrew.theodisi.Kryxos.KryxosLeadersHandler;
+import ti4.discord.interactions.buttons.handlers.faction.homebrew.theodisi.Myrr.MyrrLeadersHandler;
+import ti4.discord.interactions.buttons.handlers.faction.homebrew.theodisi.Oblivion.OblivionLeadersHandler;
+import ti4.discord.interactions.buttons.handlers.faction.homebrew.theodisi.Oblivion.OblivionUnitHandler;
+import ti4.discord.interactions.buttons.handlers.faction.homebrew.theodisi.Ponthous.PonthousLeadersHandler;
+import ti4.discord.interactions.buttons.handlers.faction.homebrew.theodisi.Revenant.RevenantLeadersHandler;
+import ti4.discord.interactions.buttons.handlers.faction.homebrew.theodisi.Revenant.RevenantTechHandler;
+import ti4.discord.interactions.buttons.handlers.faction.homebrew.theodisi.Revenant.RevenantUnitsHandler;
+import ti4.discord.interactions.buttons.handlers.faction.homebrew.theodisi.Thrones.ThronesLeadersHandler;
+import ti4.discord.interactions.buttons.handlers.faction.homebrew.theodisi.Verydith.VerydithLeadersHandler;
+import ti4.discord.interactions.buttons.handlers.faction.homebrew.whispers.onyxxa.OnyxxaLeaderHandler;
+import ti4.discord.interactions.buttons.handlers.faction.homebrew.whispers.vyserix.VyserixLeaderHandler;
+import ti4.discord.interactions.buttons.handlers.faction.homebrew.whispers.xan.XanHeroHandler;
 import ti4.game.Game;
 import ti4.game.Leader;
 import ti4.game.Player;
@@ -67,6 +81,10 @@ import ti4.service.tech.ListTechService;
 import ti4.service.unit.AddUnitService;
 import ti4.service.unit.CheckUnitContainmentService;
 import ti4.spring.context.SpringContext;
+import ti4.spring.service.gameevent.GameEventDraft;
+import ti4.spring.service.gameevent.GameEventService;
+import ti4.spring.service.gameevent.GameEventType;
+import ti4.spring.service.gameevent.GameSubEvent;
 
 @UtilityClass
 public class PlayHeroService {
@@ -75,8 +93,21 @@ public class PlayHeroService {
         rememberFrankenFirmamentHero(player, leader);
         LeaderRemovalReason reason = LeaderRemovalReason.fromHeroId(leader.getId());
         boolean removed = player.removeLeader(leader);
+        if (removed && reason != LeaderRemovalReason.ATTACHED && player.hasAbility("commanding_presence")) {
+            MessageHelper.sendMessageToChannelWithButtons(
+                    player.getCorrectChannel(),
+                    player.getRepresentation()
+                            + ", **Commanding Presence** allows you to gain 1 command token after purging "
+                            + Helper.getLeaderFullRepresentation(leader) + ".",
+                    ButtonHelper.getGainCCButtons(player));
+        }
         if (removed && (reason == LeaderRemovalReason.PURGED || reason == LeaderRemovalReason.STATUS_CLEANUP)) {
             DSHelperBreakthroughs.doLanefirBtCheck(game, player);
+            OblivionUnitHandler.doOblivionMechCheck(game, player);
+        }
+        if (removed && reason == LeaderRemovalReason.PURGED) {
+            RevenantUnitsHandler.doRevenantMechCheck(game, player);
+            RevenantTechHandler.doLazarusPodsLeaderCheck(game);
         }
         return removed;
     }
@@ -97,7 +128,19 @@ public class PlayHeroService {
     }
 
     public static void playHero(GenericInteractionCreateEvent event, Game game, Player player, Leader playerLeader) {
+        if ("oblivionhero".equals(playerLeader.getId()) && !OblivionLeadersHandler.canStartOblivionHero(game)) {
+            MessageHelper.sendMessageToChannel(
+                    event.getMessageChannel(),
+                    player.getRepresentation()
+                            + ", Frontiersman Nothi, the Oblivion hero, cannot be played because there are not enough unused red-backed and blue-backed tiles or legal edge positions.");
+            return;
+        }
+
         LeaderModel leaderModel = playerLeader.getLeaderModel().orElse(null);
+        if (!GameEventDraft.stage(
+                game, new GameSubEvent.LeaderPlayed(player.getFaction(), "HERO", playerLeader.getId()))) {
+            GameEventService.commit(game, GameEventType.CARD_PLAY_HERO, player, Map.of("cardId", playerLeader.getId()));
+        }
         boolean showFlavourText = Constants.VERBOSITY_VERBOSE.equals(game.getOutputVerbosity());
         StringBuilder sb = new StringBuilder();
         if (leaderModel != null) {
@@ -229,8 +272,9 @@ public class PlayHeroService {
                     ButtonHelperRelics.offerTitansHeroButtons(player, game, event);
                 }
             }
-            case "onyxxahero" -> OnyxxaHeroButtonHandler.postInitialButtons(game, player);
-            case "xanhero" -> XanHeroButtonHandler.postInitialButtons(game, player);
+            case "vyserixhero" -> VyserixLeaderHandler.offerHeroAttachmentButtons(event, game, player);
+            case "onyxxahero" -> OnyxxaLeaderHandler.postHeroMoveShipButtons(game, player);
+            case "xanhero" -> XanHeroHandler.postInitialButtons(game, player);
             case "dreamhero" -> DreamButtonHandler.postDreamHeroButtons(game, player);
             case "ashenhero" -> AshenLeadersHandler.postHeroButtons(event, game, player);
             case "netrunnershero" -> NetrunnersLeadersHandler.startRevolution(game, player);
@@ -247,6 +291,16 @@ public class PlayHeroService {
                         player.getCorrectChannel(),
                         "You will unfortunately need to use dicecord's `/roll` command for the SPACE CANNON and BOMBARDMENT of all your units against one system and planet respectively.");
             }
+            case "ardentiahero" -> ArdentiaLeadersHandler.startArdentiaHero(event, game, player);
+            case "revenantkairnhero" -> RevenantLeadersHandler.startRevKairnHero(event, game, player);
+            case "throneshero" -> ThronesLeadersHandler.getUnplacedThronePlanetButtons(event, game, player);
+            case "kairnhero" -> KairnLeadershandler.startKairnHero(event, game, player);
+            case "ponthoushero" -> PonthousLeadersHandler.startPonthousHero(event, game, player);
+            case "arcanumhero" -> ArcanumLeadersHandler.startArcanumHero(event, game, player);
+            case "kryxoshero" -> KryxosLeadersHandler.startKryxosHero(event, game, player);
+            case "myrrhero" -> MyrrLeadersHandler.startMyrrHero(event, game, player);
+            case "oblivionhero" -> OblivionLeadersHandler.startOblivionHero(event, game, player);
+            case "verydithhero" -> VerydithLeadersHandler.startVerydithHero(event, game, player);
             case "florzenhero" -> {
                 for (Tile tile : game.getTileMap().values()) {
                     for (UnitHolder uH : tile.getPlanetUnitHolders()) {
@@ -513,6 +567,13 @@ public class PlayHeroService {
             case "sanctionhero" -> {
                 boolean singleDock = false;
                 Tile tile = player.getHomeSystemTile();
+                if (tile == null) {
+                    MessageHelper.sendMessageToChannel(
+                            event.getMessageChannel(),
+                            player.getRepresentationUnfogged()
+                                    + ", you do not have a home system tile to produce units in. You cannot use this hero");
+                    return;
+                }
                 List<Button> buttons = Helper.getPlaceUnitButtons(event, player, game, tile, "warfare", "place");
                 int productionValue = Helper.getProductionValue(player, game, tile, singleDock);
 

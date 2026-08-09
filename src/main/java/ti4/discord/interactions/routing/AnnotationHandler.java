@@ -1,6 +1,6 @@
 package ti4.discord.interactions.routing;
 
-import static org.reflections.scanners.Scanners.SubTypes;
+import static org.reflections.scanners.Scanners.*;
 
 import java.lang.annotation.Annotation;
 import java.lang.reflect.InvocationTargetException;
@@ -188,7 +188,7 @@ public class AnnotationHandler {
                                 .reply(
                                         "The button failed. An exception has been logged for the developers. Please report this to "
                                                 + getBotBugsChannelLink()
-                                                + " if it doesn't resolve within an hour. Do not ping anyone until that time passes.")
+                                                + " if it doesn't resolve within an hour. Do not press this button again.")
                                 .queue(Consumers.nop(), BotLogger::catchRestError);
                     }
                     if (arg instanceof StringSelectInteractionEvent selectInteractionEvent) {
@@ -304,12 +304,18 @@ public class AnnotationHandler {
                 if (argGetter == null) {
                     continue;
                 }
-
+                List<String> prefixes = new ArrayList<>();
                 for (H handler : annotationList) {
                     String val = null;
                     boolean save = true;
                     if (handler instanceof ButtonHandler bh) {
                         val = bh.value();
+                        if (prefixes.contains(val)) {
+                            System.out.println(
+                                    "Duplicate button handler prefix `" + val + "` in method `" + methodName + "`.");
+                        }
+                        prefixes.add(val);
+
                         save = bh.save();
                     }
                     if (handler instanceof SelectionHandler sh) {
@@ -322,13 +328,16 @@ public class AnnotationHandler {
                     }
                     if (val == null) continue;
                     Consumer<C> consumer = buildConsumer(method, argGetter, save);
+
                     handlerRegistry.register(val, consumer, save);
                 }
             }
         }
     }
 
-    private static List<Class<?>> getAllClasses() {
+    // Package-private (not private) so AnnotationHandlerDuplicateTest can reuse this exact scan. If more
+    // internals end up needing similar test access, extract a proper seam instead of relaxing further.
+    static List<Class<?>> getAllClasses() {
         if (classes.isEmpty()) {
             Reflections reflections = new Reflections(new ConfigurationBuilder()
                     .setUrls(ClasspathHelper.forJavaClassPath())

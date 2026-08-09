@@ -6,6 +6,8 @@ import net.dv8tion.jda.api.components.buttons.Button;
 import net.dv8tion.jda.api.events.interaction.component.ButtonInteractionEvent;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.function.Consumers;
+import ti4.discord.interactions.buttons.handlers.faction.homebrew.theodisi.Arcanum.ArcanumBreakthroughHandler;
+import ti4.discord.interactions.buttons.handlers.faction.homebrew.theodisi.Arcanum.ArcanumTechHandler;
 import ti4.discord.interactions.routing.ButtonHandler;
 import ti4.game.Game;
 import ti4.game.Player;
@@ -129,6 +131,7 @@ class TacticalActionButtonHandlers {
 
     @ButtonHandler("ChooseDifferentDestination")
     public static void chooseDifferentDestination(ButtonInteractionEvent event, Player player, Game game) {
+        ArcanumTechHandler.resetSigilOfTransmutationForNewDestination(game, player);
         // start over movement
         if (!game.getTacticalActionDisplacement().isEmpty()) {
             TacticalActionService.reverseAllUnitMovement(event, game, player);
@@ -205,6 +208,18 @@ class TacticalActionButtonHandlers {
                             .map(r -> r.onUnitHolder(addToHolder))
                             .toList();
                     AddUnitService.addUnits(event, game, toAdd);
+                    if (ArcanumBreakthroughHandler.hasPowerWordWish(owner)) {
+                        ArcanumBreakthroughHandler.movePowerWordWishUnitsWithinActiveSystem(
+                                game,
+                                owner,
+                                tile,
+                                removeFromHolder.getName(),
+                                addToHolder.getName(),
+                                type,
+                                removed.stream()
+                                        .mapToInt(RemovedUnit::getTotalRemoved)
+                                        .sum());
+                    }
 
                     List<Button> systemButtons = TacticalActionService.getLandingTroopsButtons(game, player, tile);
 
@@ -263,20 +278,34 @@ class TacticalActionButtonHandlers {
                     List<RemovedUnit> toAdd = removed.stream()
                             .map(r -> r.onUnitHolder(addToHolder))
                             .toList();
-                    AddUnitService.addUnits(event, game, toAdd);
-
-                    List<Button> systemButtons = TacticalActionService.getLandingTroopsButtons(game, player, tile);
-
                     String planetName = Mapper.getPlanet(planet).getNameNullSafe();
                     String landingMsg = player.fogSafeEmoji() + " landed " + amount + colorMsg + " "
                             + type.humanReadableName() + " on " + planetName + ".";
                     if (!removed.isEmpty()) {
+                        // Announce the landing before adding the units: addUnits can trigger CONTROLLED
+                        // lore (e.g. a troop-removing effect) that posts its own follow-up messages, and
+                        // we want "landed X" to read before those, not after.
                         MessageHelper.sendMessageToChannel(event.getMessageChannel(), landingMsg);
+                        AddUnitService.addUnits(event, game, toAdd);
+                        if (ArcanumBreakthroughHandler.hasPowerWordWish(owner)) {
+                            ArcanumBreakthroughHandler.movePowerWordWishUnitsWithinActiveSystem(
+                                    game,
+                                    owner,
+                                    tile,
+                                    removeFromHolder.getName(),
+                                    addToHolder.getName(),
+                                    type,
+                                    removed.stream()
+                                            .mapToInt(RemovedUnit::getTotalRemoved)
+                                            .sum());
+                        }
                     } else {
                         MessageHelper.sendMessageToChannel(
                                 event.getMessageChannel(),
                                 "Landing failed for an unknown reason. Regenerated buttons, please ping bothelper if the problem persists.");
                     }
+
+                    List<Button> systemButtons = TacticalActionService.getLandingTroopsButtons(game, player, tile);
                     event.getMessage()
                             .editMessage(event.getMessage().getContentRaw())
                             .setComponents(ButtonHelper.turnButtonListIntoActionRowList(systemButtons))

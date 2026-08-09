@@ -1,8 +1,11 @@
 package ti4.helpers;
 
+import static java.util.Map.*;
+
 import java.awt.Point;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 public final class Constants {
     // Staff Pings
@@ -19,9 +22,31 @@ public final class Constants {
     public static final String jabberwockyId = "455013002953883651";
     public static final String solaxId = "380689512621277185";
     public static final String andcatId = "238933125072158720";
+    public static final String privateStaticVoidId = "148195684644814848";
 
     // Server IDs
     public static final String ASYNCTI4_HUB_SERVER_ID = "943410040369479690";
+
+    public static final Map<String, String> EMOJI_FARM_SERVERS = Map.ofEntries(
+            entry("1155639926675746886", "Emoji Farm 1"),
+            entry("1156671516784730314", "Emoji Farm 2"),
+            entry("1156686770436591637", "Emoji Farm 3"),
+            entry("1158956227829706762", "Emoji Farm 4"),
+            entry("1158956387376828507", "Emoji Farm 5"),
+            entry("1158956545019760750", "Emoji Farm 6"),
+            entry("1158956865875615836", "Emoji Farm 7"),
+            entry("1158956969290383360", "Emoji Farm 8"),
+            entry("1164297443379249302", "Emoji Farm 9"),
+            entry("1164298025603190864", "Emoji Farm 10"),
+            entry("1171620536833560676", "Emoji Farm 11"),
+            entry("1180152020582289478", "Emoji Farm 12"),
+            entry("1180160763353124864", "Emoji Farm 13"),
+            entry("1197344983531913267", "Emoji Farm 14"),
+            entry("1220415501608681512", "Emoji Farm 15"),
+            entry("1220415609725124660", "Emoji Farm 16"),
+            entry("1220415693837832212", "Emoji Farm 17"),
+            entry("1243245147551170582", "Emoji Farm 18"),
+            entry("1303437221361352715", "Emoji Farm 19"));
 
     public static String jazzPing() {
         return "<@" + jazzId + ">";
@@ -37,6 +62,10 @@ public final class Constants {
 
     public static String solaxPing() {
         return "<@" + solaxId + ">";
+    }
+
+    public static String privateStaticVoidPing() {
+        return "<@" + privateStaticVoidId + ">";
     }
 
     // Standard Thread Names
@@ -101,6 +130,12 @@ public final class Constants {
     public static final String ALLIANCE_MODE = "alliance_mode";
     public static final String FOW_MODE = "fow_mode";
     public static final String AVERNUS = "avernus";
+    public static final String BROKENPLANET1 = "brokenplanet1";
+    public static final String BROKENPLANET2 = "brokenplanet2";
+    public static final String BROKENPLANET3 = "brokenplanet3";
+    public static final String BROKENPLANET4 = "brokenplanet4";
+    public static final String BROKENPLANET5 = "brokenplanet5";
+    public static final String BROKENPLANET6 = "brokenplanet6";
     public static final String FOW_OPTIONS = "fow_options";
     public static final String BASE_GAME_MODE = "base_game_mode";
     public static final String THUNDERS_EDGE_MODE = "thunders_edge_mode";
@@ -111,6 +146,9 @@ public final class Constants {
     public static final String HOMEBREW_SC_MODE = "homebrew_sc_mode";
     public static final String SPIN_MODE = "spin_mode";
     public static final String BUTTON_PRESS_COUNT = "button_press_count";
+    public static final String EVENT_SEQUENCE_COUNTER = "event_sequence_counter";
+    public static final String PENDING_SUB_EVENTS_JSON = "pending_sub_events_json";
+    public static final String PENDING_MOVEMENT_STATE = "pending_movement_state";
     public static final String ABSOL_MODE = "absol_mode";
     public static final String PROMISES_PROMISES = "promises_promises";
     public static final String FLAGSHIPPING = "flagshipping";
@@ -141,6 +179,7 @@ public final class Constants {
     public static final String UNDO_BUTTON = "undo_button";
     public static final String FAST_SC_FOLLOW = "fast_sc_follow";
     public static final String PURGED_FRAGMENTS = "purged_fragment";
+    public static final String PURGED_MAP_TILES = "purged_map_tiles";
     public static final String DOMINUS_ORB = "dominus_orb";
     public static final String COMPONENT_ACTION = "component_action";
     public static final String JUST_PLAYED_COMPONENT_AC = "just_played_component_ac";
@@ -348,6 +387,7 @@ public final class Constants {
     public static final String GENERATE_PAINBOX_MAP = "generate_painbox_map";
     public static final String IMPORT_MAP_JSON = "import_json";
     public static final String EXPORT_MAP_JSON = "export_json";
+    public static final String IMPORT_DECK_CONFIG = "import_deck_config";
     public static final String BLUE_TILES = "blue_tiles";
     public static final String RED_TILES = "red_tiles";
     public static final String HOME_SYSTEMS = "home_systems";
@@ -394,8 +434,8 @@ public final class Constants {
     public static final String SETUP8 = "setup8";
     public static final String MALLICE = "mallicelocked";
     public static final String MR = "mr";
-    public static final List<String> MECATOLS = List.of(MR, "nn", "ll", "rexatolmec", "ordinianc4", "mrte");
-    public static final List<String> MECATOL_SYSTEMS = List.of("18", "fin1", "fin2", "rexmec", "112");
+    public static final List<String> MECATOLS = List.of(MR, "nn", "ll", "rexatolmec", "ordinianc4", "mrte", "mc");
+    public static final List<String> MECATOL_SYSTEMS = List.of("18", "fin1", "fin2", "rexmec", "112", "8100");
 
     public static final int SPACE_RADIUS = 115;
     public static final int RADIUS = 45;
@@ -414,8 +454,30 @@ public final class Constants {
     private static final String CRADLE = "cradle";
     private static final String ILLUSION = "illusion";
     private static final String PHANTASM = "phantasm";
-    public static final List<String> TOKEN_PLANETS =
-            List.of(MIRAGE, OASIS, CRADLE, ILLUSION, PHANTASM, AVERNUS, THUNDERSEDGE);
+    private static final String CINERON = "cineron";
+    private static final String SKARNATH = "skarnath";
+    private static final String LETHARA = "lethara";
+    private static final String GYRAXIS = "gyraxis";
+    private static final String LOST_STATION = "loststation";
+    public static final List<String> TOKEN_PLANETS = List.of(
+            MIRAGE,
+            OASIS,
+            CRADLE,
+            ILLUSION,
+            PHANTASM,
+            CINERON,
+            SKARNATH,
+            LETHARA,
+            GYRAXIS,
+            LOST_STATION,
+            AVERNUS,
+            THUNDERSEDGE,
+            BROKENPLANET1,
+            BROKENPLANET2,
+            BROKENPLANET3,
+            BROKENPLANET4,
+            BROKENPLANET5,
+            BROKENPLANET6);
 
     public static final String FRONTIER = "frontier";
 
@@ -447,6 +509,7 @@ public final class Constants {
     public static final String STELLAR_CONVERTER = "stellar_converter";
     public static final String EXPEDITION_WIN_RATES = "expedition_win_rates";
     public static final String TWILIGHTS_FALL_SPLICE_WIN_RATES = "tf_splice_win_rates";
+    public static final String SLICE_TILE_WIN_RATES = "slice_tile_win_rates";
     public static final String SEND_DEBT = "send_debt";
     public static final String DEBT_COUNT = "debt_count";
     public static final String REMOVE_DEBT = "remove_debt";
@@ -459,6 +522,7 @@ public final class Constants {
     public static final String LIZHO_TRAP_PNG = "attachment_lizhotrap.png";
     public static final String LIZHO = "lizho";
     public static final String WORLD_DESTROYED_PNG = "token_worlddestroyed.png";
+    public static final String THEODISI_WORLD_DESTROYED_PNG = "token_theodisi_worlddestroyed.png";
     public static final String TOKEN_ION_ALPHA_PNG = "token_ionalpha.png";
     public static final String TOKEN_ION_BETA_PNG = "token_ionbeta.png";
     public static final String SWAP_SYSTEMS = "swap_systems";
@@ -516,6 +580,7 @@ public final class Constants {
     public static final String REMOVE_SO_FROM_GAME = "remove_so_from_game";
     public static final String REMOVE_PO_FROM_GAME = "remove_po_from_game";
     public static final String REMOVE_SC_FROM_GAME = "remove_sc_from_game";
+    public static final String REMOVE_RELIC_FROM_GAME = "remove_relic_from_game";
 
     public static final String SET_PO_DECK = "set_po_deck";
     public static final String SET_PO_DECK_STAGE1_LIST = "stage1_ids";
@@ -602,6 +667,7 @@ public final class Constants {
     public static final String SC_FOLLOW = "sc_follow";
     public static final String SC_PLAY = "sc_play";
     public static final String SC_UNPLAY = "sc_unplay";
+    public static final String UNPASS = "unpass";
     public static final String SC_PICK = "sc_pick";
     public static final String SC_UNPICK = "sc_unpick";
     public static final String PASS = "pass";
@@ -1199,6 +1265,7 @@ public final class Constants {
     public static final String ABILITY_4 = "ability_4";
     public static final String ABILITY_5 = "ability_5";
     public static final String ABILITIES = "abilities";
+    public static final String EXHAUSTED_ABILITIES = "exhausted_abilities";
     public static final String ABILITY_INFO = "ability_info";
     public static final String ABILITY_ADD = "ability_add";
     public static final String ABILITY_REMOVE = "ability_remove";
@@ -1251,6 +1318,17 @@ public final class Constants {
     public static final List<String> VERBOSITY_OPTIONS =
             List.of(VERBOSITY_VERBOSE, VERBOSITY_AVERAGE, VERBOSITY_MINIMAL);
 
+    public static final List<String> CALL_OF_THE_HAUNTED_LEADERS = List.of(
+            "revenantverydithagent",
+            "revenantmyrrcommander",
+            "revenantthroneshero",
+            "revenantarcanumagent",
+            "revenantoblivioncommander",
+            "revenantkairnhero",
+            "revenantxytherisagent",
+            "revenantponthouscommander",
+            "revenantkryxoshero");
+
     public static final String BETA_TEST_MODE = "beta_test_mode";
     public static final String CC_LIMIT = "cc_limit";
     public static final String AGE_OF_EXPLORATION_MODE = "age_of_exploration_mode";
@@ -1278,6 +1356,7 @@ public final class Constants {
     public static final String STELLAR_ATOMICS_MODE = "stellar_atomics_mode";
     public static final String NO_SWAP_MODE = "no_swap_mode";
     public static final String VEILED_HEART_MODE = "veiled_heart_mode";
+    public static final String LORE_MODE = "lore_mode";
     public static final String LIMITED_WHISPERS_MODE = "limited_whispers_mode";
     public static final String WHISPERS_ENABLED = "whispers_enabled";
     public static final String WHISPERS_DISABLED = "whispers_disabled";
@@ -1339,6 +1418,7 @@ public final class Constants {
     public static final String ADD_TO_SPLICE = "add_to_splice";
     public static final String GALVANIZE = "galvanize";
     public static final String FIX_COLORS = "fix_colors";
+    public static final String GUILD_AGENTS = "guild_agents";
     public static final String DRAW_RANDOM_UNIT = "draw_random_unit";
     public static final String DRAW_RANDOM_GENOME = "draw_random_genome";
     public static final String DRAW_RANDOM_BLUE_TILE = "draw_random_blue_tile";
@@ -1403,6 +1483,7 @@ public final class Constants {
     public static final String MOD_ADJACENT_MECH = "adjacent_mech";
     public static final String MOD_OPPONENT_NON_FIGHTER_SHIP = "opponent_non_fighter_ship";
     public static final String MOD_OPPONENT_SHIP = "opponent_ship";
+    public static final String MOD_VERYDITH_FLAGSHIP = "opponent_cc_in_system";
 
     public static final String MIGRATION_NAME = "migration_name";
     public static final String RUN_MANUAL_DATA_MIGRATION = "run_manual_data_migration";
@@ -1453,6 +1534,8 @@ public final class Constants {
 
     public static final String OLRADIN_MECH_RES_PNG = "attachment_olradin_mech_res.png";
     public static final String OLRADIN_MECH_INF_PNG = "attachment_olradin_mech_inf.png";
+    public static final String VOX_SENTINELS_PNG = "attachment_vox_sentinels.png";
+    public static final String VERYDITH_ATTACHMENT_PNG = "attachment_verydithposresinf.png";
     public static final String EXAMPLES_ONLY = "examples_only";
     public static final String HOW_TO_MOVE_UNITS = "how_to_move_units";
     public static final String IS_ASTEROID_FIELD = "is_asteroid_field";

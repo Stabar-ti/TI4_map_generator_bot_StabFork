@@ -7,7 +7,7 @@ import lombok.experimental.UtilityClass;
 import net.dv8tion.jda.api.components.buttons.Button;
 import net.dv8tion.jda.api.events.interaction.GenericInteractionCreateEvent;
 import ti4.discord.interactions.buttons.Buttons;
-import ti4.discord.interactions.buttons.handlers.faction.homebrew.whispers.tyris.TyrisBreakthroughButtonHandler;
+import ti4.discord.interactions.buttons.handlers.faction.homebrew.whispers.tyris.TyrisBreakthroughHandler;
 import ti4.game.Game;
 import ti4.game.Player;
 import ti4.helpers.ButtonHelper;
@@ -18,6 +18,8 @@ import ti4.helpers.SecretObjectiveHelper;
 import ti4.helpers.StatusHelper;
 import ti4.helpers.omega_phase.PriorityTrackHelper;
 import ti4.message.MessageHelper;
+import ti4.spring.service.gameevent.GameEventService;
+import ti4.spring.service.gameevent.GameEventType;
 
 @UtilityClass
 public class PassService {
@@ -32,6 +34,7 @@ public class PassService {
         }
 
         player.setPassed(true);
+        GameEventService.commit(game, GameEventType.TURN, player, Map.of("passed", true));
         if (game.playerHasLeaderUnlockedOrAlliance(player, "olradincommander")) {
             ButtonHelperCommanders.olradinCommanderStep1(player, game);
         }
@@ -135,7 +138,7 @@ public class PassService {
         Player tyris =
                 game.getPlayersFromBreakthrough("tyrisbt").stream().findFirst().orElse(null);
         if (tyris != null && tyris.hasUnlockedBreakthrough("tyrisbt")) {
-            TyrisBreakthroughButtonHandler.handlePlayerPassed(game, tyris);
+            TyrisBreakthroughHandler.handlePlayerPassed(game, tyris);
         }
         EndTurnService.pingNextPlayer(event, game, player, true);
         if (!autoPass) {

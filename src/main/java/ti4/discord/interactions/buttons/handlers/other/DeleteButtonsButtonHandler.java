@@ -1,6 +1,7 @@
 package ti4.discord.interactions.buttons.handlers.other;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import lombok.experimental.UtilityClass;
@@ -10,7 +11,10 @@ import net.dv8tion.jda.api.events.interaction.component.ButtonInteractionEvent;
 import org.apache.commons.lang3.function.Consumers;
 import ti4.discord.interactions.buttons.Buttons;
 import ti4.discord.interactions.buttons.handlers.faction.homebrew.beans.netrunners.NetrunnersAbilitiesHandler;
-import ti4.discord.interactions.buttons.handlers.faction.homebrew.beans.netrunners.NetrunnersLeadersHandler;
+import ti4.discord.interactions.buttons.handlers.faction.homebrew.theodisi.Ardentia.ArdentiaAbilityHandler;
+import ti4.discord.interactions.buttons.handlers.faction.homebrew.theodisi.Myrr.MyrrBreakthroughHandler;
+import ti4.discord.interactions.buttons.handlers.faction.homebrew.theodisi.Revenant.RevenantLeadersHandler;
+import ti4.discord.interactions.buttons.handlers.faction.homebrew.theodisi.Revenant.RevenantTechHandler;
 import ti4.discord.interactions.routing.ButtonHandler;
 import ti4.game.Game;
 import ti4.game.Player;
@@ -40,7 +44,12 @@ import ti4.service.combat.StartCombatService;
 import ti4.service.emoji.FactionEmojis;
 import ti4.service.emoji.TechEmojis;
 import ti4.service.fow.LoreService;
+import ti4.service.leader.CommanderUnlockCheckService;
 import ti4.service.turn.StartTurnService;
+import ti4.spring.service.gameevent.GameEventDraft;
+import ti4.spring.service.gameevent.GameEventService;
+import ti4.spring.service.gameevent.GameEventType;
+import ti4.spring.service.gameevent.GameSubEvent;
 
 @UtilityClass
 class DeleteButtonsButtonHandler {
@@ -65,6 +74,20 @@ class DeleteButtonsButtonHandler {
                 boolean cyber = false;
                 boolean malevolency = false;
                 int netGain = ButtonHelper.checkNetGain(player, shortCCs);
+                if (netGain > 0 && game.playerHasLeaderUnlockedOrAlliance(player, "ardentiacommander")) {
+                    int commsBefore = player.getCommodities();
+                    player.gainCommodities(netGain);
+                    int commsGained = player.getCommodities() - commsBefore;
+
+                    if (commsGained > 0) {
+                        MessageHelper.sendMessageToChannel(
+                                game.getActionsChannel(),
+                                player.getRepresentation()
+                                        + " gained "
+                                        + commsGained
+                                        + " commodities due to _High Marshall Serisi_.");
+                    }
+                }
                 finalCCs += ". You gained a net total of " + StringHelper.pluralize(netGain, "command token");
                 for (String pn : player.getPromissoryNotes().keySet()) {
                     if (!player.ownsPromissoryNote("ce") && "ce".equalsIgnoreCase(pn)) {
@@ -163,6 +186,10 @@ class DeleteButtonsButtonHandler {
                         "currentActionSummary" + player.getFaction(),
                         game.getStoredValue("currentActionSummary" + player.getFaction()) + " Produced units in "
                                 + tile.getRepresentationForButtons() + ".");
+                if (MyrrBreakthroughHandler.usedUnitProduction(buttonID)) {
+                    game.setStoredValue(
+                            MyrrBreakthroughHandler.PRODUCTION_USED_KEY + player.getFaction(), buttonID + "|" + pos);
+                }
             }
             if ("Done Exhausting Planets".equalsIgnoreCase(buttonLabel)
                     && player.hasAbility("amalgamation")
@@ -181,6 +208,28 @@ class DeleteButtonsButtonHandler {
                 TheIconService.checkAndSendIconButton(event, game, player, buttonID);
                 EidolonMaximumService.sendEidolonMaximumFlipButtons(game, player);
                 int cost = Helper.calculateCostOfProducedUnits(player, game, true);
+                Map<String, Integer> unitsMap = new HashMap<>();
+                for (Map.Entry<String, Integer> entry :
+                        player.getCurrentProducedUnits().entrySet()) {
+                    String unitId = entry.getKey().split("_")[0];
+                    unitsMap.merge(unitId, entry.getValue(), Integer::sum);
+                }
+                // Only tactical-action builds belong to the tactical draft; the draft is game-global, so an
+                // unscoped stage would swallow other players' warfare/construction builds into the active
+                // player's tactical action.
+                if (buttonID.contains("tacticalAction")) {
+                    GameSubEvent.Production produced =
+                            new GameSubEvent.Production(tile == null ? null : tile.getPosition(), unitsMap, cost);
+                    if (!GameEventDraft.stage(game, produced)) {
+                        Map<String, Object> payload = new HashMap<>();
+                        if (produced.tile() != null) {
+                            payload.put("tile", produced.tile());
+                        }
+                        payload.put("units", produced.units());
+                        payload.put("cost", produced.cost());
+                        GameEventService.commit(game, GameEventType.PRODUCTION, player, payload);
+                    }
+                }
                 game.setStoredValue("producedUnitCostFor" + player.getFaction(), "" + cost);
                 player.setTotalExpenses(
                         player.getTotalExpenses() + Helper.calculateCostOfProducedUnits(player, game, true));
@@ -243,10 +292,6 @@ class DeleteButtonsButtonHandler {
                 }
                 if (player.hasTechReady("absol_st")) {
                     buttons.add(Buttons.red("useTech_absol_st", "Use Sarween Tools"));
-                }
-                if (game.getRealPlayers().stream()
-                        .anyMatch(player_ -> player_.hasUnexhaustedLeader("netrunnersagent"))) {
-                    buttons.addAll(NetrunnersLeadersHandler.getOverclockButtons(game, player, tile));
                 }
                 if (player.hasUnexhaustedLeader("winnuagent")
                         && !"muaatagent".equalsIgnoreCase(buttonID)
@@ -314,6 +359,7 @@ class DeleteButtonsButtonHandler {
                     player.addSpentThing("manifest");
                     game.removeStoredValue("manifestDiscount");
                 }
+
                 if (player.hasUnlockedBreakthrough("ghostbt")
                         && tile != null
                         && !tile.getWormholes(game).isEmpty()) {
@@ -350,7 +396,26 @@ class DeleteButtonsButtonHandler {
                     buttons2.add(Buttons.red("deleteButtons", "Decline"));
                     MessageHelper.sendMessageToChannelWithButtons(player.getCorrectChannel(), msg, buttons2);
                 }
+                if (player.hasTech("tf-rallythehorde")) {
+                    String msg = player.getRepresentation()
+                            + " due to your **Rally the Horde** ability, if you just produced a ship,"
+                            + " you may place a neutral ship of that type in any system which does not possess any non-neutral ships. Press button to resolve";
+                    List<Button> buttons2 = new ArrayList<>();
+                    buttons2.add(Buttons.green("startRallyTheHorde", "Rally The Horde"));
+                    buttons2.add(Buttons.red("deleteButtons", "Decline"));
+                    MessageHelper.sendMessageToChannelWithButtons(player.getCorrectChannel(), msg, buttons2);
+                }
+                CommanderUnlockCheckService.checkPlayer(player, "revenantmyrr");
+                if (game.playerHasLeaderUnlockedOrAlliance(player, "revenantmyrrcommander")) {
+                    RevenantLeadersHandler.offerRevMyrrCommander(game, player, tile);
+                }
             }
+        }
+        if ("Done Producing Units".equalsIgnoreCase(buttonLabel) && "myrrBt".equalsIgnoreCase(buttonID)) {
+            game.removeStoredValue(MyrrBreakthroughHandler.REMOTE_WORKFORCE_KEY + player.getFaction());
+        }
+        if ("Done Producing Units".equalsIgnoreCase(buttonLabel) && "lazarusPods".equalsIgnoreCase(buttonID)) {
+            RevenantTechHandler.clearLazarusProduction(game, player);
         }
         if ("Done Exhausting Planets".equalsIgnoreCase(buttonLabel)) {
             if (player.hasTech("asn")
@@ -363,6 +428,15 @@ class DeleteButtonsButtonHandler {
                             || buttonID.contains("ministerBuild"))) {
                 ButtonHelperFactionSpecific.offerASNButtonsStep1(game, player, buttonID);
             }
+            String myrrProduction =
+                    game.getStoredValue(MyrrBreakthroughHandler.PRODUCTION_USED_KEY + player.getFaction());
+            String[] myrrProductionContext = myrrProduction.split("\\|", 2);
+            if (player.hasReadyBreakthrough("myrrbt")
+                    && myrrProductionContext.length == 2
+                    && buttonID.equals(myrrProductionContext[0])) {
+                MyrrBreakthroughHandler.offerRemoteWorkforce(event, game, player, myrrProductionContext[1]);
+            }
+            game.removeStoredValue(MyrrBreakthroughHandler.PRODUCTION_USED_KEY + player.getFaction());
             player.resetSpentThings();
             game.removeStoredValue("producedUnitCostFor" + player.getFaction());
             if (player.hasAbility("control_network")) {
@@ -409,9 +483,8 @@ class DeleteButtonsButtonHandler {
                     player = game.getPlayer(game.getActivePlayerID());
                 }
 
-                if (game.isFowMode()) {
-                    LoreService.showSystemLore(player, game, game.getActiveSystem(), LoreService.TRIGGER.CONTROLLED);
-                }
+                LoreService.showSpaceBattleLore(player, game, game.getActiveSystem());
+                LoreService.showSystemLore(player, game, game.getActiveSystem(), LoreService.TRIGGER.CONTROLLED);
 
                 game.removeStoredValue("producedUnitCostFor" + player.getFaction());
 
@@ -426,6 +499,9 @@ class DeleteButtonsButtonHandler {
                 if (tile != null) {
                     StartCombatService.combatCheck(game, event, tile);
                 }
+            }
+            if ("leadership".equalsIgnoreCase(buttonID) && player.hasAbility("seize_command")) {
+                ArdentiaAbilityHandler.useSeizeCommand(event, player, game);
             }
         }
         if ("diplomacy".equalsIgnoreCase(buttonID)) {

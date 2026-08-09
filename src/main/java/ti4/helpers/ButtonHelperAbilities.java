@@ -12,14 +12,13 @@ import java.util.Set;
 import java.util.concurrent.ThreadLocalRandom;
 import net.dv8tion.jda.api.components.buttons.Button;
 import net.dv8tion.jda.api.entities.channel.middleman.MessageChannel;
-import net.dv8tion.jda.api.entities.emoji.Emoji;
 import net.dv8tion.jda.api.events.interaction.GenericInteractionCreateEvent;
 import net.dv8tion.jda.api.events.interaction.component.ButtonInteractionEvent;
 import org.apache.commons.lang3.function.Consumers;
 import ti4.ResourceHelper;
 import ti4.discord.interactions.buttons.Buttons;
-import ti4.discord.interactions.buttons.handlers.faction.homebrew.whispers.tyris.PhantomEnergyHandler;
-import ti4.discord.interactions.buttons.handlers.faction.homebrew.whispers.zephyrion.ZephyrionBountyButtonHandler;
+import ti4.discord.interactions.buttons.handlers.faction.homebrew.whispers.tyris.TyrisAbilityHandler;
+import ti4.discord.interactions.buttons.handlers.faction.homebrew.whispers.zephyrion.ZephyrionBountyHandler;
 import ti4.discord.interactions.routing.ButtonHandler;
 import ti4.game.Game;
 import ti4.game.Planet;
@@ -50,6 +49,7 @@ import ti4.service.tactical.TacticalActionService;
 import ti4.service.transaction.SendDebtService;
 import ti4.service.turn.StartTurnService;
 import ti4.service.unit.AddUnitService;
+import ti4.service.unit.DestroyUnitService;
 import ti4.service.unit.MoveUnitService;
 import ti4.service.unit.RemoveUnitService;
 import ti4.settings.users.UserSettingsManager;
@@ -105,7 +105,7 @@ public final class ButtonHelperAbilities {
     @ButtonHandler("autoneticMemoryStep2_")
     public static void autoneticMemoryStep2(ButtonInteractionEvent event, Game game, Player player, String buttonID) {
         int count = Integer.parseInt(buttonID.split("_")[1]);
-        ActionCardHelper.drawActionCards(player, count - 1);
+        ActionCardHelper.drawActionCardsNoAutonetic(player, count - 1);
 
         String msg2 = player.getRepresentationNoPing() + " is choosing to resolve their **Autonetic Memory** ability.";
         MessageHelper.sendMessageToChannel(player.getCorrectChannel(), msg2);
@@ -121,7 +121,6 @@ public final class ButtonHelperAbilities {
     @ButtonHandler("autoneticMemoryStep3a")
     public static void autoneticMemoryStep3a(ButtonInteractionEvent event, Game game, Player player) {
         ActionCardHelper.pickACardFromDiscardStep1(game, player);
-        ActionCardHelper.sendACDiscardButtons(player);
         ButtonHelper.deleteMessage(event);
     }
 
@@ -198,6 +197,15 @@ public final class ButtonHelperAbilities {
                 player.getCorrectChannel(),
                 "Please choose the system to produce up to 2 ships in.",
                 getTilesToRallyToTheCause(game, player));
+    }
+
+    @ButtonHandler("startRallyTheHorde")
+    public static void startRallyTheHorde(Game game, Player player, ButtonInteractionEvent event) {
+        event.getMessage().delete().queue(Consumers.nop(), BotLogger::catchRestError);
+        MessageHelper.sendMessageToChannelWithButtons(
+                player.getCorrectChannel(),
+                "Please choose the system to produce up to 2 ships in.",
+                getTilesToRallyTheHorde(game, player));
     }
 
     @ButtonHandler("startBestow")
@@ -292,6 +300,19 @@ public final class ButtonHelperAbilities {
         event.getMessage().delete().queue(Consumers.nop(), BotLogger::catchRestError);
     }
 
+    @ButtonHandler("rallyTheHordeStep2_")
+    public static void rallyTheHordeStep2(Game game, Player player, ButtonInteractionEvent event, String buttonID) {
+        String pos = buttonID.split("_")[1];
+        String type = "sling";
+        List<Button> buttons = Helper.getPlaceUnitButtons(
+                event, game.getNeutral(), game, game.getTileByPosition(pos), type, "placeOneNDone_skipbuild");
+        String message =
+                player.getRepresentation() + " Use the buttons to place a neutral ship of a type you just produced.";
+        MessageHelper.sendMessageToChannelWithButtons(event.getChannel(), message, buttons);
+
+        event.getMessage().delete().queue(Consumers.nop(), BotLogger::catchRestError);
+    }
+
     public static List<Button> getTilesToRallyToTheCause(Game game, Player player) {
         List<Button> buttons = new ArrayList<>();
         for (Tile tile : game.getTileMap().values()) {
@@ -304,6 +325,24 @@ public final class ButtonHelperAbilities {
             }
             buttons.add(Buttons.green(
                     "rallyToTheCauseStep2_" + tile.getPosition(), tile.getRepresentationForButtons(game, player)));
+        }
+        return buttons;
+    }
+
+    public static List<Button> getTilesToRallyTheHorde(Game game, Player player) {
+        List<Button> buttons = new ArrayList<>();
+        for (Tile tile : game.getTileMap().values()) {
+            boolean empty = true;
+            for (Player p : game.getRealPlayers()) {
+                if (FoWHelper.playerHasActualShipsInSystem(p, tile)) {
+                    empty = false;
+                    break;
+                }
+            }
+            if (empty) {
+                buttons.add(Buttons.green(
+                        "rallyTheHordeStep2_" + tile.getPosition(), tile.getRepresentationForButtons(game, player)));
+            }
         }
         return buttons;
     }
@@ -456,10 +495,7 @@ public final class ButtonHelperAbilities {
         String msg = player.getFactionEmojiOrColor() + " paid 1 trade good to "
                 + vaden.getFactionEmojiOrColor()
                 + "to clear 2 debt tokens from their \"Shark Loans\" pool via the **Binding Debts** ability.";
-        MessageHelper.sendMessageToChannel(player.getCorrectChannel(), msg);
-        if (game.isFowMode()) {
-            MessageHelper.sendMessageToChannel(vaden.getCorrectChannel(), msg);
-        }
+        FoWHelper.notifyPlayerAndAffectedInFog(game, player, vaden, msg);
     }
 
     private static List<String> getTrapNames() {
@@ -539,15 +575,7 @@ public final class ButtonHelperAbilities {
     public static void setTrapStep1(Game game, Player player) {
         List<Button> buttons = new ArrayList<>();
         for (Player p2 : game.getRealPlayers()) {
-            if (game.isFowMode()) {
-                buttons.add(Buttons.gray("setTrapStep2_" + p2.getFaction(), p2.getColor()));
-            } else {
-                Button button = Buttons.gray(
-                        "setTrapStep2_" + p2.getFaction(), p2.getFactionModel().getShortName());
-                String factionEmojiString = p2.getFactionEmoji();
-                button = button.withEmoji(Emoji.fromFormatted(factionEmojiString));
-                buttons.add(button);
-            }
+            buttons.add(FoWHelper.fogSafeTargetButton("setTrapStep2_" + p2.getFaction(), "gray", p2));
         }
         MessageHelper.sendMessageToChannelWithButtons(
                 player.getCardsInfoThread(),
@@ -1920,6 +1948,9 @@ public final class ButtonHelperAbilities {
                         + "->"
                         + player.getTg() + ").\n-# This is technically an optional gain.");
         pillageCheck(player, game);
+        if (game.isTwilightDS()) {
+            DestroyUnitService.destroyAllUnits(event, game.getTileFromPlanet(planetName), game, planet, false);
+        }
         ButtonHelperAgents.resolveArtunoCheck(player, 4);
         List<Button> buttons = StartTurnService.getStartOfTurnButtons(player, game, true, event);
         String message = "Use buttons to end turn or do another action";
@@ -1948,7 +1979,11 @@ public final class ButtonHelperAbilities {
             return techToGain;
         }
         for (String tech : victim.getTechs()) {
-            if (!nekro.getTechs().contains(tech) && !techToGain.contains(tech) && !"iihq".equalsIgnoreCase(tech)) {
+            if (!nekro.getTechs().contains(tech)
+                    && !techToGain.contains(tech)
+                    && !"iihq".equalsIgnoreCase(tech)
+                    && !"thveylorg".equalsIgnoreCase(tech)
+                    && !"tharcanumpmy".equalsIgnoreCase(tech)) {
                 if (!game.playerHasLeaderUnlockedOrAlliance(victim, "bastioncommander")
                         || !Mapper.getTech(tech).isFactionTech()) {
                     if (game.isTwilightsFallMode()
@@ -1959,7 +1994,18 @@ public final class ButtonHelperAbilities {
                                 && ("wavelength".equalsIgnoreCase(tech) || "antimatter".equalsIgnoreCase(tech))) {
                             continue;
                         }
-                        techToGain.add(tech);
+                        boolean someoneElseHasIt = false;
+                        if (game.isTwilightsFallMode()) {
+                            for (Player p : game.getRealPlayersExcludingThis(victim)) {
+                                if (p.getTechs().contains(tech)) {
+                                    someoneElseHasIt = true;
+                                    break;
+                                }
+                            }
+                        }
+                        if (!someoneElseHasIt) {
+                            techToGain.add(tech);
+                        }
                     }
                 }
             }
@@ -1971,7 +2017,8 @@ public final class ButtonHelperAbilities {
     public static void removeSleeper(String buttonID, ButtonInteractionEvent event, Game game, Player player) {
         buttonID = buttonID.replace("removeSleeperFromPlanet_", "");
         String planet = buttonID;
-        String message = player.getFactionEmojiOrColor() + " removed a Sleeper from " + planet;
+        String message = player.getFactionEmojiOrColor() + " removed a Sleeper from "
+                + Helper.getPlanetRepresentation(planet, game);
         MessageHelper.sendMessageToChannel(event.getMessageChannel(), message);
         SleeperTokenHelper.addOrRemoveSleeper(event, game, planet, player);
         event.getMessage().delete().queue(Consumers.nop(), BotLogger::catchRestError);
@@ -2002,6 +2049,14 @@ public final class ButtonHelperAbilities {
         }
     }
 
+    @ButtonHandler("claimPlanet_")
+    public static void claimPlanet(String buttonID, ButtonInteractionEvent event, Game game, Player player) {
+        event.getMessage().delete().queue(Consumers.nop(), BotLogger::catchRestError);
+        String planet = buttonID.split("_")[1];
+        AddPlanetService.addPlanet(player, planet, game);
+        oceanBoundCheck(game);
+    }
+
     public static void readyBannerHalls(Game game) {
         for (Player player : game.getRealPlayers()) {
             if (player.hasUnlockedBreakthrough("kjalengardbt")) {
@@ -2028,7 +2083,7 @@ public final class ButtonHelperAbilities {
 
     public static void oceanBoundCheck(Game game) {
         for (Player player : game.getRealPlayers()) {
-            if (player.hasUnlockedBreakthrough("kjalengardbt")) {
+            if (player.hasUnlockedBreakthrough("kjalengardbt") || player.hasTech("tf-glorioushalls")) {
                 int bannerHalls =
                         3 - ButtonHelperAgents.getGloryTokensLeft(game).size();
                 for (int x = 1; x <= bannerHalls; x++) {
@@ -2138,58 +2193,6 @@ public final class ButtonHelperAbilities {
         event.getMessage().delete().queue(Consumers.nop(), BotLogger::catchRestError);
     }
 
-    @ButtonHandler("addProtocol_")
-    public static void addProtocol(String buttonID, ButtonInteractionEvent event, Game game, Player player) {
-        String protocol = buttonID.split("_")[1];
-        if (!player.hasAbility("protocol_" + protocol)) {
-            player.addAbility("protocol_" + protocol);
-            MessageHelper.sendMessageToChannel(
-                    player.getCorrectChannel(),
-                    player.getRepresentation() + " gained the _" + capitalize(protocol) + "_ Protocol.");
-            event.getMessage().delete().queue(Consumers.nop(), BotLogger::catchRestError);
-        } else {
-            MessageHelper.sendMessageToChannel(
-                    player.getCorrectChannel(),
-                    player.getRepresentation() + ", you already had the _" + capitalize(protocol) + "_ Protocol.");
-        }
-    }
-
-    private static List<Button> getAvailableProtocols(Player player) {
-        List<Button> buttons = new ArrayList<>();
-        String protocol = "distribution";
-        if (!player.hasAbility("protocol_" + protocol)) {
-            buttons.add(Buttons.gray("addProtocol_" + protocol, capitalize(protocol)));
-        } else {
-            player.removeAbility("protocol_" + protocol);
-        }
-        protocol = "command";
-        if (!player.hasAbility("protocol_" + protocol)) {
-            buttons.add(Buttons.gray("addProtocol_" + protocol, capitalize(protocol)));
-        } else {
-            player.removeAbility("protocol_" + protocol);
-        }
-        protocol = "excavation";
-        if (!player.hasAbility("protocol_" + protocol)) {
-            buttons.add(Buttons.gray("addProtocol_" + protocol, capitalize(protocol)));
-        } else {
-            player.removeAbility("protocol_" + protocol);
-        }
-        protocol = "espionage";
-        if (!player.hasAbility("protocol_" + protocol)) {
-            buttons.add(Buttons.gray("addProtocol_" + protocol, capitalize(protocol)));
-        } else {
-            player.removeAbility("protocol_" + protocol);
-        }
-        protocol = "conflict";
-        if (!player.hasAbility("protocol_" + protocol)) {
-            buttons.add(Buttons.gray("addProtocol_" + protocol, capitalize(protocol)));
-        } else {
-            player.removeAbility("protocol_" + protocol);
-        }
-
-        return buttons;
-    }
-
     public static void giveKeleresCommsNTg(Game game, GenericInteractionCreateEvent event) {
         if (game.isMinorFactionsMode()) {
             for (Tile tile : game.getTileMap().values()) {
@@ -2238,24 +2241,9 @@ public final class ButtonHelperAbilities {
                 rollOmenDiceAtStartOfStrat(game, player);
             }
             if (player.hasAbility("marked_prey")) {
-                ZephyrionBountyButtonHandler.offerBountyButtons(game, player, false);
+                ZephyrionBountyHandler.offerBountyButtons(game, player, false);
             }
-            PhantomEnergyHandler.checkFlagshipPhantomEnergy(game, player);
-            if (player.hasAbility("protocols")) {
-                List<Button> buttons = getAvailableProtocols(player);
-                String sb = player.getRepresentationUnfogged() + ", your **Protocols** ability was triggered."
-                        + " You can now select two Protocols that you did not select last round to be your active Protocols, and give your leaders abilities.";
-                MessageHelper.sendMessageToChannel(player.getCorrectChannel(), sb);
-                MessageHelper.sendMessageToChannelWithButtons(
-                        player.getCorrectChannel(),
-                        player.getRepresentation() + ", please choose your first Protocol.",
-                        buttons);
-                MessageHelper.sendMessageToChannelWithButtons(
-                        player.getCorrectChannel(),
-                        player.getRepresentation() + ", please choose your second Protocol.",
-                        buttons);
-            }
-
+            TyrisAbilityHandler.checkFlagshipPhantomEnergy(game, player);
             if (!player.hasAbility("council_patronage") && !player.hasTech("tf-puppetcouncil")) continue;
             ButtonHelperStats.gainTGs(event, game, player, 1, true);
             String sb = player.getRepresentationUnfogged() + " your **Council Patronage** ability was triggered. Your "
@@ -2647,9 +2635,13 @@ public final class ButtonHelperAbilities {
             ExploreService.explorePlanet(
                     event, game.getTileFromPlanet(info[1]), info[1], info[2], player, true, game, 1, false);
         } else {
-            message = player.getFactionEmoji() + " used their **Deep Mining** ability to gain 1 trade good "
-                    + player.gainTG(1) + ".";
-            ButtonHelperAgents.resolveArtunoCheck(player, 1);
+            int deep = 1;
+            if (game.isTwilightsFallMode()) {
+                deep = 2;
+            }
+            message = player.getFactionEmoji() + " used their **Deep Mining** ability to gain " + deep + " trade good "
+                    + player.gainTG(deep) + ".";
+            ButtonHelperAgents.resolveArtunoCheck(player, deep);
             pillageCheck(player, game);
             MessageHelper.sendMessageToChannel(event.getChannel(), message);
         }

@@ -16,7 +16,16 @@ import ti4.discord.interactions.buttons.handlers.faction.homebrew.beans.DreamBut
 import ti4.discord.interactions.buttons.handlers.faction.homebrew.beans.ashen.AshenUnitHandler;
 import ti4.discord.interactions.buttons.handlers.faction.homebrew.beans.netrunners.NetrunnersPromissoryHandler;
 import ti4.discord.interactions.buttons.handlers.faction.homebrew.beans.ta.TaAbilityHandler;
-import ti4.discord.interactions.buttons.handlers.faction.homebrew.whispers.tyris.TyrisHeroButtonHandler;
+import ti4.discord.interactions.buttons.handlers.faction.homebrew.theodisi.Aeterna.AeternaAbilityHandler;
+import ti4.discord.interactions.buttons.handlers.faction.homebrew.theodisi.Aeterna.AeternaPromissoryHandler;
+import ti4.discord.interactions.buttons.handlers.faction.homebrew.theodisi.Arcanum.ArcanumAbilityHandler;
+import ti4.discord.interactions.buttons.handlers.faction.homebrew.theodisi.Kairn.KairnLeadershandler;
+import ti4.discord.interactions.buttons.handlers.faction.homebrew.theodisi.Oblivion.OblivionAbilityHandler;
+import ti4.discord.interactions.buttons.handlers.faction.homebrew.theodisi.Oblivion.OblivionLeadersHandler;
+import ti4.discord.interactions.buttons.handlers.faction.homebrew.theodisi.Revenant.RevenantLeadersHandler;
+import ti4.discord.interactions.buttons.handlers.faction.homebrew.theodisi.Thrones.ThronesThroneHandler;
+import ti4.discord.interactions.buttons.handlers.faction.homebrew.theodisi.Xytheris.XytherisAbilityHandler;
+import ti4.discord.interactions.buttons.handlers.faction.homebrew.whispers.tyris.TyrisLeaderHandler;
 import ti4.game.Game;
 import ti4.game.Leader;
 import ti4.game.Player;
@@ -38,6 +47,7 @@ import ti4.message.GameMessageManager;
 import ti4.message.GameMessageType;
 import ti4.message.MessageHelper;
 import ti4.model.LeaderModel;
+import ti4.model.PromissoryNoteModel;
 import ti4.model.metadata.AutoPingMetadataManager;
 import ti4.service.actioncard.SabotageService;
 import ti4.service.agenda.IsPlayerElectedService;
@@ -74,6 +84,10 @@ public class StartTurnService {
 
         game.removeStoredValue("fortuneSeekers");
         ButtonHelperTacticalAction.resetStoredValuesForTacticalAction(game);
+        RevenantLeadersHandler.clearRedLeaderTacticalState(game);
+        AeternaAbilityHandler.clearMoonReturnStoredValues(game);
+        ArcanumAbilityHandler.clearRitualOfAscensionStoredValues(game);
+        KairnLeadershandler.clearKairnHeroStoredValues(game);
         game.setStoredValue(player.getFaction() + "planetsExplored", "");
         game.setStoredValue("lawsDisabled", "no");
         game.removeStoredValue("audioSent");
@@ -154,6 +168,7 @@ public class StartTurnService {
 
         game.updateActivePlayer(player);
         game.setPhaseOfGame("action");
+        AeternaPromissoryHandler.offerStasisFighterPlacement(event, game, player);
         ButtonHelperFactionSpecific.resolveMilitarySupportCheck(player, game);
         if (NetrunnersPromissoryHandler.shouldOfferSharedNetworkAccessButtons(player, game)) {
             NetrunnersPromissoryHandler.offerSharedNetworkAccessButtons(player, game);
@@ -200,7 +215,7 @@ public class StartTurnService {
         ButtonHelperFactionSpecific.resolveMykoMechCheck(player, game);
         ButtonHelperFactionSpecific.resolveKolleccAbilities(player, game);
         if (player.hasLeaderUnlocked("tyrishero")) {
-            TyrisHeroButtonHandler.offerHeroAtStartOfTurn(game, player);
+            TyrisLeaderHandler.offerHeroAtStartOfTurn(game, player);
         }
         if (!game.getStoredValue("futureMessageFor" + player.getFaction()).isEmpty()) {
             MessageHelper.sendMessageToChannel(
@@ -452,6 +467,9 @@ public class StartTurnService {
             boolean doneActionThisTurn,
             GenericInteractionCreateEvent event,
             boolean confirmed2ndAction) {
+        if (doneActionThisTurn) {
+            RevenantLeadersHandler.clearPurpleLeaderActionState(game);
+        }
         if (!doneActionThisTurn) {
             for (Player p2 : game.getRealPlayers()) {
                 if (!game.getStoredValue(p2.getFaction() + "graviton").isEmpty()) {
@@ -462,12 +480,34 @@ public class StartTurnService {
         String factionChecker = player.factionButtonChecker();
         game.setDominusOrb(false);
         List<Button> startButtons = new ArrayList<>();
+        if (!doneActionThisTurn
+                && player.hasRelicReady("waxing_moonphase")
+                && AeternaAbilityHandler.canReturnCapturedNeutralUnits(game, player, 2)) {
+            startButtons.add(AeternaAbilityHandler.getWaxingMoonButton(player));
+        }
+        if (!doneActionThisTurn && player.hasUnexhaustedLeader("kairnagent")) {
+            startButtons.add(KairnLeadershandler.getKairnAgentButton(player));
+        }
+        if (player.hasAbility("sting_of_the_hive") && XytherisAbilityHandler.hasStingOfTheHiveMines(game)) {
+            startButtons.add(XytherisAbilityHandler.getStingOfTheHiveMineLedgerButton(player));
+        }
+        if (player.hasAbility("reflections_of_the_void") && OblivionAbilityHandler.hasReflections(game)) {
+            startButtons.add(OblivionAbilityHandler.getReflectionLedgerButton(player));
+        }
+        if (player.hasUnexhaustedLeader("revenantverydithagent")) {
+            startButtons.add(RevenantLeadersHandler.getRevVerydithAgentButton(player));
+        }
+        if (player.hasPlanet("skarnath")
+                && !player.getExhaustedPlanetsAbilities().contains("skarnath")) {
+            startButtons.add(ThronesThroneHandler.getSkarnathButton(player));
+        }
+        if (player.hasPlanet("cineron")
+                && !player.getExhaustedPlanetsAbilities().contains("cineron")) {
+            startButtons.add(ThronesThroneHandler.getCineronButton(player));
+        }
         boolean hadAnyUnplayedSCs = false;
 
-        if (doneActionThisTurn
-                && (player.hasTech("fl")
-                        || !game.getStoredValue("tyrisHeroRound" + game.getRound() + "_" + player.getFaction())
-                                .isEmpty())) {
+        if (doneActionThisTurn && (player.hasTech("fl") || TyrisLeaderHandler.isHeroActiveThisRound(game, player))) {
             confirmed2ndAction = true;
         }
         if (!doneActionThisTurn || confirmed2ndAction) {
@@ -480,11 +520,28 @@ public class StartTurnService {
                     - acButtons.size();
             if (game.isFowMode()) {
                 numOfComponentActions += acButtons.size();
+            } else {
+                for (String pn : player.getPromissoryNotes().keySet()) {
+                    PromissoryNoteModel prom = Mapper.getPromissoryNote(pn);
+                    if (pn != null
+                            && prom != null
+                            && prom.getOwner() != null
+                            && game.getPNOwner(pn) != player
+                            && !prom.getOwner().equalsIgnoreCase(player.getFaction())
+                            && !prom.getOwner().equalsIgnoreCase(player.getColor())
+                            && !player.getPromissoryNotesInPlayArea().contains(pn)
+                            && prom.getText() != null) {
+                        String pnText = prom.getText();
+                        if (pnText.toLowerCase().contains("action:")
+                                && !"bmf".equalsIgnoreCase(pn)
+                                && !"acq".equalsIgnoreCase(pn)
+                                && !"bapnconc".equalsIgnoreCase(pn)) {
+                            numOfComponentActions--;
+                        }
+                    }
+                }
             }
-            if (IsPlayerElectedService.isPlayerElected(player.getGame(), player, "censure")
-                    || IsPlayerElectedService.isPlayerElected(player.getGame(), player, "absol_censure")) {
-                numOfComponentActions += 1;
-            }
+
             Button componentAction = Buttons.green(
                     factionChecker + "componentAction", "Component Action (" + numOfComponentActions + ")");
 
@@ -719,15 +776,35 @@ public class StartTurnService {
                 startButtons.add(Buttons.gray(
                         factionChecker + "exhaustTech_td", "Exhaust Transit Diodes", TechEmojis.CyberneticTech));
             }
+            if (player.hasTech("batyriy") && !player.getExhaustedTechs().contains("batyriy")) {
+                startButtons.add(Buttons.gray(
+                        factionChecker + "exhaustTech_batyriy",
+                        "Exhaust Temporal Displacement",
+                        TechEmojis.CyberneticTech));
+            }
             if (player.hasUnexhaustedLeader("kolleccagent")) {
                 startButtons.add(Buttons.gray(
                         factionChecker + "exhaustAgent_kolleccagent", "Use Kollecc Agent", FactionEmojis.kollecc));
+            }
+            if (player.hasUnexhaustedLeader("oblivionagent")) {
+                startButtons.add(OblivionLeadersHandler.getOblivionAgentButton(player));
             }
         }
         if (player.hasTech("pa")
                 && ButtonHelper.getPsychoTechPlanets(game, player).size() > 1) {
             startButtons.add(
                     Buttons.green(factionChecker + "getPsychoButtons", "Use Psychoarcheology", TechEmojis.BioticTech));
+        }
+        if (player.hasTech("tf-predictivecommand")
+                && !player.getExhaustedTechs().contains("tf-predictivecommand")) {
+            startButtons.add(Buttons.gray(
+                    factionChecker + "exhaustTech_tf-predictivecommand",
+                    "Exhaust Predictive Command",
+                    FactionEmojis.mykomentori));
+        }
+        if (player.hasTech("tf-radiantsigils") && !player.getExhaustedTechs().contains("tf-radiantsigils")) {
+            startButtons.add(
+                    Buttons.gray("exhaustTech_tf-radiantsigils", "Exhaust Radiant Sigils", FactionEmojis.edyn));
         }
         if (player.hasTechReady("dsuydag")) {
             startButtons.add(Buttons.green(

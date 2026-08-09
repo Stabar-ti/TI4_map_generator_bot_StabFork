@@ -15,6 +15,7 @@ import net.dv8tion.jda.api.interactions.commands.OptionType;
 import net.dv8tion.jda.api.interactions.commands.build.OptionData;
 import org.apache.commons.lang3.function.Consumers;
 import ti4.discord.interactions.buttons.Buttons;
+import ti4.discord.interactions.buttons.handlers.faction.homebrew.theodisi.Kairn.KairnAbilityHandler;
 import ti4.discord.interactions.commands.GameStateSubcommand;
 import ti4.game.Game;
 import ti4.game.Player;
@@ -191,6 +192,7 @@ class Stats extends GameStateSubcommand {
 
         OptionMapping optionC = event.getOption(Constants.COMMODITIES);
         if (optionC != null) {
+            int oldCommodities = player.getCommodities();
             PlayerStatsService.setValue(event, game, player, optionC, player::setCommodities, player::getCommodities);
             if (player.hasAbility("military_industrial_complex")
                     && ButtonHelperAbilities.getBuyableAxisOrders(player, game).size() > 1) {
@@ -198,6 +200,15 @@ class Stats extends GameStateSubcommand {
                         player.getCorrectChannel(),
                         player.getRepresentationUnfogged() + ", you have the opportunity to buy _Axis Orders_.",
                         ButtonHelperAbilities.getBuyableAxisOrders(player, game));
+            }
+            if (player.getCommodities() > oldCommodities
+                    && player.hasAbility("expeditionary_cache")
+                    && KairnAbilityHandler.getAvailableExpeditionTokens(game) > 0) {
+                MessageHelper.sendMessageToChannelWithButtons(
+                        player.getCorrectChannel(),
+                        player.getRepresentationUnfogged()
+                                + ", you may place expedition tokens using **Expeditionary Cache**.",
+                        KairnAbilityHandler.getExpeditionaryCacheButtons(player, game));
             }
             CommanderUnlockCheckService.checkPlayer(player, "mykomentori");
         }
@@ -335,7 +346,8 @@ class Stats extends GameStateSubcommand {
                             channel.getJumpUrl() + " Round " + game.getRound() + "; Space Resources: "
                                     + player.getTotalResourceValueOfUnits("space") + "; VP: "
                                     + player.getTotalVictoryPoints() + ";\nTrack record: "
-                                    + userSettings.getTrackRecord());
+                                    + userSettings.getTrackRecord() + "\nFor user: "
+                                    + player.getRepresentationNoPing());
                 }
                 userSettings.setTrackRecord(
                         userSettings.getTrackRecord() + " Was set as an NPC in " + game.getName() + ". ");

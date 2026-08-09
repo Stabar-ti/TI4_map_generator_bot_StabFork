@@ -8,6 +8,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ThreadLocalRandom;
+import lombok.experimental.UtilityClass;
 import net.dv8tion.jda.api.components.buttons.Button;
 import net.dv8tion.jda.api.components.label.Label;
 import net.dv8tion.jda.api.components.selections.StringSelectMenu;
@@ -48,8 +49,11 @@ import ti4.service.leader.CommanderUnlockCheckService;
 import ti4.service.relic.SendRelicService;
 import ti4.service.transaction.SendPromissoryService;
 import ti4.settings.users.UserSettingsManager;
+import ti4.spring.service.gameevent.GameEventService;
+import ti4.spring.service.gameevent.GameEventType;
 
-public final class TransactionHelper {
+@UtilityClass
+public class TransactionHelper {
 
     private static final List<String> shadyOrganizations = List.of(
             "the Trade Adjustment Bureau",
@@ -86,6 +90,11 @@ public final class TransactionHelper {
 
     private static void acceptTransactionOffer(Player p1, Player p2, Game game, ButtonInteractionEvent event) {
         List<String> transactionItems = p1.getTransactionItemsWithPlayer(p2);
+        GameEventService.commit(
+                game,
+                GameEventType.TRANSACTION,
+                p1,
+                Map.of("from", p1.getFaction(), "to", p2.getFaction(), "items", transactionItems));
         List<Player> players = new ArrayList<>();
         players.add(p1);
         players.add(p2);
@@ -1390,8 +1399,7 @@ public final class TransactionHelper {
     }
 
     @ButtonHandler("transact_")
-    public static void resolveSpecificTransButtonsOld(
-            Game game, Player p1, String buttonID, ButtonInteractionEvent event) {
+    static void resolveSpecificTransButtonsOld(Game game, Player p1, String buttonID, ButtonInteractionEvent event) {
         String factionChecker = "FFCC_" + p1.getFaction() + "_";
 
         List<Button> stuffToTransButtons = new ArrayList<>();
@@ -1640,6 +1648,16 @@ public final class TransactionHelper {
                     int targetTG = p2.getCommodities();
                     targetTG += tgAmount;
                     p2.setCommodities(targetTG);
+                }
+                if (Integer.parseInt(amountToTrans) > tgAmount
+                        && p1.getTg() + 1 > Integer.parseInt(amountToTrans) - tgAmount) {
+                    p1.setTg(p1.getTg() - (Integer.parseInt(amountToTrans) - tgAmount));
+                    p2.setTg(p2.getTg() + (Integer.parseInt(amountToTrans) - tgAmount));
+                    MessageHelper.sendMessageToChannel(
+                            p1.getCorrectChannel(),
+                            ident + " sent " + (Integer.parseInt(amountToTrans) - tgAmount) + " trade good"
+                                    + ((Integer.parseInt(amountToTrans) - tgAmount) == 1 ? "" : "s") + " to " + ident2
+                                    + " because they didn't have enough commodities to cover the full amount.");
                 }
                 ButtonHelperFactionSpecific.resolveDarkPactCheck(game, p1, p2, tgAmount);
                 message2 = ident + " sent " + tgAmount + " commodit" + (tgAmount == 1 ? "y" : "ies") + " to " + ident2

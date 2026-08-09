@@ -29,8 +29,16 @@ import org.jetbrains.annotations.NotNull;
 import ti4.discord.interactions.buttons.Buttons;
 import ti4.discord.interactions.buttons.handlers.actioncards.acd2.PublicOutrageAcd2ButtonHandler;
 import ti4.discord.interactions.buttons.handlers.actioncards.acd2.SettlementsAcd2ButtonHandler;
+import ti4.discord.interactions.buttons.handlers.explore.theodisi.LostLegciesExploreHandler;
 import ti4.discord.interactions.buttons.handlers.faction.homebrew.beans.DreamButtonHandler;
 import ti4.discord.interactions.buttons.handlers.faction.homebrew.beans.ta.TaLeadersHandler;
+import ti4.discord.interactions.buttons.handlers.faction.homebrew.theodisi.Myrr.MyrrAbilitiesHandler;
+import ti4.discord.interactions.buttons.handlers.faction.homebrew.theodisi.Veylor.VeylorAbilitiesHandler;
+import ti4.discord.interactions.buttons.handlers.faction.homebrew.theodisi.Veylor.VeylorBreakthroughHandler;
+import ti4.discord.interactions.buttons.handlers.faction.homebrew.theodisi.Veylor.VeylorLeadersHandler;
+import ti4.discord.interactions.buttons.handlers.faction.homebrew.whispers.lunarium.LunariumAbilityHandler;
+import ti4.discord.interactions.buttons.handlers.faction.homebrew.whispers.lunarium.LunariumBreakthroughHandler;
+import ti4.discord.interactions.buttons.handlers.faction.homebrew.whispers.xan.XanAbilityHandler;
 import ti4.discord.interactions.commands.planet.PlanetExhaust;
 import ti4.discord.interactions.routing.ButtonHandler;
 import ti4.game.Game;
@@ -42,6 +50,7 @@ import ti4.helpers.Units.UnitKey;
 import ti4.helpers.Units.UnitType;
 import ti4.image.BannerGenerator;
 import ti4.image.Mapper;
+import ti4.json.JsonMapperManager;
 import ti4.logging.BotLogger;
 import ti4.logging.LogOrigin;
 import ti4.message.GameMessageManager;
@@ -70,9 +79,11 @@ import ti4.service.option.FOWOptionService.FOWOption;
 import ti4.service.unit.AddUnitService;
 import ti4.service.unit.CheckUnitContainmentService;
 import ti4.service.unit.DestroyUnitService;
+import tools.jackson.core.type.TypeReference;
 
 @UtilityClass
 public final class AgendaHelper {
+    public static final String AGENDA_START_VOTE_COUNTS = "agendaStartVoteCounts";
 
     private static void pingAboutDebt(Game game) {
         if (game.isHiddenAgendaMode() || !game.getStoredValue("executiveOrder").isEmpty()) {
@@ -285,10 +296,9 @@ public final class AgendaHelper {
 
         boolean playerPrevotesIsEmpty =
                 game.getStoredValue("preVoting" + player.getFaction()).isEmpty();
-        boolean playerIsNotActivePlayer = "agendaWaiting".equalsIgnoreCase(game.getPhaseOfGame());
-        boolean playerIsPrevoting =
-                !playerPrevotesIsEmpty && (playerIsNotActivePlayer || game.getActivePlayer() != player);
-        if (playerIsPrevoting) {
+        boolean agendaWaitingPhase = "agendaWaiting".equalsIgnoreCase(game.getPhaseOfGame());
+        boolean playerIsPrevoting = !playerPrevotesIsEmpty && game.getActivePlayer() != player;
+        if (playerIsPrevoting || agendaWaitingPhase) {
             if ("0".equalsIgnoreCase(votes)) {
                 MessageHelper.sendMessageToChannel(
                         player.getCardsInfoThread(),
@@ -586,6 +596,7 @@ public final class AgendaHelper {
         }
         GMService.logActivity(game, AgendaSummaryHelper.getSummaryOfVotes(game, true, true, false), false);
         game.setPhaseOfGame("agendaEnd");
+        game.removeStoredValue(AGENDA_START_VOTE_COUNTS);
         game.setActivePlayerID(null);
         StringBuilder message = new StringBuilder();
         String formattedWinner = getAgendaOutcomeName(game, winner, true);
@@ -601,9 +612,24 @@ public final class AgendaHelper {
             message.append(
                     "When shenanigans have concluded, please confirm resolution or discard the result and manually resolve it yourselves.");
         }
-        Button autoResolve = Buttons.blue("agendaResolution_" + winner, "Resolve with Current Winner");
-        Button manualResolve = Buttons.red("autoresolve_manual", "Resolve it Manually");
-        List<Button> resolutions = List.of(autoResolve, manualResolve);
+        Player filibusterPlayer = game.getRealPlayers().stream()
+                .filter(player ->
+                        VeylorLeadersHandler.isVeylorAgendaPhase(game) && player.hasReadyBreakthrough("veylorbt"))
+                .findFirst()
+                .orElse(null);
+        List<Button> resolutions;
+        if (filibusterPlayer == null) {
+            resolutions = new ArrayList<>(List.of(
+                    Buttons.blue("agendaResolution_" + winner, "Resolve with Current Winner"),
+                    Buttons.red("autoresolve_manual", "Resolve it Manually")));
+        } else {
+            message.append('\n')
+                    .append(filibusterPlayer.getRepresentationNoPing())
+                    .append(" may exhaust _Filibustered Legislation_ before this agenda is resolved.");
+            resolutions = new ArrayList<>(List.of(
+                    VeylorBreakthroughHandler.offerFilibusterButton(filibusterPlayer, game),
+                    VeylorBreakthroughHandler.offerDeclineFilibusterButton(filibusterPlayer, winner)));
+        }
         MessageHelper.sendMessageToChannelWithButtons(game.getMainGameChannel(), message.toString(), resolutions);
     }
 
@@ -823,7 +849,7 @@ public final class AgendaHelper {
                 Player keleres = game.getPlayerFromColorOrFaction(faction.toLowerCase());
                 if (keleres != null && specificVote.contains("Keleres Xxcha Hero")) {
                     int size = getLosingVoters(outcome, game).size()
-                            + getAbainingVoters(winner, game).size();
+                            + getAbstainingVoters(winner, game).size();
                     String message = keleres.getRepresentation()
                             + " You have Odlynn Myrr, the Keleres (Xxcha) Hero, to resolve. There were " + size
                             + " players who abstained or voted for a different outcome, so you get that many trade goods and command tokens. ";
@@ -881,6 +907,27 @@ public final class AgendaHelper {
 
                     if (winningR != null && specificVote.contains("Settlements")) {
                         SettlementsAcd2ButtonHandler.resolveWinningSettlements(game, winningR, winner);
+                    }
+
+                    if (winningR != null && winningR.hasTech("thveylorg") && specificVote.contains("Inner Sanctum")) {
+                        for (Player voter : getWinningVoters(winner, game)) {
+                            ActionCardHelper.drawActionCards(voter, 1);
+                        }
+                        MessageHelper.sendMessageToChannel(
+                                game.getMainGameChannel(),
+                                winningR.getRepresentationNoPing()
+                                        + " correctly predicted the outcome with _Inner Sanctum_. "
+                                        + "Each player who voted for that outcome drew 1 action card.");
+                    }
+
+                    if (winningR != null
+                            && winningR.hasTech("thveylory")
+                            && specificVote.contains("Kleptocratic Politics")) {
+                        MessageHelper.sendMessageToChannelWithButtons(
+                                winningR.getCorrectChannel(),
+                                winningR.getRepresentation()
+                                        + ", please resolve _Kleptocratic Politics_ by using the buttons below. You do not spend a command token when doing this, if it removes one just use /player stats to add one back.",
+                                ButtonHelperHeroes.getSecondaryButtons(game));
                     }
 
                     if (winningR != null
@@ -1138,6 +1185,12 @@ public final class AgendaHelper {
                                 game.drawSecretObjective(winningR.getUserID());
                                 message += " Drew a second secret objective due to **Plausible Deniability**.";
                             }
+                            if (winningR.hasAbility("multitasking")) {
+                                LunariumAbilityHandler.offerFactionSheetCCButtons(game, winningR);
+                            }
+                            if (winningR.hasUnlockedBreakthrough("lunariumbt")) {
+                                LunariumBreakthroughHandler.offerDarkSideExploitationButtons(game, winningR);
+                            }
                             SecretObjectiveInfoService.sendSecretObjectiveInfo(game, winningR);
                             MessageHelper.sendMessageToChannel(winningR.getCorrectChannel(), message);
                         }
@@ -1203,7 +1256,7 @@ public final class AgendaHelper {
         return riders;
     }
 
-    private static List<Player> getLosers(String winner, Game game) {
+    public static List<Player> getLosers(String winner, Game game) {
         List<Player> losers = new ArrayList<>();
         Map<String, String> outcomes = game.getCurrentAgendaVotes();
 
@@ -1267,6 +1320,7 @@ public final class AgendaHelper {
                                 && !specificVote.contains("Sanction")
                                 && !specificVote.contains("Radiance")
                                 && !specificVote.contains("Unity")
+                                && !specificVote.contains("Hero")
                                 && !specificVote.contains("Ability")) {
                             losers.add(loser);
                         }
@@ -1277,7 +1331,7 @@ public final class AgendaHelper {
         return losers;
     }
 
-    private static List<Player> getAbainingVoters(String winner, Game game) {
+    private static List<Player> getAbstainingVoters(String winner, Game game) {
         List<Player> abstainers = new ArrayList<>();
         List<Player> losers = getLosingVoters(winner, game);
         List<Player> winners = getWinningVoters(winner, game);
@@ -1573,6 +1627,10 @@ public final class AgendaHelper {
                         AddUnitService.addUnits(event, tile, game, player.getColor(), "1 infantry " + planet);
                         MessageHelper.sendMessageToChannel(player.getCorrectChannel(), msg);
                     }
+                    if (uH.getTokenList().contains("attachment_polymorphism.png")
+                            && FoWHelper.playerHasShipsInSystem(player, game.getTileFromPlanet(planet))) {
+                        LostLegciesExploreHandler.offerPolymorphism(event, game, player, planet);
+                    }
                 }
             }
             if (thing.contains("dsghotg") && !prevoting) {
@@ -1628,6 +1686,10 @@ public final class AgendaHelper {
                                 AddUnitService.addUnits(event, tile, game, player.getColor(), "1 infantry " + planet);
                                 MessageHelper.sendMessageToChannel(player.getCorrectChannel(), msg);
                             }
+                            if (uH.getTokenList().contains("attachment_polymorphism.png")
+                                    && FoWHelper.playerHasShipsInSystem(player, game.getTileFromPlanet(planet))) {
+                                LostLegciesExploreHandler.offerPolymorphism(event, game, player, planet);
+                            }
                         }
                     }
                 }
@@ -1678,6 +1740,9 @@ public final class AgendaHelper {
         for (String attachment : p.getTokenList()) {
             if (attachment.contains("council_preserve")) {
                 voteAmount += 5;
+            }
+            if (attachment.contains("vox_sentinels")) {
+                voteAmount += 2;
             }
         }
         if (game.getLaws().containsKey("absol_government")) {
@@ -2185,6 +2250,9 @@ public final class AgendaHelper {
                 if (attachment.contains("council_preserve")) {
                     voteCount += 5;
                 }
+                if (attachment.contains("vox_sentinels")) {
+                    voteCount += 2;
+                }
             }
         }
 
@@ -2336,9 +2404,25 @@ public final class AgendaHelper {
         } else {
             aCount = Integer.parseInt(agendaCount) + 1;
         }
-        Button flipNextAgenda = Buttons.blue("flip_agenda", "Flip Agenda #" + aCount);
         List<Button> resActionRow = new ArrayList<>();
-        resActionRow.add(flipNextAgenda);
+        boolean heroActive = VeylorLeadersHandler.isVeylorAgendaPhase(game)
+                && game.getRealPlayers().stream().anyMatch(player -> player.hasLeaderUnlocked("veylorhero"));
+        boolean veylorBtExtraAgenda = "yes".equals(game.getStoredValue("veylorBtExtraAgenda"));
+        int agendaLimit = 2 + (heroActive ? 1 : 0) + (veylorBtExtraAgenda ? 1 : 0);
+        boolean canRevealNextAgenda = aCount <= agendaLimit || game.isAbsolMode();
+        boolean waitingForTightScheduling =
+                canRevealNextAgenda && VeylorAbilitiesHandler.offerTightSchedulingRevealChoice(game, false);
+        if (waitingForTightScheduling) {
+            MessageHelper.sendMessageToChannel(
+                    event.getChannel(),
+                    game.getPing()
+                            + "Resolving agenda with no effect. The next agenda reveal is waiting for Veylor to resolve _Tight Scheduling_.");
+            ButtonHelper.deleteMessage(event);
+            return;
+        }
+        if (canRevealNextAgenda) {
+            resActionRow.add(Buttons.blue("flip_agenda", "Flip Agenda #" + aCount));
+        }
         if (!game.isOmegaPhaseMode()) {
             Button proceedToStrategyPhase = Buttons.green(
                     "proceed_to_strategy", "Proceed to Strategy Phase (will run agenda cleanup and ping speaker)");
@@ -2524,6 +2608,11 @@ public final class AgendaHelper {
         } else {
             aCount = Integer.parseInt(agendaCount) + 1;
         }
+        if (aCount > 1 && VeylorAbilitiesHandler.offerTightSchedulingRevealChoice(game, revealFromBottom)) {
+            MessageHelper.sendMessageToChannel(
+                    channel, game.getPing() + "The agenda reveal is waiting for Veylor to resolve _Tight Scheduling_.");
+            return;
+        }
         game.setStoredValue("agendaCount", aCount + "");
         if (aCount == 1 && game.isShowBanners() && !game.isOmegaPhaseMode()) {
             BannerGenerator.drawPhaseBanner("agenda", game.getRound(), game.getActionsChannel());
@@ -2534,6 +2623,8 @@ public final class AgendaHelper {
         game.setStoredValue("AssassinatedReps", "");
         game.setStoredValue("riskedPredictive", "");
         game.setStoredValue("conspiratorsFaction", "");
+        game.setStoredValue("resolvedAgendaId", "");
+        game.setStoredValue("resolvedAgendaOutcome", "");
         String agendaID = game.revealAgenda(revealFromBottom);
         Map<String, Integer> discardAgendas = game.getDiscardAgendas();
         Integer uniqueID = discardAgendas.get(agendaID);
@@ -2543,6 +2634,7 @@ public final class AgendaHelper {
             if (aCount == 1) {
                 GMService.logActivity(game, "**Agenda** Phase for Round " + game.getRound() + " started.", true);
                 FowCommunicationThreadService.checkAllCommThreads(game);
+                MyrrAbilitiesHandler.offerFactoryLeaseProduction(game);
             }
         } else {
             action = true;
@@ -2564,6 +2656,7 @@ public final class AgendaHelper {
             revealAgenda(event, revealFromBottom, game, channel);
             return;
         }
+        snapshotAgendaStartVoteCounts(game);
         if ((agendaTarget.toLowerCase().contains("elect law") || "constitution".equalsIgnoreCase(agendaID))
                 && game.getLaws().isEmpty()) {
             MessageHelper.sendMessageToChannel(
@@ -2679,6 +2772,9 @@ public final class AgendaHelper {
         MessageEmbed agendaEmbed = agendaModel.getRepresentationEmbed();
         String revealMessage = game.getPing() + ", an agenda has been revealed.";
         MessageHelper.sendMessageToChannelWithEmbed(channel, revealMessage, agendaEmbed);
+        if (!action && aCount == 1) {
+            VeylorAbilitiesHandler.offerTightScheduling(game);
+        }
 
         AutoPingMetadataManager.setupAutoPing(game.getName());
 
@@ -2735,6 +2831,29 @@ public final class AgendaHelper {
                 }
                 MessageHelper.sendMessageToChannel(channel, message);
             }
+            if ("evenfall_sc".equalsIgnoreCase(game.getScSetID())) {
+                for (Player player : game.getRealPlayers()) {
+                    if (player.getPlanets().contains("mr")
+                            || player.getPlanets().contains("mrte")) {
+                        game.setSpeaker(player);
+                        MessageHelper.sendMessageToChannel(
+                                channel,
+                                "## " + player.getRepresentationUnfogged()
+                                        + " has Mecatol Rex and has been set as the speaker.");
+                    }
+                }
+            }
+        }
+        if (!action) {
+            for (Player player : game.getRealPlayers()) {
+                if (player.hasLeader("veylorcommander") && !player.hasLeaderUnlocked("veylorcommander")) {
+                    MessageHelper.sendMessageToChannelWithButton(
+                            player.getCardsInfoThread(),
+                            player.getRepresentationUnfogged()
+                                    + ", you may press the button below to start the process of unlocking the Veylor commander",
+                            VeylorLeadersHandler.offerVeylorCommanderUnlock(player));
+                }
+            }
         }
         for (Player player : game.getRealPlayers()) {
             if (!action
@@ -2773,7 +2892,9 @@ public final class AgendaHelper {
             }
             MessageHelper.sendMessageToChannel(channel, summary.toString());
         }
-        if (game.getCurrentAgendaInfo().startsWith("Law") && game.getLaws().size() == 2) {
+        if (!cov
+                && game.getCurrentAgendaInfo().startsWith("Law")
+                && game.getLaws().size() == 2) {
             MessageHelper.sendMessageToChannel(
                     channel, "## A reminder that there are currently 2 laws in play, so this would be the 3rd law.");
         }
@@ -2795,6 +2916,13 @@ public final class AgendaHelper {
 
     public static void listVoteCount(Game game, MessageChannel channel) {
         MessageHelper.sendMessageToChannel(channel, getVoteCountMessage(game));
+    }
+
+    /** Post the vote count to the main game channel unless the game is in fog mode. */
+    public static void listVoteCountIfUnfogged(Game game) {
+        if (!game.isFowMode()) {
+            listVoteCount(game, game.getMainGameChannel());
+        }
     }
 
     static String getVoteCountMessage(Game game) {
@@ -2819,6 +2947,52 @@ public final class AgendaHelper {
             itemNo++;
         }
         return sb.toString();
+    }
+
+    public static Map<String, Integer> getVoteCountByColor(Game game) {
+        Map<String, Integer> voteCounts = new LinkedHashMap<>();
+        for (Player player : getVotingOrder(game)) {
+            if (player.getColor() != null && !player.getColor().isBlank()) {
+                voteCounts.put(player.getColor(), getVoteTotal(player, game)[0]);
+            }
+        }
+        return voteCounts;
+    }
+
+    private static void snapshotAgendaStartVoteCounts(Game game) {
+        try {
+            game.setStoredValue(
+                    AGENDA_START_VOTE_COUNTS, JsonMapperManager.basic().writeValueAsString(getVoteCountByColor(game)));
+        } catch (Exception e) {
+            BotLogger.error(new LogOrigin(game), "Could not snapshot agenda start vote counts", e);
+        }
+    }
+
+    public static Map<String, Integer> getAgendaStartVoteCounts(Game game) {
+        String value = game.getStoredValue(AGENDA_START_VOTE_COUNTS);
+        if (value == null || value.isBlank()) {
+            return new LinkedHashMap<>();
+        }
+        try {
+            return JsonMapperManager.basic().readValue(value, new TypeReference<LinkedHashMap<String, Integer>>() {});
+        } catch (Exception e) {
+            BotLogger.error(new LogOrigin(game), "Could not read agenda start vote counts", e);
+            return new LinkedHashMap<>();
+        }
+    }
+
+    public static String getCurrentAgendaId(Game game) {
+        String currentAgendaInfo = game.getCurrentAgendaInfo();
+        if (currentAgendaInfo == null || currentAgendaInfo.isBlank()) {
+            return null;
+        }
+
+        // Format: type_target_uniqueID_agendaID; the agenda ID itself may contain underscores.
+        String[] parts = currentAgendaInfo.split("_", 4);
+        if (parts.length < 4) {
+            return null;
+        }
+        return Mapper.isValidAgenda(parts[3]) ? parts[3] : null;
     }
 
     private static boolean isRepresentativeGovernmentInEffect(Game game) {
@@ -3037,6 +3211,9 @@ public final class AgendaHelper {
         if (game.getStoredValue(key).isEmpty()) {
             game.setStoredValue(key, "top");
         } else {
+            if (game.getStoredValue(key).contains("_")) {
+                game.setStoredValue(key, game.getStoredValue(key).split("_")[1]);
+            }
             game.setStoredValue(key, game.getStoredValue(key) + "_top");
         }
 
@@ -3089,6 +3266,9 @@ public final class AgendaHelper {
         if (game.getStoredValue(key).isEmpty()) {
             game.setStoredValue(key, "bottom");
         } else {
+            if (game.getStoredValue(key).contains("_")) {
+                game.setStoredValue(key, game.getStoredValue(key).split("_")[1]);
+            }
             game.setStoredValue(key, game.getStoredValue(key) + "_bottom");
         }
 
@@ -3190,6 +3370,12 @@ public final class AgendaHelper {
 
     @ButtonHandler("eraseMyVote")
     public static void eraseMyVote(Player player, Game game) {
+        if ("agendaWaiting".equalsIgnoreCase(game.getPhaseOfGame())) {
+            MessageHelper.sendMessageToChannel(
+                    player.getCorrectChannel(),
+                    "You cannot erase your vote until voting has started. Skip waiting if something has gone wrong.");
+            return;
+        }
         String pfaction = player.getFaction();
         if (game.isFowMode()) {
             pfaction = player.getColor();
@@ -3238,13 +3424,7 @@ public final class AgendaHelper {
                     player.getRepresentationNoPing() + " has the opportunity to resolve a Minister of Industry build.");
         }
         if (player.hasAbility("quantum_fabrication") && !tile.isScar(game)) {
-            String msg = player.getRepresentationUnfogged()
-                    + ", if you placed this space dock via **Construction**, you may use its PRODUCTION ability immediately in "
-                    + tile.getRepresentationForButtons(game, player) + " via **Quantum Fabrication**.";
-            MessageHelper.sendMessageToChannelWithButtons(
-                    player.getCorrectChannel(),
-                    msg,
-                    Helper.getPlaceUnitButtons(event, player, game, tile, "ministerBuild", "place"));
+            XanAbilityHandler.offerQuantumFabrication(player, game, event, tile);
         }
     }
 }

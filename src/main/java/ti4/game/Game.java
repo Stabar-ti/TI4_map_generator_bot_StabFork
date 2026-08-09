@@ -1,7 +1,7 @@
 package ti4.game;
 
-import static java.util.function.Predicate.not;
-import static org.apache.commons.collections4.CollectionUtils.isNotEmpty;
+import static java.util.function.Predicate.*;
+import static org.apache.commons.collections4.CollectionUtils.*;
 
 import java.awt.Point;
 import java.util.AbstractMap.SimpleEntry;
@@ -43,6 +43,9 @@ import org.apache.commons.lang3.StringUtils;
 import org.jetbrains.annotations.NotNull;
 import ti4.discord.JdaService;
 import ti4.discord.interactions.buttons.handlers.faction.homebrew.beans.ta.TaAbilityHandler;
+import ti4.discord.interactions.buttons.handlers.faction.homebrew.theodisi.Kryxos.KryxosBreakthroughHandler;
+import ti4.discord.interactions.buttons.handlers.faction.homebrew.theodisi.Ponthous.PonthousPromissoryHandler;
+import ti4.discord.interactions.buttons.handlers.faction.homebrew.theodisi.Ponthous.PonthousTechHandler;
 import ti4.discord.interactions.commands.planet.PlanetRemove;
 import ti4.discord.interactions.commands.special.SetupNeutralPlayer;
 import ti4.draft.BagDraft;
@@ -293,6 +296,10 @@ public class Game extends GameProperties implements StoredValueHelper, TwilightF
     private TIGLRank minimumTIGLRankAtGameStart;
 
     private Map<String, String> debtPoolIcons = new HashMap<>();
+
+    public Game getSelf() {
+        return this;
+    }
 
     public Game() {
         long currentTimeMillis = System.currentTimeMillis();
@@ -1073,8 +1080,11 @@ public class Game extends GameProperties implements StoredValueHelper, TwilightF
         return null;
     }
 
-    public TextChannel getSavedChannel() {
+    public MessageChannel getSavedChannel() {
         try {
+            if ("thread".equalsIgnoreCase(getStoredValue("savedChannelType"))) {
+                return JdaService.jda.getThreadChannelById(getSavedChannelID());
+            }
             return JdaService.jda.getTextChannelById(getSavedChannelID());
         } catch (Exception e) {
             return getMainGameChannel();
@@ -1425,6 +1435,9 @@ public class Game extends GameProperties implements StoredValueHelper, TwilightF
             }
         }
 
+        PonthousPromissoryHandler.clearThunderbirdPrototype(this);
+        PonthousTechHandler.clearThunderbirdProtocol(this);
+        KryxosBreakthroughHandler.clearPrototypeInnovators(this);
         setStoredValue("factionsInCombat", "");
         setTemporaryPingDisable(false);
         // reset timers for ping and stats
@@ -1671,9 +1684,8 @@ public class Game extends GameProperties implements StoredValueHelper, TwilightF
     }
 
     private void addPublicObjectiveToDeck(String id) {
-        PublicObjectiveModel obj = Mapper.getPublicObjective(id);
-        if (obj == null) return;
-        if (obj.getPoints() == 1) {
+        if (Mapper.getPublicObjective(id) == null) return;
+        if (isStage1PublicObjective(id)) {
             publicObjectives1.add(id);
             Collections.shuffle(publicObjectives1);
         } else {
@@ -1726,18 +1738,21 @@ public class Game extends GameProperties implements StoredValueHelper, TwilightF
         if (id.isEmpty()) return false;
 
         revealedPublicObjectives.remove(id);
-        Set<String> po1 = Mapper.getPublicObjectivesStage1().keySet();
-        Set<String> po2 = Mapper.getPublicObjectivesStage2().keySet();
-        if (po1.contains(id)) {
+        if (isStage1PublicObjective(id)) {
             publicObjectives1Peeked.remove(id);
             publicObjectives1.add(id);
             Collections.shuffle(publicObjectives1);
-        } else if (po2.contains(id)) {
+        } else {
             publicObjectives2Peeked.remove(id);
             publicObjectives2.add(id);
             Collections.shuffle(publicObjectives2);
         }
         return true;
+    }
+
+    private boolean isStage1PublicObjective(String id) {
+        DeckModel stage1Deck = Mapper.getDeck(getStage1PublicDeckID());
+        return stage1Deck != null && stage1Deck.getCardIDs().contains(id);
     }
 
     public boolean unrevealPublicObjective(Integer idNumber) {
@@ -1754,9 +1769,9 @@ public class Game extends GameProperties implements StoredValueHelper, TwilightF
         if (publicObjective == null) return false;
 
         revealedPublicObjectives.remove(id);
-        if (publicObjective.getPoints() == 1) {
+        if (isStage1PublicObjective(id)) {
             unrevealPublicObjective(id, publicObjectives1Peekable, publicObjectives1Peeked);
-        } else if (publicObjective.getPoints() == 2) {
+        } else {
             unrevealPublicObjective(id, publicObjectives2Peekable, publicObjectives2Peeked);
         }
         return true;
@@ -2738,6 +2753,13 @@ public class Game extends GameProperties implements StoredValueHelper, TwilightF
         if (isTwilightsFallMode()) {
             techDeck.add("wavelength");
             techDeck.add("antimatter");
+        }
+        if (isTwilightDS()) {
+            for (TechnologyModel tech : Mapper.getTechs().values()) {
+                if (tech.getSource() == ComponentSource.twilight_ds) {
+                    techDeck.add(tech.getID());
+                }
+            }
         }
         return techDeck;
     }
@@ -3962,6 +3984,9 @@ public class Game extends GameProperties implements StoredValueHelper, TwilightF
         planets.put("ocean5", new Planet("ocean5", new Point(0, 0)));
         planets.put("triad", new Planet("triad", new Point(0, 0)));
         planets.put("grove", new Planet("grove", new Point(0, 0)));
+        planets.put("aurelionstation", new Planet("aurelionstation", new Point(0, 0)));
+        planets.put("innersanctum", new Planet("innersanctum", new Point(0, 0)));
+        planets.put("fabricatestation", new Planet("fabricatestation", new Point(0, 0)));
         return planets.keySet();
     }
 
@@ -4086,10 +4111,43 @@ public class Game extends GameProperties implements StoredValueHelper, TwilightF
         if (!leaderID.contains("commander")) return false;
 
         if (leaderIsFake(leaderID) && !"gateteen".equalsIgnoreCase(getName())) {
+            if (!player.getAllianceMembers().isEmpty()) {
+                if (player.hasAbility("imperia") || player.hasAbility("imperia_y")) {
+                    for (Player player_ : getRealPlayersNDummies()) {
+                        if (player_.getFaction().equalsIgnoreCase(player.getFaction())) continue;
+                        if (player.getMahactCC().contains(player_.getColor())
+                                && player_.hasLeaderUnlocked(leaderID)
+                                && leaderID.contains(player_.getFaction())) {
+                            return true;
+                        }
+                    }
+                }
+            }
             return false;
         }
 
         if ("sardakkcommander".equalsIgnoreCase(leaderID) && player.hasTech("tf-valkyrie")) {
+            return true;
+        }
+        if ("lanefircommander".equalsIgnoreCase(leaderID) && player.hasTech("tf-dslaner")) {
+            return true;
+        }
+        if ("ghoticommander".equalsIgnoreCase(leaderID) && player.hasTech("tf-abyssaltunneling")) {
+            return true;
+        }
+        if ("kollecccommander".equalsIgnoreCase(leaderID) && player.hasTech("tf-logisticalcoordination")) {
+            return true;
+        }
+        if ("kolumecommander".equalsIgnoreCase(leaderID) && player.hasTech("tf-kinematicstarfall")) {
+            return true;
+        }
+        if ("nivyncommander".equalsIgnoreCase(leaderID) && player.hasTech("tf-inquisition")) {
+            return true;
+        }
+        if ("vayleriancommander".equalsIgnoreCase(leaderID) && player.hasTech("tf-striketeams")) {
+            return true;
+        }
+        if ("vadencommander".equalsIgnoreCase(leaderID) && player.hasTech("tf-ruthlessbanking")) {
             return true;
         }
         if ("edyncommander".equalsIgnoreCase(leaderID) && player.hasTech("tf-rampantgrace")) {
@@ -4100,8 +4158,34 @@ public class Game extends GameProperties implements StoredValueHelper, TwilightF
         }
 
         for (String pnID : player.getPromissoryNotesInPlayArea()) {
-            if (pnID.contains("_an") || "dspnceld".equals(pnID)) { // dspnceld = Celdauri Trade Alliance
+            if ("thpnrevenant".equals(pnID)) {
                 Player pnOwner = getPNOwner(pnID);
+                Leader commander = getRevenantPantheonCommander(pnOwner);
+                if (pnOwner != null
+                        && !pnOwner.getFaction().equalsIgnoreCase(player.getFaction())
+                        && commander != null
+                        && commander.getId().equalsIgnoreCase(leaderID)
+                        && !commander.isLocked()) {
+                    return true;
+                }
+                continue;
+            }
+            if ("dspnceld".equals(pnID)) { // Celdauri Trade Alliance
+                Player pnOwner = getPNOwner(pnID);
+                if (pnOwner != null
+                        && !pnOwner.getFaction().equalsIgnoreCase(player.getFaction())
+                        && pnOwner.hasLeaderUnlocked(leaderID)) {
+                    return true;
+                }
+                continue;
+            }
+            if (pnID.contains("_an")) {
+                Player pnOwner = getPNOwner(pnID);
+                if (pnOwner != null
+                        && "revenant".equalsIgnoreCase(pnOwner.getFaction())
+                        && !"revenantcommander".equalsIgnoreCase(leaderID)) {
+                    continue;
+                }
                 if (pnOwner != null
                         && !pnOwner.getFaction().equalsIgnoreCase(player.getFaction())
                         && pnOwner.hasLeaderUnlocked(leaderID)) {
@@ -4121,7 +4205,73 @@ public class Game extends GameProperties implements StoredValueHelper, TwilightF
             }
         }
 
+        // Grant access to the selected commander whose faction token is in the Revenant lich debt pool.
+        Player lichPoolOwner = getRevenantCommanderOwner(player);
+        if (!"revenantcommander".equalsIgnoreCase(leaderID) && lichPoolOwner != null) {
+            for (Player otherPlayer : getRealPlayersNDummies()) {
+                if (otherPlayer.equals(lichPoolOwner)) continue;
+
+                Leader commander = getRevenantLichCommander(lichPoolOwner, otherPlayer);
+                if (lichPoolOwner.getDebtTokenCount(otherPlayer.getColor(), "lich") > 0
+                        && commander != null
+                        && commander.getId().equalsIgnoreCase(leaderID)) {
+                    return true;
+                }
+            }
+        }
+
         return false;
+    }
+
+    public Player getRevenantCommanderOwner(Player player) {
+        if (player == null) {
+            return null;
+        }
+        if (player.hasLeaderUnlocked("revenantcommander")) {
+            return player;
+        }
+        for (String pnID : player.getPromissoryNotesInPlayArea()) {
+            if (!pnID.contains("_an")) {
+                continue;
+            }
+            Player pnOwner = getPNOwner(pnID);
+            if (pnOwner != null
+                    && "revenant".equalsIgnoreCase(pnOwner.getFaction())
+                    && pnOwner.hasLeaderUnlocked("revenantcommander")) {
+                return pnOwner;
+            }
+        }
+        return null;
+    }
+
+    public Leader getRevenantPantheonCommander(Player revenantPlayer) {
+        if (revenantPlayer == null || !"revenant".equalsIgnoreCase(revenantPlayer.getFaction())) {
+            return null;
+        }
+        return revenantPlayer.getLeaders().stream()
+                .filter(leader -> Constants.COMMANDER.equals(leader.getType()))
+                .filter(leader -> Constants.CALL_OF_THE_HAUNTED_LEADERS.contains(leader.getId()))
+                .findFirst()
+                .orElse(null);
+    }
+
+    public Leader getRevenantLichCommander(Player lichPoolOwner, Player target) {
+        if (lichPoolOwner == null || target == null) {
+            return null;
+        }
+        String[] selection = getStoredValue("revenantLichCommander_" + lichPoolOwner.getFaction())
+                .split("\\|", 2);
+        if (selection.length == 2 && target.getFaction().equalsIgnoreCase(selection[0])) {
+            Leader selectedCommander = target.getLeaderByID(selection[1]).orElse(null);
+            if (selectedCommander != null && Constants.COMMANDER.equals(selectedCommander.getType())) {
+                return selectedCommander;
+            }
+        }
+        return target.getLeaders().stream()
+                .filter(leader -> Constants.COMMANDER.equals(leader.getType()))
+                .filter(leader -> leader.getId().contains(target.getFaction()))
+                .findFirst()
+                .orElse(null);
     }
 
     public List<Leader> playerUnlockedLeadersOrAlliance(Player player) {
@@ -4129,7 +4279,28 @@ public class Game extends GameProperties implements StoredValueHelper, TwilightF
         // check if player has any alliances with players that have the commander
         // unlocked
         for (String pnID : player.getPromissoryNotesInPlayArea()) {
-            if (pnID.contains("_an") || "dspnceld".equals(pnID)) { // dspnceld = Celdauri Trade Alliance
+            if ("thpnrevenant".equals(pnID)) {
+                Player pnOwner = getPNOwner(pnID);
+                Leader commander = getRevenantPantheonCommander(pnOwner);
+                if (pnOwner != null && !pnOwner.equals(player) && commander != null && !commander.isLocked()) {
+                    leaders.add(commander);
+                }
+                continue;
+            }
+            if ("dspnceld".equals(pnID)) { // Celdauri Trade Alliance
+                Player pnOwner = getPNOwner(pnID);
+                if (pnOwner != null && !pnOwner.equals(player)) {
+                    for (Leader playerLeader : pnOwner.getLeaders()) {
+                        if (leaderIsFake(playerLeader.getId())
+                                || !playerLeader.getId().contains("commander")) {
+                            continue;
+                        }
+                        leaders.add(playerLeader);
+                    }
+                }
+                continue;
+            }
+            if (pnID.contains("_an")) {
                 Player pnOwner = getPNOwner(pnID);
                 if (pnOwner != null && !pnOwner.equals(player)) {
                     for (Leader playerLeader : pnOwner.getLeaders()) {
@@ -4137,6 +4308,10 @@ public class Game extends GameProperties implements StoredValueHelper, TwilightF
                             continue;
                         }
                         if (!playerLeader.getId().contains("commander")) {
+                            continue;
+                        }
+                        if ("revenant".equalsIgnoreCase(pnOwner.getFaction())
+                                && !"revenantcommander".equalsIgnoreCase(playerLeader.getId())) {
                             continue;
                         }
                         leaders.add(playerLeader);
@@ -4168,10 +4343,32 @@ public class Game extends GameProperties implements StoredValueHelper, TwilightF
                 }
             }
         }
+
+        // Add the selected commander whose faction token is in this debt pool.
+        Player lichPoolOwner = getRevenantCommanderOwner(player);
+        if (lichPoolOwner != null) {
+            for (Player otherPlayer : getRealPlayers()) {
+                if (otherPlayer.equals(lichPoolOwner)
+                        || lichPoolOwner.getDebtTokenCount(otherPlayer.getColor(), "lich") < 1) {
+                    continue;
+                }
+
+                Leader commander = getRevenantLichCommander(lichPoolOwner, otherPlayer);
+                if (commander != null) {
+                    leaders.add(getUnlockedLeaderCopy(commander));
+                }
+            }
+        }
+
         leaders = leaders.stream()
                 .filter(leader -> leader != null && !leader.isLocked())
                 .collect(Collectors.toList());
         return leaders;
+    }
+
+    public Leader getUnlockedLeaderCopy(Leader leader) {
+        return new Leader(
+                leader.getId(), leader.getType(), leader.getTgCount(), leader.isExhausted(), false, leader.isActive());
     }
 
     public void incrementMapImageGenerationCount() {

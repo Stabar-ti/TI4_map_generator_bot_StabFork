@@ -20,7 +20,6 @@ import ti4.discord.interactions.buttons.Buttons;
 import ti4.discord.interactions.commands.franken.ban.BanService;
 import ti4.discord.interactions.routing.ButtonHandler;
 import ti4.game.Game;
-import ti4.helpers.ButtonHelper;
 import ti4.helpers.Constants;
 import ti4.helpers.settingsFramework.settings.BooleanSetting;
 import ti4.helpers.settingsFramework.settings.ChoiceSetting;
@@ -86,7 +85,8 @@ public class FrankenSettings extends SettingsMenu {
                         "Banned Factions",
                         "Ban faction",
                         "Unban faction",
-                        legalFactionOptions(game.isThundersEdge(), false, false).entrySet(),
+                        legalFactionOptions(game.isThundersEdge(), false, false, false)
+                                .entrySet(),
                         empty,
                         empty) {
                     @Override
@@ -223,18 +223,19 @@ public class FrankenSettings extends SettingsMenu {
     @Override
     protected void updateTransientSettings() {
         bannedFactions.setAllValues(legalFactionOptions(
-                game.isThundersEdge(), isEffectiveDiscordantStarsEnabled(), isEffectiveBlueReverieEnabled()));
+                game.isThundersEdge(),
+                isEffectiveDiscordantStarsEnabled(),
+                isEffectiveBlueReverieEnabled(),
+                isLostLegaciesEnabled()));
     }
 
     void applyHomebrewSettings() {
         game.setDiscordantStarsMode(isEffectiveDiscordantStarsEnabled());
         game.setBlueReverieMode(isEffectiveBlueReverieEnabled());
         game.setUnchartedSpaceStuff(homebrewSettings.getUnchartedSpace().isVal());
-
-        if (!game.isAcd2()) {
-            String acDeck = game.isUnchartedSpaceStuff() ? "action_cards_ds" : "action_cards_te";
-            game.resetActionCardDeck(Mapper.getDeck(acDeck));
-        }
+        game.setStoredValue(
+                Constants.INCLUDE_ERONOUS_TILES,
+                Boolean.toString(homebrewSettings.getEronous().isVal()));
     }
 
     private FrankenDraftMode selectedDraftMode() {
@@ -259,6 +260,10 @@ public class FrankenSettings extends SettingsMenu {
         return isFrankendrazMode()
                 ? banAllBrFactions.isVal()
                 : homebrewSettings.getBlueReverie().isVal();
+    }
+
+    public boolean isLostLegaciesEnabled() {
+        return homebrewSettings.getLostLegacies().isVal();
     }
 
     void syncFrankendrazDsBrState(String lastSettingTouched) {
@@ -390,14 +395,18 @@ public class FrankenSettings extends SettingsMenu {
     }
 
     private static Map<String, FactionModel> legalFactionOptions(
-            boolean teEnabled, boolean dsEnabled, boolean brEnabled) {
+            boolean teEnabled, boolean dsEnabled, boolean brEnabled, boolean lostLegaciesEnabled) {
         return Mapper.getFactionsValues().stream()
-                .filter(faction -> isLegalFrankenFaction(faction, teEnabled, dsEnabled, brEnabled))
+                .filter(faction -> isLegalFrankenFaction(faction, teEnabled, dsEnabled, brEnabled, lostLegaciesEnabled))
                 .collect(Collectors.toMap(FactionModel::getAlias, faction -> faction));
     }
 
     private static boolean isLegalFrankenFaction(
-            FactionModel faction, boolean teEnabled, boolean dsEnabled, boolean brEnabled) {
+            FactionModel faction,
+            boolean teEnabled,
+            boolean dsEnabled,
+            boolean brEnabled,
+            boolean lostLegaciesEnabled) {
         String alias = faction.getAlias();
         if (ALWAYS_DISABLED_FACTIONS.contains(alias)) {
             return false;
@@ -405,6 +414,7 @@ public class FrankenSettings extends SettingsMenu {
         if (teEnabled && faction.getSource().isTe()) return true;
         if (dsEnabled && faction.getSource() == ComponentSource.ds) return true;
         if (brEnabled && faction.getSource() == ComponentSource.blue_reverie) return true;
+        if (lostLegaciesEnabled && faction.getSource() == ComponentSource.theodisi) return true;
         return faction.getSource().isPok();
     }
 
@@ -418,6 +428,6 @@ public class FrankenSettings extends SettingsMenu {
     public static void setup(ButtonInteractionEvent event, Game game) {
         FrankenSettings menu = game.initializeFrankenSettings();
         menu.postMessageAndButtons(event);
-        ButtonHelper.deleteMessage(event);
+        // ButtonHelper.deleteMessage(event);
     }
 }

@@ -432,7 +432,6 @@ public class ButtonHelperCommanders {
         }
         ButtonHelperAbilities.pillageCheck(player, game);
         ButtonHelperAgents.resolveArtunoCheck(player, 1);
-        player.addSpentThing(msg);
         MessageHelper.sendMessageToChannel(player.getCorrectChannel(), msg);
     }
 
@@ -702,7 +701,7 @@ public class ButtonHelperCommanders {
                 }
             }
         }
-        if (player.hasUnlockedBreakthrough("freesystemsbt")) {
+        if (player.hasUnlockedBreakthrough("freesystemsbt") || player.hasTech("tf-rallyingmarshalls")) {
             List<Button> buttons = new ArrayList<>();
             for (Player p2 : game.getRealPlayersExcludingThis(player)) {
                 buttons.add(Buttons.green(
@@ -729,6 +728,7 @@ public class ButtonHelperCommanders {
             String msg = "Please choose the system in which you wish to produce a ship using ";
             msg += Mapper.getUnit("tk-sumerianrelay").getNameRepresentation() + ".";
             List<Button> buttons = PlayerTechService.getSlingRelayButtons(game, player);
+            buttons.add(Buttons.red("deleteButtons", "Decline"));
             MessageHelper.sendMessageToChannelWithButtons(player.getCorrectChannel(), msg, buttons);
         }
     }
@@ -985,6 +985,26 @@ public class ButtonHelperCommanders {
         ButtonHelper.deleteButtonAndDeleteMessageIfEmpty(event);
     }
 
+    @ButtonHandler("ralnelMechPull_")
+    public static void ralnelMechPull(Game game, Player player, String buttonID, ButtonInteractionEvent event) {
+        String mechorInf = buttonID.split("_")[1];
+        String planet1 = buttonID.split("_")[2];
+        String planet2 = buttonID.split("_")[3];
+        String planetRepresentation2 = Helper.getPlanetRepresentation(planet2, game);
+        String planetRepresentation = Helper.getPlanetRepresentation(planet1, game);
+
+        String message = player.getFactionEmojiOrColor() + " moved 1 " + mechorInf + " from " + planetRepresentation2
+                + " to " + planetRepresentation + " using the Ralnel Mech ability.";
+        RemoveUnitService.removeUnits(
+                event, game.getTileFromPlanet(planet2), game, player.getColor(), "1 " + mechorInf + " " + planet2);
+        game.setStoredValue("coexistFlag", "yes");
+        AddUnitService.addUnits(
+                event, game.getTileFromPlanet(planet1), game, player.getColor(), "1 " + mechorInf + " " + planet1);
+        game.removeStoredValue("coexistFlag");
+        MessageHelper.sendMessageToChannel(event.getMessageChannel(), message);
+        ButtonHelper.deleteMessage(event);
+    }
+
     public static List<Button> getSardakkCommanderButtons(
             Game game, Player player, GenericInteractionCreateEvent event) {
         Tile tile = game.getTileByPosition(game.getActiveSystem());
@@ -995,7 +1015,7 @@ public class ButtonHelperCommanders {
             String planetId = planetReal.getName();
             String planetName = Helper.getPlanetName(planetId);
 
-            for (String pos2 : FoWHelper.getAdjacentTiles(game, tile.getPosition(), player, false, true)) {
+            for (String pos2 : FoWHelper.getAdjacentTiles(game, tile.getPosition(), player, false, true, true)) {
                 Tile tile2 = game.getTileByPosition(pos2);
                 if (CommandCounterHelper.hasCC(event, player.getColor(), tile2)
                         && !game.isDominusOrb()

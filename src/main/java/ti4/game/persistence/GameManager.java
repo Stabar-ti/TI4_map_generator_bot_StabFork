@@ -21,6 +21,8 @@ import ti4.executors.ExecutorServiceManager;
 import ti4.game.Game;
 import ti4.game.Player;
 import ti4.logging.BotLogger;
+import ti4.service.fow.LoreService;
+import ti4.spring.websocket.WebSocketNotifier;
 
 @UtilityClass
 public class GameManager {
@@ -87,6 +89,7 @@ public class GameManager {
         if (managedGame != null) {
             managedGame.getPlayers().forEach(player -> player.removeGame(gameName));
         }
+        LoreService.evictGameLore(gameName);
     }
 
     public static boolean isValid(String gameName) {
@@ -102,6 +105,7 @@ public class GameManager {
         if (!GameSaveService.save(game, reason)) {
             throw new RuntimeException("Failed to save game " + game.getName() + ".");
         }
+        WebSocketNotifier.notifyGameStateChange(game);
 
         gameNames.add(game.getName());
         gameNameToManagedGame.put(game.getName(), new ManagedGame(game));

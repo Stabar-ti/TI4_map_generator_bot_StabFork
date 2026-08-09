@@ -3,6 +3,8 @@ package ti4.service.player;
 import java.util.ArrayList;
 import java.util.List;
 import lombok.experimental.UtilityClass;
+import ti4.discord.interactions.buttons.handlers.faction.homebrew.theodisi.Ponthous.PonthousAbilityHandler;
+import ti4.discord.interactions.buttons.handlers.faction.homebrew.theodisi.Xytheris.XytherisLeadersHandler;
 import ti4.game.Game;
 import ti4.game.Leader;
 import ti4.game.Player;
@@ -12,6 +14,12 @@ import ti4.service.leader.RefreshLeaderService;
 @UtilityClass
 public class RefreshCardsService {
     public static void refreshPlayerCards(Game game, Player player, boolean isStatusPhaseCleanup) {
+        if (isStatusPhaseCleanup) {
+            PonthousAbilityHandler.resetFracturedSouls(game, player); // Resets attchments on Ponthous
+            XytherisLeadersHandler.clearHeroUnitAbilityRoll(
+                    game); // Done so the hero roll state does not persist past purging
+        }
+
         boolean planetsOnly = !isStatusPhaseCleanup;
         if (game.isOmegaPhaseMode()) {
             planetsOnly = !planetsOnly;

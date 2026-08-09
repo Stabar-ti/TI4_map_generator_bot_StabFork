@@ -10,6 +10,10 @@ import net.dv8tion.jda.api.events.interaction.GenericInteractionCreateEvent;
 import net.dv8tion.jda.api.events.interaction.component.ButtonInteractionEvent;
 import ti4.discord.interactions.buttons.Buttons;
 import ti4.discord.interactions.buttons.handlers.faction.homebrew.beans.Iron.IronLeadersHandler;
+import ti4.discord.interactions.buttons.handlers.faction.homebrew.theodisi.Arcanum.ArcanumBreakthroughHandler;
+import ti4.discord.interactions.buttons.handlers.faction.homebrew.theodisi.Arcanum.ArcanumPrimordialTechHandler;
+import ti4.discord.interactions.buttons.handlers.faction.homebrew.theodisi.Ardentia.*;
+import ti4.discord.interactions.buttons.handlers.faction.homebrew.theodisi.Xytheris.XytherisLeadersHandler;
 import ti4.game.Game;
 import ti4.game.Planet;
 import ti4.game.Player;
@@ -26,6 +30,7 @@ import ti4.helpers.Helper;
 import ti4.helpers.Units.UnitState;
 import ti4.helpers.Units.UnitType;
 import ti4.helpers.thundersedge.TeHelperGeneral;
+import ti4.image.Mapper;
 import ti4.message.MessageHelper;
 import ti4.service.combat.StartCombatService;
 import ti4.service.emoji.FactionEmojis;
@@ -118,6 +123,40 @@ public class TacticalActionService {
     }
 
     public boolean spendAndPlaceTokenIfNecessary(ButtonInteractionEvent event, Game game, Player player, Tile tile) {
+        String borrowedAuthorityColor = game.getStoredValue("borrowedAuthorityColor");
+        if (!borrowedAuthorityColor.isEmpty()) {
+            String ccId = Mapper.getCCID(borrowedAuthorityColor);
+            if (ccId != null
+                    && player.getDebtTokenCount(borrowedAuthorityColor, "Seize Command") > 0
+                    && !tile.hasCC(ccId)) {
+                player.removeDebtTokens(borrowedAuthorityColor, 1, "Seize Command");
+                tile.addCC(ccId);
+                Player borrowedFrom = game.getPlayerFromColorOrFaction(borrowedAuthorityColor);
+                String borrowedFromName =
+                        borrowedFrom == null ? borrowedAuthorityColor : borrowedFrom.getFactionNameOrColor();
+                MessageHelper.sendMessageToChannel(
+                        player.getCorrectChannel(),
+                        player.getRepresentation() + " returned " + borrowedFromName
+                                + "'s command token from their **Seize Command** debt pool to use _Borrowed Authority_.");
+                if (borrowedFrom != null) {
+                    MessageHelper.sendMessageToChannel(
+                            borrowedFrom.getCorrectChannel(),
+                            borrowedFrom.getRepresentationUnfogged() + ", your command token was placed in "
+                                    + tile.getRepresentationForButtons(game, borrowedFrom)
+                                    + " for _Borrowed Authority_.");
+                }
+                if (game.isFowMode()) {
+                    FoWHelper.pingSystem(
+                            game,
+                            tile.getPosition(),
+                            player.getFactionEmojiOrColor() + " activated a system using _Borrowed Authority_.");
+                }
+                ArdentiaTechHandler.offerOverlordMatrixButton(game, tile);
+            }
+            game.removeStoredValue("borrowedAuthorityColor");
+            return true;
+        }
+
         boolean skipPlacingAbilities = shouldSkipPlacingAbilities(game, player);
         if (!skipPlacingAbilities
                 && !CommandCounterHelper.hasCC(event, player.getColor(), tile)
@@ -127,6 +166,7 @@ public class TacticalActionService {
             }
             player.setTacticalCC(player.getTacticalCC() - 1);
             CommandCounterHelper.addCC(event, player, tile);
+            ArdentiaTechHandler.offerOverlordMatrixButton(game, tile);
             return true;
         }
         return false;
@@ -180,7 +220,8 @@ public class TacticalActionService {
                 "tyris",
                 "lunarium",
                 "zephyrion",
-                "vyserix");
+                "vyserix",
+                "natau");
         CommanderUnlockCheckService.checkAllPlayersInGame(game, "empyrean");
 
         if (tile.isFractureSystem()) {
@@ -204,6 +245,8 @@ public class TacticalActionService {
         if (player.hasLeader("ironhero")) {
             IronLeadersHandler.updateIronHeroEligibility(game, player, tile);
         }
+        ArcanumBreakthroughHandler.movePowerWordWishUnitsToActiveSystem(game, player, tile);
+        XytherisLeadersHandler.moveMyrixAgentShipToActiveSystem(game, player, tile);
         boolean unitsWereMoved = moveUnitsIntoActiveSystem(event, game, tile);
         Tile updatedTile = game.getTileByPosition(tile.getPosition());
         spendAndPlaceTokenIfNecessary(event, game, player, updatedTile);
@@ -238,7 +281,9 @@ public class TacticalActionService {
     private List<Button> buildFinishMovementButtons(
             ButtonInteractionEvent event, Game game, Player player, FinishMovementContext ctx) {
         List<Button> systemButtons;
-        if (!ctx.unitsWereMoved && !ctx.hasGfsInRange) {
+        if (!ctx.unitsWereMoved
+                && !ctx.hasGfsInRange
+                && !ButtonHelper.getTilesOfUnitsWithBombard(player, game).contains(ctx.tile)) {
             systemButtons = getBuildButtons(event, game, player, ctx.tile);
         } else {
             systemButtons = getLandingTroopsButtons(game, player, ctx.tile);
@@ -383,6 +428,7 @@ public class TacticalActionService {
         for (PostMovementAbilityButton ability : PostMovementAbilityButtons.ABILITIES) {
             if (ability.enabled(ctx)) buttons.addAll(ability.build(ctx));
         }
+        ArdentiaUnitHandler.addIronClawDeployButton(buttons, game, player, tile);
 
         return buttons;
     }
@@ -395,6 +441,7 @@ public class TacticalActionService {
         return game.isNaaluAgent()
                 || game.isWarfareAction()
                 || game.isL1Hero()
+                || ArcanumPrimordialTechHandler.planeShiftIgnoresAnomalies(game, player)
                 || (!game.getStoredValue("hiredGunsInPlay").isEmpty() && player != game.getActivePlayer());
     }
 

@@ -7,6 +7,8 @@ import net.dv8tion.jda.api.events.interaction.component.ButtonInteractionEvent;
 import org.apache.commons.lang3.StringUtils;
 import ti4.discord.interactions.buttons.handlers.faction.homebrew.beans.Iron.IronLeadersHandler;
 import ti4.discord.interactions.buttons.handlers.faction.homebrew.beans.ashen.AshenUnitHandler;
+import ti4.discord.interactions.buttons.handlers.faction.homebrew.theodisi.Ponthous.*;
+import ti4.discord.interactions.buttons.handlers.faction.homebrew.theodisi.Revenant.RevenantLeadersHandler;
 import ti4.discord.interactions.routing.ButtonHandler;
 import ti4.game.Game;
 import ti4.game.Player;
@@ -24,6 +26,7 @@ import ti4.logging.LogOrigin;
 import ti4.message.MessageHelper;
 import ti4.model.UnitModel;
 import ti4.service.fow.FOWCombatThreadMirroring;
+import ti4.service.leader.CommanderUnlockCheckService;
 import ti4.service.regex.RegexService;
 import ti4.service.unit.DestroyUnitService;
 import ti4.service.unit.ParseUnitService;
@@ -58,7 +61,14 @@ class AssignHitsButtonHandlers {
                     ParsedUnit unit = UnitPickerHandlerHelper.parsedUnitFromMatcher(player, matcher);
                     if (remove) {
                         RemoveUnitService.removeUnit(event, tile, game, unit, state);
+                        if (unit.unitKey().unitType() == UnitType.Infantry) {
+                            ButtonHelper.resolveInfantryRemoval(player, amt, tile);
+                        }
                     } else {
+                        if (PonthousAbilityHandler.offerLastStand(
+                                event, game, player, tile, holder, unit.unitKey(), state, assignHitsType)) {
+                            return;
+                        }
                         DestroyUnitService.destroyUnit(event, tile, game, unit, combat, state);
                         IronLeadersHandler.checkCommanderUnlockAfterCombat(game, tile, holder, assignHitsType);
                     }
@@ -197,6 +207,10 @@ class AssignHitsButtonHandlers {
                     UnitHolder holder =
                             planetName != null ? tile.getUnitHolderFromPlanet(planetName) : tile.getSpaceUnitHolder();
                     if (holder != null) holder.addDamagedUnit(Units.getUnitKey(type, player.getColorID()), amt);
+                    if (holder == tile.getSpaceUnitHolder() && type == UnitType.Fighter) {
+                        PonthousUnitHandler.consumeTemporaryFighterSustain(game, player, tile, amt);
+                    }
+                    CommanderUnlockCheckService.checkPlayer(player, "ponthous");
 
                     String plural = (amt == 1 || "infantry".equalsIgnoreCase(type.humanReadableName())) ? "" : "s";
                     String msg = player.getRepresentationNoPing() + " sustained " + amt + " "
@@ -206,11 +220,21 @@ class AssignHitsButtonHandlers {
                                     ? " on " + holder.getRepresentation(game)
                                     : " in tile " + tile.getRepresentationForButtons(game, player))
                             + ".";
-                    if (player.hasTech("nes"))
-                        msg += "\n> These sustains cancel 2 hits due to _Non-Euclidean Shielding_.";
+                    boolean cancelsTwoHits =
+                            player.hasTech("nes") || (player.ownsUnit("kryxos_flagship3") && type == UnitType.Flagship);
+                    if (cancelsTwoHits) {
+                        String sustainSource = player.hasTech("nes")
+                                ? "_Non-Euclidean Shielding_"
+                                : "the Ultimate Evolution III (the Kryxos flagship)";
+                        msg += "\n> These SUSTAIN DAMAGE uses cancel 2 hits due to " + sustainSource + ".";
+                    }
                     String assignHitsType = getAssignHitsType(game, player);
                     if (assignHitsType.contains("combat")) {
                         AshenUnitHandler.offerAshfallEngineOnSustain(event, game, player, tile, holder, type);
+                    }
+                    UnitModel sustainedUnit = player.getUnitFromUnitKey(Units.getUnitKey(type, player.getColorID()));
+                    if ("spacecombat".equals(assignHitsType) && sustainedUnit != null && sustainedUnit.getIsShip()) {
+                        RevenantLeadersHandler.offerRevPonthousCommander(event, game, player, tile);
                     }
                     List<Button> systemButtons =
                             ButtonHelper.getButtonsForRemovingAllUnitsInSystem(player, game, tile, assignHitsType);

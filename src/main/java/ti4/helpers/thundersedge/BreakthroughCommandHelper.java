@@ -16,6 +16,10 @@ import net.dv8tion.jda.api.events.interaction.component.ButtonInteractionEvent;
 import net.dv8tion.jda.api.interactions.commands.OptionMapping;
 import org.apache.commons.lang3.function.Consumers;
 import ti4.discord.interactions.buttons.Buttons;
+import ti4.discord.interactions.buttons.handlers.faction.homebrew.theodisi.Arcanum.ArcanumBreakthroughHandler;
+import ti4.discord.interactions.buttons.handlers.faction.homebrew.theodisi.Oblivion.OblivionBreakthroughHandler;
+import ti4.discord.interactions.buttons.handlers.faction.homebrew.theodisi.Revenant.RevenantBreakthroughHandler;
+import ti4.discord.interactions.buttons.handlers.faction.homebrew.theodisi.Thrones.ThronesUnitHandler;
 import ti4.discord.interactions.commands.CommandHelper;
 import ti4.discord.interactions.routing.ButtonHandler;
 import ti4.game.Game;
@@ -215,6 +219,12 @@ public final class BreakthroughCommandHelper {
                     player.removeOwnedUnitByID("rohdhna_warsun2");
                 }
             }
+            if ("mirvedabt".equalsIgnoreCase(bt.getID())) {
+                if (player.hasTech("ff2")) {
+                    player.addOwnedUnitByID("mirveda_fighter3");
+                    player.removeOwnedUnitByID("fighter2");
+                }
+            }
             if ("kortalbt".equalsIgnoreCase(bt.getID())) {
                 if (player.hasTech("dn2")) {
                     player.addOwnedUnitByID("tribune3");
@@ -246,7 +256,7 @@ public final class BreakthroughCommandHelper {
                                 + " Ingress tokens will be placed in their position on the map, if there were no choices to be made.";
                         FractureService.spawnFracture(null, game);
                         FractureService.spawnIngressTokens(null, game, player, bt.getID());
-                        MessageHelper.sendMessageToChannel(game.getMainGameChannel(), msg);
+                        MessageHelper.sendMessageToChannel(player.getCorrectChannel(), msg);
                     }
                     AlRaithService.serveBeginCabalBreakthroughButtons(null, game, player);
                 }
@@ -254,7 +264,26 @@ public final class BreakthroughCommandHelper {
             if ("firmamentbt".equalsIgnoreCase(bt.getID())) {
                 SowingReapingService.sendTheSowingButtons(game);
             }
-
+            if ("revenantbt".equalsIgnoreCase(bt.getID())) {
+                RevenantBreakthroughHandler.gainAttachedAgent(game, player);
+            }
+            if ("xytherisbt".equalsIgnoreCase(bt.getID())) {
+                player.setUnitCap("pd", player.getUnitCap("pd") + 4);
+                MessageHelper.sendMessageToChannel(
+                        game.getActionsChannel(),
+                        player.getRepresentation() + ", your PDS unit cap has been increased to "
+                                + player.getUnitCap("pd"));
+            }
+            if (player.hasBreakthrough("arcanumbt")) {
+                ArcanumBreakthroughHandler.offerArcanumBTFlipOnGain(game, player);
+            }
+            if ("thronesbt".equalsIgnoreCase(bt.getID())) {
+                player.addOwnedUnitByID("thrones_aurelion");
+                ThronesUnitHandler.offerAurelionPlacement(game, player);
+            }
+            if ("oblivionbt".equalsIgnoreCase(bt.getID())) {
+                OblivionBreakthroughHandler.startCallOfTheVoid(game, player);
+            }
             if (!FractureService.isFractureInPlay(game) && !game.isNoFractureMode())
                 serveRollFractureButtons(player, btID);
             if ("muaatbt".equals(bt.getAlias())) StellarGenesisService.serveAvernusButtons(game, player);

@@ -6,32 +6,14 @@ import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEve
 import ti4.discord.interactions.commands.Subcommand;
 import ti4.executors.ExecutionLockType;
 import ti4.game.Game;
-import ti4.game.Player;
+import ti4.game.GameStats;
 import ti4.game.persistence.ConsumeGameUtility;
 import ti4.game.persistence.GameManager;
 import ti4.logging.BotLogger;
 import ti4.message.MessageHelper;
+import ti4.spring.service.statistics.overrule.OverruleStatsService;
 
 class RunAgainstAllGames extends Subcommand {
-
-    private static final Set<String> ACTION_CARDS_TO_REMOVE = Set.of(
-            "deep_cover_operatives",
-            "recurrence_protocols",
-            "space_mines",
-            "magen_engineers",
-            "fulfillment_protocols",
-            "rehash_debates",
-            "cyberwarfare",
-            "transference_protocol",
-            "disrupt_logistics",
-            "virulent_gas_canisters",
-            "emergency_conscription",
-            "rigged_explosives",
-            "graviton_shielding",
-            "contradictory_legal_text",
-            "shock_and_awe",
-            "deep_space_station",
-            "ancient_defenses");
 
     RunAgainstAllGames() {
         super("run_against_all_games", "Runs this custom code against all games.");
@@ -44,10 +26,9 @@ class RunAgainstAllGames extends Subcommand {
         Set<String> changedGames = new HashSet<>();
         ConsumeGameUtility.consumeAllGames(
                 game -> {
-                    boolean changed = removeDeprecatedActionCards(game);
-                    if (changed) {
+                    if (migrateActionCardTargets(game)) {
                         changedGames.add(game.getName());
-                        GameManager.save(game, "Removed deprecated action cards from game state.");
+                        GameManager.save(game, "Migrated action card Sabotage/Overrule targets to canceled flags.");
                     }
                 },
                 ExecutionLockType.WRITE);
@@ -57,17 +38,19 @@ class RunAgainstAllGames extends Subcommand {
                 + " games: " + String.join(", ", changedGames));
     }
 
-    private static boolean removeDeprecatedActionCards(Game game) {
-        boolean changed = false;
-        changed |= game.getActionCards().removeIf(ACTION_CARDS_TO_REMOVE::contains);
-        changed |= game.getDiscardActionCards().keySet().removeIf(ACTION_CARDS_TO_REMOVE::contains);
-        changed |= game.getDiscardACStatus().keySet().removeIf(ACTION_CARDS_TO_REMOVE::contains);
-        changed |= game.getGameStats()
-                .getActionCardPlays()
-                .removeIf(actionCardPlay -> ACTION_CARDS_TO_REMOVE.contains(actionCardPlay.getActionCard()));
-        for (Player player : game.getRealPlayers()) {
-            changed |= player.getActionCards().keySet().removeIf(ACTION_CARDS_TO_REMOVE::contains);
+    // Cancels used to be recorded as a "Sabotage" action card play targeting the canceled card, and
+    // Overrule plays carried the strategy card that was chosen. Move both onto their new homes: the
+    // canceled flag of the play itself, and the overrule_choice table.
+    /**
+     * @deprecated one-off. Remove this along with the migration it calls once it has run against all
+     *     games.
+     */
+    @Deprecated
+    static boolean migrateActionCardTargets(Game game) {
+        GameStats.OverruleTargetMigration migration = game.getGameStats().migrateTargetsToCanceledFlags();
+        if (!migration.strategyCardChoices().isEmpty()) {
+            OverruleStatsService.get().addMigratedCounts(game.getName(), migration.strategyCardChoices());
         }
-        return changed;
+        return migration.changed();
     }
 }

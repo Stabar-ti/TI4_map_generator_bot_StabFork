@@ -14,7 +14,10 @@ import net.dv8tion.jda.api.components.buttons.Button;
 import net.dv8tion.jda.api.events.interaction.component.ButtonInteractionEvent;
 import ti4.discord.interactions.buttons.Buttons;
 import ti4.discord.interactions.buttons.handlers.faction.homebrew.beans.DreamButtonHandler;
-import ti4.discord.interactions.buttons.handlers.faction.homebrew.whispers.arvaxi.MobilizationEngineHandler;
+import ti4.discord.interactions.buttons.handlers.faction.homebrew.theodisi.Arcanum.ArcanumBreakthroughHandler;
+import ti4.discord.interactions.buttons.handlers.faction.homebrew.theodisi.Arcanum.ArcanumPrimordialTechHandler;
+import ti4.discord.interactions.buttons.handlers.faction.homebrew.theodisi.Thrones.ThronesLeadersHandler;
+import ti4.discord.interactions.buttons.handlers.faction.homebrew.whispers.arvaxi.ArvaxiBreakthroughHandler;
 import ti4.game.Game;
 import ti4.game.Planet;
 import ti4.game.Player;
@@ -222,6 +225,8 @@ public class TacticalActionOutputService {
             return summary.toString();
         }
         summary.append(String.join("\n", lines));
+        String powerWordWishMoveNote = ArcanumBreakthroughHandler.getPowerWordWishMoveNote(game, player, tile);
+        if (!powerWordWishMoveNote.isEmpty()) summary.append('\n').append(powerWordWishMoveNote);
         String extraSummary = buildShortSummary(game, Set.of(tile.getPosition()));
         if (extraSummary != null && inclSummary) summary.append('\n').append(extraSummary);
         return summary.toString();
@@ -265,6 +270,7 @@ public class TacticalActionOutputService {
 
         StringBuilder output = new StringBuilder();
         int maxBonus = 0;
+        boolean ignoresAnomalies = ArcanumPrimordialTechHandler.planeShiftIgnoresAnomalies(game, player);
         if (distance > moveValue && distance < 90 && !game.isL1Hero()) {
             output.append(" (distance exceeds move value (")
                     .append(distance)
@@ -274,7 +280,7 @@ public class TacticalActionOutputService {
 
             if (player.hasTech("gd")) {
                 maxBonus++;
-                output.append(", used _Gravity Drive_)");
+                output.append(", may have used _Gravity Drive_)");
             } else {
                 if (!game.isTwilightsFallMode()) {
                     output.append(", __does not have _Gravity Drive___)");
@@ -304,14 +310,41 @@ public class TacticalActionOutputService {
                 output.append(" (has _Lightning Drives_ for +1 movement if not transporting)");
             }
             if (riftDistance < distance) {
-                // maxBonus += distance - riftDistance; // Don't automatically count rifts, allow the GM to verify
-                output.append(" (gravity rifts along a path could add +")
-                        .append(distance - riftDistance)
-                        .append(" movement if used)");
-                if (player.hasRelic("circletofthevoid")) {
-                    output.append(" (Does not roll for rifts due to circlet of the void)");
+                if (ignoresAnomalies) {
+                    output.append(" (ignores gravity-rift effects due to _Power Word: Plane Shift_)");
+                } else {
+                    // Don't automatically count rifts, allowing the player to verify the chosen path.
+                    output.append(" (gravity rifts along a path could add +")
+                            .append(distance - riftDistance)
+                            .append(" movement if used)");
+                    if (player.hasRelic("circletofthevoid")) {
+                        output.append(" (does not roll for rifts due to Circlet of the Void)");
+                    }
+                    if (game.playerHasLeaderUnlockedOrAlliance(player, "thronescommander")) {
+                        output.append(
+                                " (gravity-rift movement effects are optional due to _Veythros, the Thrones of Ruin commander_; if you ignore the rift, you do not get the +1 movement)");
+                    }
+                    game.setStoredValue("possiblyUsedRift", "yes");
                 }
-                game.setStoredValue("possiblyUsedRift", "yes");
+            }
+            if (player.hasTech("bedreamneg")) {
+                output.append(
+                        " starting system containing a nexus token gives +1 to move value with Non-Euclidean Geometries.");
+            }
+            if (player.hasTech("becrystrd")) {
+                output.append(" (has _Resonance Drive_ for +1 to each ship at capacity. This is not automated.");
+            }
+            if (unit.unitType() == UnitType.Destroyer) {
+                if (player.ownsUnit("ponthous_destroyer2")) {
+                    output.append("**REMINDER**: Renegade II can only transport ground forces.");
+                } else if (player.ownsUnit("ponthous_destroyer")) {
+                    output.append("**REMINDER**: Renegade I can only transport infantry.");
+                }
+            }
+            if (player.hasPlanet("gyraxis")
+                    && player.getExhaustedPlanetsAbilities().contains("gyraxis")
+                    && "yes".contains(game.getStoredValue("gyraxisActive"))) {
+                output.append("May add +1 move to up to 1 ship being moved from each system containing their ships.");
             }
         }
         if ((distance > (moveValue + maxBonus)) && game.isFowMode()) {
@@ -320,15 +353,11 @@ public class TacticalActionOutputService {
         if (distance > 90 && player.hasAbility("sundered")) {
             output.append(" (__Warning__: has **Sundered**, and so cannot use wormholes)");
         }
-        if (riftDistance < distance) {
+        if (riftDistance < distance && !ignoresAnomalies) {
             game.setStoredValue("possiblyUsedRift", "yes");
         }
         if (player.hasAbility("celestial_guides")) {
             game.setStoredValue("possiblyUsedRift", "");
-        }
-        if (distance > moveValue && player.hasTech("bedreamneg")) {
-            output.append(
-                    " starting system containing a nexus token gives +1 to move value with Non-Euclidean Geometries.");
         }
         return output.toString();
     }
@@ -352,9 +381,10 @@ public class TacticalActionOutputService {
         if (tile.isNebula(game)
                 && !DreamButtonHandler.playerIgnoresDreamAgentAnomaly(game, player, tile)
                 && !player.hasAbility("voidborn")
-                && !player.hasAbility("celestial_being")
                 && !player.hasTech("absol_amd")
-                && !player.getRelics().contains("circletofthevoid")) {
+                && !player.getRelics().contains("circletofthevoid")
+                && !ThronesLeadersHandler.veythrosIgnoresAnomalies(game, player)
+                && !ArcanumPrimordialTechHandler.planeShiftIgnoresAnomalies(game, player)) {
             baseMoveValue = 1;
         }
         if (skipBonus) return baseMoveValue;
@@ -377,8 +407,8 @@ public class TacticalActionOutputService {
         if (player.hasUnit("tf-echoofascension") && model.getUnitType() == UnitType.Flagship) {
             bonusMoveValue++;
         }
-        if (MobilizationEngineHandler.hasEngineAttached(game)) {
-            bonusMoveValue += MobilizationEngineHandler.getMoveMod(game, player, model);
+        if (ArvaxiBreakthroughHandler.hasEngineAttached(game)) {
+            bonusMoveValue += ArvaxiBreakthroughHandler.getMoveMod(game, player, model);
         }
         if (player.hasAbility("slipstream") && (tileHasWormhole || (movingFromHome && !game.isTwilightsFallMode()))) {
             bonusMoveValue++;

@@ -169,8 +169,10 @@ public class ButtonHelperHeroes {
             for (Map.Entry<UnitKey, Integer> unitEntry : units.entrySet()) {
                 if (!player.unitBelongsToPlayer(unitEntry.getKey())) continue;
                 UnitModel unitModel = player.getUnitFromUnitKey(unitEntry.getKey());
-                if (unitModel == null || (unitModel.getIsStructure() && !Objects.equals(unitHolder.getName(), "space")))
-                    continue;
+                if (unitModel == null
+                        || (unitModel.getIsStructure()
+                                && !Objects.equals(unitHolder.getName(), "space")
+                                && !player.hasAbility("miniaturization"))) continue;
                 UnitKey unitKey = unitEntry.getKey();
                 String unitName = unitKey.unitName();
                 int totalUndamagedUnits = unitEntry.getValue();
@@ -286,16 +288,7 @@ public class ButtonHelperHeroes {
     public static void resolveKhraskHero(Player player, Game game) {
         List<Button> buttons = new ArrayList<>();
         for (Player p2 : game.getRealPlayers()) {
-            if (game.isFowMode()) {
-                buttons.add(Buttons.gray("khraskHeroStep2_" + p2.getFaction(), p2.getColor()));
-            } else {
-                Button button = Buttons.gray(
-                        "khraskHeroStep2_" + p2.getFaction(),
-                        p2.getFactionModel().getShortName());
-                String factionEmojiString = p2.getFactionEmoji();
-                button = button.withEmoji(Emoji.fromFormatted(factionEmojiString));
-                buttons.add(button);
-            }
+            buttons.add(FoWHelper.fogSafeTargetButton("khraskHeroStep2_" + p2.getFaction(), "gray", p2));
         }
         MessageHelper.sendMessageToChannelWithButtons(
                 player.getCorrectChannel(),
@@ -545,16 +538,8 @@ public class ButtonHelperHeroes {
             if (p2 == player) {
                 continue;
             }
-            if (game.isFowMode()) {
-                buttons.add(Buttons.gray("axisHeroStep3_" + shipOrder + "_" + p2.getFaction(), p2.getColor()));
-            } else {
-                Button button = Buttons.gray(
-                        "axisHeroStep3_" + shipOrder + "_" + p2.getFaction(),
-                        p2.getFactionModel().getShortName());
-                String factionEmojiString = p2.getFactionEmoji();
-                button = button.withEmoji(Emoji.fromFormatted(factionEmojiString));
-                buttons.add(button);
-            }
+            buttons.add(
+                    FoWHelper.fogSafeTargetButton("axisHeroStep3_" + shipOrder + "_" + p2.getFaction(), "gray", p2));
         }
         ButtonHelper.deleteButtonAndDeleteMessageIfEmpty(event);
         MessageHelper.sendMessageToChannelWithButtons(player.getCorrectChannel(), message, buttons);
@@ -886,10 +871,7 @@ public class ButtonHelperHeroes {
         List<Button> buttons = new ArrayList<>();
         for (String planet : player.getPlanets()) {
             Planet planetReal = game.getPlanetsInfo().get(planet);
-            boolean oneOfThree = planetReal != null
-                    && isNotBlank(planetReal.getOriginalPlanetType())
-                    && List.of("industrial", "cultural", "hazardous").contains(planetReal.getOriginalPlanetType());
-            if (oneOfThree || planet.contains("custodiavigilia") || planet.contains("ghoti")) {
+            if (!planet.contains("mr") && planetReal.isHomePlanet(game) && !planetReal.isSpaceStation()) {
                 buttons.add(
                         Buttons.green("freeSystemsHeroPlanet_" + planet, Helper.getPlanetRepresentation(planet, game)));
             }
@@ -1258,7 +1240,7 @@ public class ButtonHelperHeroes {
         List<Tile> tiles = new ArrayList<>();
         if (game.isTwilightsFallMode()) {
             for (Tile tile : game.getTileMap().values()) {
-                if (tile.isGravityRift(game)) {
+                if (tile.isGravityRift(game, player)) {
                     tiles.add(tile);
                 }
             }
@@ -1621,7 +1603,9 @@ public class ButtonHelperHeroes {
         } else {
             unitModelID = "olradin_mech_negative";
         }
-        player.addOwnedUnitByID(unitModelID);
+        if (!player.getGame().isTwilightsFallMode()) {
+            player.addOwnedUnitByID(unitModelID);
+        }
         MessageHelper.sendMessageToChannel(player.getCorrectChannel(), msg);
         DiscordantStarsHelper.checkOlradinMech(game);
         ButtonHelper.deleteMessage(event);
@@ -1780,10 +1764,7 @@ public class ButtonHelperHeroes {
                         player.getCardsInfoThread(), message, stuffToTransButtons);
             }
         }
-        MessageHelper.sendMessageToChannel(player.getCorrectChannel(), msg);
-        if (game.isFowMode()) {
-            MessageHelper.sendMessageToChannel(vaden.getCorrectChannel(), msg);
-        }
+        FoWHelper.notifyPlayerAndAffectedInFog(game, player, vaden, msg);
     }
 
     public static void killShipsSardakkHero(Player player, Game game, ButtonInteractionEvent event) {

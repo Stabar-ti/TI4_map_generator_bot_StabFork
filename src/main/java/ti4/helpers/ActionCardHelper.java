@@ -18,15 +18,14 @@ import net.dv8tion.jda.api.entities.channel.middleman.MessageChannel;
 import net.dv8tion.jda.api.events.interaction.GenericInteractionCreateEvent;
 import net.dv8tion.jda.api.events.interaction.component.ButtonInteractionEvent;
 import org.apache.commons.collections4.CollectionUtils;
-import org.apache.commons.lang3.StringUtils;
 import ti4.contest.replay.core.CombatReplayTrackedEvent;
 import ti4.contest.replay.service.CombatReplayService;
 import ti4.discord.interactions.buttons.Buttons;
-import ti4.discord.interactions.buttons.handlers.faction.homebrew.whispers.arvaxi.ArvaxiAgentButtonHandler;
+import ti4.discord.interactions.buttons.handlers.faction.homebrew.theodisi.Oblivion.OblivionUnitHandler;
+import ti4.discord.interactions.buttons.handlers.faction.homebrew.whispers.arvaxi.ArvaxiLeaderHandler;
 import ti4.discord.interactions.commands.CommandHelper;
 import ti4.discord.interactions.routing.ButtonHandler;
 import ti4.game.Game;
-import ti4.game.GameStats;
 import ti4.game.Player;
 import ti4.game.Tile;
 import ti4.game.UnitHolder;
@@ -54,6 +53,10 @@ import ti4.service.leader.CommanderUnlockCheckService;
 import ti4.service.turn.StartTurnService;
 import ti4.service.unit.AddUnitService;
 import ti4.spring.context.SpringContext;
+import ti4.spring.service.gameevent.GameEventDraft;
+import ti4.spring.service.gameevent.GameEventService;
+import ti4.spring.service.gameevent.GameEventType;
+import ti4.spring.service.gameevent.GameSubEvent;
 
 @UtilityClass
 public class ActionCardHelper {
@@ -406,7 +409,6 @@ public class ActionCardHelper {
                 "tf-stasis",
                 "extremeduress",
                 "disgrace",
-                "special_session",
                 "investments",
                 "tf-reverse",
                 "puppetsonastring",
@@ -746,17 +748,26 @@ public class ActionCardHelper {
                 }
             } else if (player.hasAbility("cybernetic_madness")) {
                 game.purgedActionCard(player.getUserID(), acIndex);
+                OblivionUnitHandler.doOblivionMechCheck(game, player);
             } else {
                 game.discardActionCard(player.getUserID(), acIndex);
             }
         }
         recordTrackedActionCardPlay(game, player, actionCardTitle);
+        if (!GameEventDraft.stage(
+                game, new GameSubEvent.ActionCardPlayed(player.getFaction(), acID, actionCardTitle))) {
+            GameEventService.commit(
+                    game,
+                    GameEventType.CARD_PLAY_ACTION_CARD,
+                    player,
+                    Map.of("cardId", acID, "cardName", actionCardTitle));
+        }
 
         boolean hasUnyieldingWill = player.hasTech("baarvag");
         boolean actionCardIsCancelable = isActionCardCancelable(actionCard) && !twinned && !hasUnyieldingWill;
 
         String pingGame = actionCardIsCancelable ? game.getPing() + ", " : "";
-        String message = pingGame + (game.isFowMode() ? "someone" : player.getRepresentationNoPing());
+        String message = pingGame + FoWHelper.actorOrAnon(game, player, "someone");
         message += fromGarbozia ? " purged " : " played ";
         message += "the action card _" + actionCardTitle + "_";
         message += fromGarbozia ? " using _Dok 'N Pic's Salvage Yard_." : ".";
@@ -948,9 +959,11 @@ public class ActionCardHelper {
                 }
                 MessageHelper.sendMessageToChannelWithButtons(player.getCorrectChannel(), msg, acbuttons);
             }
-            String cancelReminder = actionCardIsCancelable ? ", after checking for Sabos" : "";
-            String introMsg = player.getRepresentation() + cancelReminder + ", please use buttons to resolve _"
-                    + actionCardTitle + "_.";
+            String cancelReminder = actionCardIsCancelable ? "after checking for Sabos, " : "";
+            // The body (everything after "<rep>, ") is kept separate so the main-channel sender can
+            // omit the representation entirely under fog instead of stripping it back out afterwards.
+            String introBody = cancelReminder + "please use buttons to resolve _" + actionCardTitle + "_.";
+            String introMsg = player.getRepresentation() + ", " + introBody;
             String targetMsg =
                     " A reminder that you should declare which %s you are targeting now, before other players choose whether they will Sabo.";
 
@@ -978,10 +991,10 @@ public class ActionCardHelper {
                 MessageHelper.sendMessageToChannelWithButtons(channel2, introMsg, codedButtons);
             }
 
-            if ("special_session".equals(automationID)) {
-                codedButtons.add(Buttons.green(player.factionButtonChecker() + "resolveVeto", buttonLabel));
-                MessageHelper.sendMessageToChannelWithButtons(channel2, introMsg, codedButtons);
-            }
+            // if ("special_session".equals(automationID)) {
+            //     codedButtons.add(Buttons.green(player.factionButtonChecker() + "resolveVeto", buttonLabel));
+            //     MessageHelper.sendMessageToChannelWithButtons(channel2, introMsg, codedButtons);
+            // }
 
             if ("war_machine".equals(automationID)) {
                 player.addSpentThing("warmachine");
@@ -994,12 +1007,12 @@ public class ActionCardHelper {
 
             if ("confounding".equals(automationID)) {
                 codedButtons.add(Buttons.green("autoresolve_manual", buttonLabel));
-                sendResolveMsgToMainChannel(introMsg, codedButtons, player, game);
+                sendResolveMsgToMainChannel(introBody, codedButtons, player, game);
             }
 
             if ("confusing".equals(automationID)) {
                 codedButtons.add(Buttons.green("autoresolve_manual", buttonLabel));
-                sendResolveMsgToMainChannel(introMsg + String.format(targetMsg, "player"), codedButtons, player, game);
+                sendResolveMsgToMainChannel(introBody + String.format(targetMsg, "player"), codedButtons, player, game);
             }
 
             if ("reveal_prototype".equals(automationID)) {
@@ -1093,6 +1106,16 @@ public class ActionCardHelper {
 
             if ("survey".equals(automationID)) {
                 codedButtons.add(Buttons.green(player.factionButtonChecker() + "resolveSurvey", buttonLabel));
+                MessageHelper.sendMessageToChannelWithButtons(channel2, introMsg, codedButtons);
+            }
+
+            if ("prisoners_of_war".equals(automationID)) {
+                codedButtons.add(Buttons.green(player.factionButtonChecker() + "resolvePrisonersOfWar", buttonLabel));
+                MessageHelper.sendMessageToChannelWithButtons(channel2, introMsg, codedButtons);
+            }
+
+            if ("mobilization".equals(automationID)) {
+                codedButtons.add(Buttons.green(player.factionButtonChecker() + "resolveMobilization", buttonLabel));
                 MessageHelper.sendMessageToChannelWithButtons(channel2, introMsg, codedButtons);
             }
 
@@ -1533,6 +1556,7 @@ public class ActionCardHelper {
 
             if ("black_market_intel".equals(automationID)) {
                 codedButtons.add(Buttons.green(player.factionButtonChecker() + "resolveBlackMarketIntel", buttonLabel));
+                MessageHelper.sendMessageToChannelWithButtons(channel2, introMsg, codedButtons);
             }
 
             if ("hidden_initiatives".equals(automationID)) {
@@ -1888,13 +1912,17 @@ public class ActionCardHelper {
                 codedButtons.add(Buttons.green(player.factionButtonChecker() + "riseOfAMessiah", buttonLabel));
                 MessageHelper.sendMessageToChannelWithButtons(channel2, introMsg, codedButtons);
             }
+            if ("fire_team".equals(automationID)) {
+                codedButtons.add(Buttons.green(player.factionButtonChecker() + "resolveFireTeam", buttonLabel));
+                MessageHelper.sendMessageToChannelWithButtons(channel2, introMsg, codedButtons);
+            }
             if ("courageous".equals(automationID)) {
                 codedButtons.add(Buttons.green(player.factionButtonChecker() + "courageousStarter", buttonLabel));
                 MessageHelper.sendMessageToChannelWithButtons(channel2, introMsg, codedButtons);
             }
             if ("veto".equals(automationID)) {
                 codedButtons.add(Buttons.blue(player.factionButtonChecker() + "resolveVeto", "Reveal next Agenda"));
-                sendResolveMsgToMainChannel(introMsg, codedButtons, player, game);
+                sendResolveMsgToMainChannel(introBody, codedButtons, player, game);
             }
 
             if ("f_conscription".equals(automationID)) {
@@ -2042,7 +2070,7 @@ public class ActionCardHelper {
                     MessageHelper.sendMessageToChannelWithButtons(channel2, message2, buttons2);
                 }
             }
-            ArvaxiAgentButtonHandler.postInitialButtons(game, player, acID);
+            ArvaxiLeaderHandler.postAgentOfferButtons(game, player, acID);
         }
 
         // Fog of war ping
@@ -2195,16 +2223,17 @@ public class ActionCardHelper {
         }
     }
 
-    private static void sendResolveMsgToMainChannel(String message, List<Button> buttons, Player player, Game game) {
-        MessageHelper.sendMessageToChannelWithButtons(
-                game.getMainGameChannel(), removeRepresentationIfFOW(message, player, game), buttons);
-    }
-
-    private static String removeRepresentationIfFOW(String message, Player player, Game game) {
-        return game.isFowMode()
-                ? StringUtils.capitalize(
-                        message.replace(player.getRepresentation() + ",", "").trim())
-                : message;
+    /**
+     * Post a resolve prompt to the public main game channel. {@code body} is the message with the
+     * acting player's representation NOT included; under fog the representation is omitted entirely
+     * (body capitalized), otherwise it is prepended. Building the body without the identity — rather
+     * than stripping it out after the fact — means the fog branch cannot leak the actor's identity.
+     */
+    private static void sendResolveMsgToMainChannel(String body, List<Button> buttons, Player player, Game game) {
+        String message = game.isFowMode()
+                ? org.apache.commons.lang3.StringUtils.capitalize(body)
+                : player.getRepresentation() + ", " + body;
+        MessageHelper.sendMessageToChannelWithButtons(game.getMainGameChannel(), message, buttons);
     }
 
     public static String playAC(
@@ -2251,10 +2280,7 @@ public class ActionCardHelper {
     }
 
     static void recordTrackedActionCardPlay(Game game, Player player, String actionCardName) {
-        // Sabo and Overrule are tracked at separate points to track their targets
-        if (!GameStats.SABOTAGE.equals(actionCardName) && !GameStats.OVERRULE.equals(actionCardName)) {
-            game.getGameStats().recordAcPlay(actionCardName, player);
-        }
+        game.getGameStats().recordAcPlay(actionCardName, player);
     }
 
     private static String getGarboziaACIdentByAlias(Game game, Player player, String key) {
@@ -2431,15 +2457,13 @@ public class ActionCardHelper {
 
         sendActionCardInfo(game, player, event);
         if (player.hasAbility("autonetic_memory")) {
-            String message;
-            if (player.hasRelic("codex") || player.hasRelic("absol_codex")) {
-                message = player.getRepresentationUnfogged()
-                        + ", if you did not just use _The Codex_ to get that action card,"
-                        + " please discard 1 action card due to your **Cybernetic Madness** ability.";
-            } else {
-                message = player.getRepresentationUnfogged()
-                        + ", please discard 1 action card due to your **Cybernetic Madness** ability.";
+            String message = player.getRepresentationUnfogged()
+                    + ", please discard 1 action card due to your **Cybernetic Madness** ability.";
+            if (game.isTwilightsFallMode()) {
+                message +=
+                        " If you picked this ability before it was edited to have the discard text, my advice is to ignore these buttons and just play it as you picked it.";
             }
+
             MessageHelper.sendMessageToChannelWithButtons(
                     player.getCardsInfoThread(), message, getDiscardActionCardButtons(player, false));
         }

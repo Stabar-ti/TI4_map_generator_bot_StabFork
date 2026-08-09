@@ -22,7 +22,9 @@ import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.jetbrains.annotations.NotNull;
 import ti4.ResourceHelper;
+import ti4.discord.interactions.buttons.handlers.faction.homebrew.theodisi.Thrones.ThronesAbilityHandler;
 import ti4.helpers.AliasHandler;
+import ti4.helpers.ButtonHelper;
 import ti4.helpers.CalendarHelper;
 import ti4.helpers.CommandCounterHelper;
 import ti4.helpers.Constants;
@@ -129,7 +131,7 @@ public class Tile {
 
     public static Predicate<Tile> tileMayHaveThundersEdge() {
         return tile -> {
-            if (tile.getTilePath().toLowerCase().contains("hyperlane")) return false;
+            if (tile.getTileModel().isHyperlane()) return false;
             if (!tile.getPlanetUnitHolders().isEmpty()) return false;
             if (tile.isSupernova()) return false;
             if (tile.isFractureSystem()) return false;
@@ -594,8 +596,13 @@ public class Tile {
     }
 
     @JsonIgnore
-    public boolean isGravityRift(Game game) {
+    public boolean isGravityRift(Game game, Player player) {
         if (hasAnyToken("token_gravityrift.png", "token_ds_wound.png", "token_vortex.png")) return true;
+        if (player != null
+                && player.hasTech("tf-fraactalspikedrives")
+                && getWormholes(game).size() > 0) {
+            return true;
+        }
         return getTileModel().isGravityRift() || hasCabalSpaceDockOrGravRiftToken(game);
     }
 
@@ -621,12 +628,18 @@ public class Tile {
         if (hasAnyToken("token_entropicscar_async.png")) return true;
         if (game != null) {
             for (Player p2 : game.getPlayers().values()) {
-                if (p2.hasUnlockedBreakthrough("nivynbt") && hasAnyToken("token_ds_wound.png")) {
+                if ((p2.hasUnlockedBreakthrough("nivynbt") || p2.hasTech("tf-singularitypoint"))
+                        && hasAnyToken("token_ds_wound.png")) {
                     return true;
                 }
             }
         }
         return getTileModel().isScar();
+    }
+
+    @JsonIgnore
+    public boolean hasEgress() {
+        return getTileModel().hasEgress();
     }
 
     @JsonIgnore
@@ -684,12 +697,23 @@ public class Tile {
 
     @JsonIgnore
     public boolean isAnomaly() {
-        return isAnomaly(null);
+        return isAnomaly(null, null);
     }
 
     @JsonIgnore
-    public boolean isAnomaly(Game game) {
-        if (isAsteroidField() || isSupernova() || isNebula(game) || isGravityRift(game) || isScar(game)) {
+    public boolean isAnomaly(Game game, Player player) {
+        if (isAsteroidField() || isSupernova() || isNebula(game) || isGravityRift(game, player) || isScar(game)) {
+            return true;
+        }
+        if (game != null
+                && ThronesAbilityHandler.tracesOfRuinIsActive(game)
+                && getPlanetUnitHolders().stream()
+                        .anyMatch(planet -> ThronesAbilityHandler.isThronePlanet(planet.getName()))) {
+            return true;
+        }
+        if (game != null
+                && game.getPlayers().values().stream()
+                        .anyMatch(p -> ButtonHelper.doesPlayerHaveFSHere("thrones_flagship", p, this))) {
             return true;
         }
         return hasAnyToken("token_ds_wound.png", "token_ds_sigil.png", "token_anomalydummy.png");

@@ -42,9 +42,11 @@ import ti4.cron.EndOldGamesCron;
 import ti4.cron.FastScFollowCron;
 import ti4.cron.GameMessageCleanupCron;
 import ti4.cron.InteractionLogCron;
+import ti4.cron.KeepThreadsAliveCron;
 import ti4.cron.LogButtonRuntimeStatisticsCron;
 import ti4.cron.LogCacheStatsCron;
 import ti4.cron.LongExecutionHistoryCron;
+import ti4.cron.MatchmakerCron;
 import ti4.cron.OldUndoFileCleanupCron;
 import ti4.cron.PersistToSqlCron;
 import ti4.cron.ReuploadStaleEmojisCron;
@@ -282,6 +284,8 @@ public class JdaService {
                 + fowServers.size() + " Fog of War servers"
                 + "\n> Guilds: " + jda.getGuilds().stream().map(Guild::getName).collect(Collectors.toSet()));
 
+        if (isProduction()) leaveNonWhitelistedGuilds();
+
         // Attempt to start a "Search Only" version of the bot on eligible servers
         for (Guild searchGuild : jda.getGuilds()) {
             if (guilds.stream().anyMatch(g -> g.getId().equals(searchGuild.getId()))) continue;
@@ -333,7 +337,9 @@ public class JdaService {
         TechSummaryCron.register();
         SabotageAutoReactCron.register();
         FastScFollowCron.register();
+        MatchmakerCron.register();
         CloseLaunchThreadsCron.register();
+        KeepThreadsAliveCron.register();
         if (CombatContestSettings.isEnabledStatic()) {
             CombatReplaySelectionCron.register();
             CombatReplayPromotionCron.register();
@@ -486,6 +492,7 @@ public class JdaService {
         adminRoles.add(jda.getRoleById("1465619434839347276")); // Ariel's server
         adminRoles.add(jda.getRoleById("1487725249398308884")); // Balacasi's server
         adminRoles.add(jda.getRoleById("1500012691224395906")); // BEANS's server
+        adminRoles.add(jda.getRoleById("1516450864376578238")); // Stabar's Server
 
         adminRoles.removeIf(Objects::isNull);
 
@@ -524,6 +531,7 @@ public class JdaService {
         developerRoles.add(jda.getRoleById("1465619572718567526")); // Ariel's server
         developerRoles.add(jda.getRoleById("1487725369766449173")); // Balacasi's server
         developerRoles.add(jda.getRoleById("1500012939326001263")); // BEANS's server
+        developerRoles.add(jda.getRoleById("1516450864376578238")); // Stabar's Server
 
         developerRoles.removeIf(Objects::isNull);
 
@@ -566,6 +574,7 @@ public class JdaService {
         bothelperRoles.add(jda.getRoleById("1465619810577678442")); // Ariel's server
         bothelperRoles.add(jda.getRoleById("1487725393673719950")); // Balacasi's server
         bothelperRoles.add(jda.getRoleById("1500013009492246558")); // BEANS's server
+        bothelperRoles.add(jda.getRoleById("1516450864376578238")); // Stabar's Server
 
         bothelperRoles.removeIf(Objects::isNull);
     }
@@ -596,6 +605,26 @@ public class JdaService {
         User user = jda.getUserById(userId);
         if (user != null) return user.getEffectiveName();
         return null;
+    }
+
+    private static void leaveNonWhitelistedGuilds() {
+        jda.getGuilds().forEach(JdaService::leaveGuildIfNotWhitelisted);
+    }
+
+    public static void leaveGuildIfNotWhitelisted(Guild guild) {
+        if (!isProduction() || isWhitelistedGuild(guild)) return;
+        BotLogger.warning(
+                "Leaving guild '" + guild.getName() + "' (" + guild.getId() + ") because it isn't whitelisted!");
+        guild.leave().queue(Consumers.nop(), BotLogger::catchRestError);
+    }
+
+    public static boolean isProduction() {
+        return Constants.ASYNCTI4_HUB_SERVER_ID.equals(guildPrimaryID);
+    }
+
+    private static boolean isWhitelistedGuild(Guild guild) {
+        return guilds.stream().anyMatch(whitelistGuild -> whitelistGuild.getId().equals(guild.getId()))
+                || Constants.EMOJI_FARM_SERVERS.containsKey(guild.getId());
     }
 
     public static void shutdown() {

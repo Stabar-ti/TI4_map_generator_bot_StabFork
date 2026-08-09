@@ -11,6 +11,8 @@ import net.dv8tion.jda.api.events.interaction.GenericInteractionCreateEvent;
 import net.dv8tion.jda.api.events.interaction.component.ButtonInteractionEvent;
 import org.apache.commons.lang3.function.Consumers;
 import ti4.discord.interactions.buttons.Buttons;
+import ti4.discord.interactions.buttons.handlers.faction.homebrew.theodisi.Arcanum.ArcanumPrimordialTechHandler;
+import ti4.discord.interactions.buttons.handlers.faction.homebrew.theodisi.Thrones.ThronesUnitHandler;
 import ti4.discord.interactions.routing.ButtonHandler;
 import ti4.game.Game;
 import ti4.game.Planet;
@@ -222,37 +224,45 @@ public final class RiftUnitsHelper {
                 Die d2 = new Die(threshold);
 
                 msg += " It now rolled a " + d2.getGreenDieIfSuccessOrRedDieIfFailure();
-                if (d1.isSuccess()) {
+                if (d2.isSuccess()) {
                     msg += " and survived. May you always be so lucky.";
+                } else if (ThronesUnitHandler.offerGholaAfterRiftRoll(
+                        event, game, player, tile, unitKey, damaged, cabal, d2)) {
+                    msg += " and would fail; resolve the _Ghola_ prompt before resolving the gravity-rift outcome.";
                 } else {
-                    var parsedUnit = new ParsedUnit(unitKey);
-                    RemoveUnitService.removeUnit(event, tile, game, parsedUnit, damaged);
-                    msg += " and failed. Condolences for your loss.";
-                    if (cabal != null
-                            && cabal != player
-                            && !ButtonHelperFactionSpecific.isCabalBlockadedByPlayer(player, game, cabal)
-                            && !game.isTwilightsFallMode()) {
-                        ButtonHelperFactionSpecific.cabalEatsUnit(player, game, cabal, 1, unit, event);
-                    } else if (RiftSetModeService.isActive(game)) {
-                        msg = RiftSetModeService.riftSetCabalEatsUnit(msg, player, game, unit, event);
-                    }
+                    msg += resolveFailedRiftUnit(event, game, player, tile, unitKey, damaged, cabal);
                 }
+            } else if (ThronesUnitHandler.offerGholaAfterRiftRoll(
+                    event, game, player, tile, unitKey, damaged, cabal, d1)) {
+                msg += " and would fail; resolve the _Ghola_ prompt before resolving the gravity-rift outcome.";
             } else {
-                var parsedUnit = new ParsedUnit(unitKey);
-                RemoveUnitService.removeUnit(event, tile, game, parsedUnit, damaged);
-                msg += " and failed. Condolences for your loss.";
-                if (cabal != null
-                        && cabal != player
-                        && !ButtonHelperFactionSpecific.isCabalBlockadedByPlayer(player, game, cabal)
-                        && !game.isTwilightsFallMode()) {
-                    ButtonHelperFactionSpecific.cabalEatsUnit(player, game, cabal, 1, unit, event);
-                } else if (RiftSetModeService.isActive(game)) {
-                    msg = RiftSetModeService.riftSetCabalEatsUnit(msg, player, game, unit, event);
-                }
+                msg += resolveFailedRiftUnit(event, game, player, tile, unitKey, damaged, cabal);
             }
         }
 
         return msg;
+    }
+
+    public static String resolveFailedRiftUnit(
+            GenericInteractionCreateEvent event,
+            Game game,
+            Player player,
+            Tile tile,
+            UnitKey unitKey,
+            boolean damaged,
+            Player cabal) {
+        String unit = unitKey.asyncID();
+        RemoveUnitService.removeUnit(event, tile, game, new ParsedUnit(unitKey), damaged);
+        String message = " and failed. Condolences for your loss.";
+        if (cabal != null
+                && cabal != player
+                && !ButtonHelperFactionSpecific.isCabalBlockadedByPlayer(player, game, cabal)
+                && !game.isTwilightsFallMode()) {
+            ButtonHelperFactionSpecific.cabalEatsUnit(player, game, cabal, 1, unit, event);
+        } else if (RiftSetModeService.isActive(game)) {
+            message = RiftSetModeService.riftSetCabalEatsUnit(message, player, game, unit, event);
+        }
+        return message;
     }
 
     private static String getWormholeUnit(String unit, boolean over5roll, Player player, Game game) {
@@ -445,6 +455,13 @@ public final class RiftUnitsHelper {
 
     @ButtonHandler("getRiftButtons_")
     public static void offerRiftButtons(Player player, String buttonID, Game game) {
+        if (ArcanumPrimordialTechHandler.planeShiftIgnoresAnomalies(game, player)) {
+            MessageHelper.sendMessageToChannel(
+                    player.getCorrectChannel(),
+                    player.getRepresentationNoPing()
+                            + " ignores gravity-rift effects during this tactical action due to _Power Word: Plane Shift_.");
+            return;
+        }
         String tilePosition = buttonID.replace("getRiftButtons_", "");
         Tile tile = game.getTileByPosition(tilePosition);
         MessageChannel channel = player.getCorrectChannel();
@@ -464,6 +481,12 @@ public final class RiftUnitsHelper {
                     player.getRepresentationNoPing()
                             + " is rifting some units. However, because of _Crucible_, they do not roll.");
         } else {
+            if (game.playerHasLeaderUnlockedOrAlliance(player, "thronescommander")) {
+                MessageHelper.sendMessageToChannel(
+                        player.getCorrectChannel(),
+                        player.getRepresentationNoPing()
+                                + " reminder that you have _Veythros_ the Thrones of Ruin commander, and may choose to ignore the effects of each anomaly. If you ignored the move bonus, you do not need to roll for rifting.");
+            }
             MessageHelper.sendMessageToChannelWithButtons(
                     channel,
                     player.getRepresentationNoPing()
