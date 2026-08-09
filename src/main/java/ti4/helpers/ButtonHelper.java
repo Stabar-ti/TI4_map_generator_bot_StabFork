@@ -66,6 +66,7 @@ import ti4.discord.interactions.buttons.handlers.faction.homebrew.theodisi.Arcan
 import ti4.discord.interactions.buttons.handlers.faction.homebrew.theodisi.Oblivion.OblivionBreakthroughHandler;
 import ti4.discord.interactions.buttons.handlers.faction.homebrew.theodisi.Ponthous.PonthousUnitHandler;
 import ti4.discord.interactions.buttons.handlers.faction.homebrew.theodisi.Revenant.RevenantLeadersHandler;
+import ti4.discord.interactions.buttons.handlers.faction.homebrew.theodisi.Verydith.VerydithLeadersHandler;
 import ti4.discord.interactions.buttons.handlers.faction.homebrew.theodisi.Xytheris.XytherisAbilityHandler;
 import ti4.discord.interactions.buttons.handlers.faction.homebrew.theodisi.Xytheris.XytherisLeadersHandler;
 import ti4.discord.interactions.buttons.handlers.faction.homebrew.whispers.arvaxi.ArvaxiBreakthroughHandler;
@@ -74,6 +75,7 @@ import ti4.discord.interactions.buttons.handlers.faction.homebrew.whispers.lunar
 import ti4.discord.interactions.buttons.handlers.faction.homebrew.whispers.tyris.TyrisAbilityHandler;
 import ti4.discord.interactions.buttons.handlers.faction.homebrew.whispers.tyris.TyrisBreakthroughHandler;
 import ti4.discord.interactions.buttons.handlers.faction.homebrew.whispers.tyris.TyrisLeaderHandler;
+import ti4.discord.interactions.buttons.handlers.relics.theodisi.LostLegaciesRelicHandler;
 import ti4.discord.interactions.commands.tokens.AddTokenCommand;
 import ti4.discord.interactions.routing.ButtonHandler;
 import ti4.discord.interactions.selections.selectmenus.SelectFaction;
@@ -740,6 +742,9 @@ public class ButtonHelper {
         if ((whatIsItFor.contains("res") || whatIsItFor.contains("both"))
                 && player.hasUnlockedBreakthrough("tyrisbt")) {
             TyrisBreakthroughHandler.getPlaceButton(player, game).ifPresent(buttons::add);
+        }
+        if (!whatIsItFor.contains("tgsonly") && player.hasRelicReady("naturesboon")) {
+            buttons.add(LostLegaciesRelicHandler.getNaturesBoonSpendButton(player, whatIsItFor));
         }
         buttons.add(Buttons.gray("resetSpend_" + whatIsItFor, "Reset Spent Planets and Trade Goods"));
         return buttons;
@@ -3279,6 +3284,11 @@ public class ButtonHelper {
                 buttons.add(Buttons.gray("placeCCBack_" + tile.getPosition(), "Don't Spend"));
                 buttons.add(Buttons.red("lose1CC", "Spend 1 Command Token"));
                 MessageHelper.sendMessageToChannelWithButtons(player.getCorrectChannel(), msg2, buttons);
+            }
+        }
+        for (Player verydith : game.getRealPlayers()) {
+            if (game.playerHasLeaderUnlockedOrAlliance(verydith, "verydithcommander")) {
+                VerydithLeadersHandler.checkVerydithCommander(game);
             }
         }
     }
@@ -7771,6 +7781,26 @@ public class ButtonHelper {
             }
         }
         return buttons;
+    }
+
+    public static boolean doesPlayerControlRexOrOpponentHS(Player player, Game game) {
+        if (player.getPlanets().contains("mr") || player.getPlanets().contains("mrte")) {
+            return true;
+        }
+        for (Player opponent : game.getRealPlayersNDummies()) {
+            if (opponent == player) {
+                continue;
+            }
+            Tile tile = opponent.getHomeSystemTile();
+            if (tile != null) {
+                for (UnitHolder uH : tile.getPlanetUnitHolders()) {
+                    if (player.getPlanets().contains(uH.getName())) {
+                        return true;
+                    }
+                }
+            }
+        }
+        return false;
     }
 
     public static List<Button> getButtonsForConventions(Player player, Game game) {

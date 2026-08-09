@@ -387,6 +387,7 @@
     "sustainDamage": true,
     "canBeDirectHit": true,
     "isShip": true,
+    "notes": "This unit's extra dice are auto-calculated based on how many ground forces are in its space area, assuming the flagship is getting filled first.",
     "ability": "During your tactical actions, this unit rolls additional combat and unit ability dice equal to the number of ground forces it transported."
   },
   {
@@ -546,7 +547,7 @@
     "sustainDamage": true,
     "isGroundForce": true,
     "ability": "When 1 or more dice are rolled, you may destroy this unit to increase the value of 1 die by 3.",
-    "notes": "When rolled is hard for the bot to do, so this is something that is applied beforehand. Use the button to destroy a mech in the combat menu BEFORE you roll. A +3 to 1 die that has the best value dice roll will be applied."
+    "notes": "After rolling dice, the bot offers a button to destroy a Ghola. If a die can become a hit with +3, the highest eligible die produces 1 additional hit."
   },
   {
     "id": "aurelion",
@@ -617,7 +618,7 @@
     "faction": "aeterna",
     "productionValue": 6,
     "isStructure": true,
-    "ability": "Once per action, if a unit in a system containing or adjacent to this unit is destroyed, gain 1 commodity or produce 1 unit of the same type in this system, if able. Up to 4 fighters in this unit's system do not count against capacity."
+    "ability": "Once per action, if a unit in a system containing or adjacent to this unit is destroyed, gain 1 commodity or you may produce 1 unit of the same type in this system, if able. Up to 4 fighters in this unit's system do not count against capacity."
   },
   {
     "id": "aeterna_spacedock2",
@@ -630,7 +631,7 @@
     "faction": "aeterna",
     "productionValue": 8,
     "isStructure": true,
-    "ability": "Once per action, if a unit in a system containing or adjacent to this unit is destroyed, gain 1 commodity and produce 1 unit of the same type in this system, if able. Up to 8 fighters in this unit's system do not count against capacity."
+    "ability": "Once per action, if a unit in a system containing or adjacent to this unit is destroyed, gain 1 commodity and you may produce 1 unit of the same type in this system, if able. Up to 8 fighters in this unit's system do not count against capacity."
   },
   {
     "id": "ponthous_flagship",

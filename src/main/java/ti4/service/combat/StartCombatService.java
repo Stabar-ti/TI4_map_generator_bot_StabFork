@@ -25,6 +25,7 @@ import ti4.ResourceHelper;
 import ti4.contest.replay.core.CombatContestSettings;
 import ti4.contest.replay.service.CombatReplayService;
 import ti4.discord.interactions.buttons.Buttons;
+import ti4.discord.interactions.buttons.handlers.explore.theodisi.LostLegciesExploreHandler;
 import ti4.discord.interactions.buttons.handlers.faction.homebrew.beans.DreamButtonHandler;
 import ti4.discord.interactions.buttons.handlers.faction.homebrew.beans.Iron.IronFactionTechsHandler;
 import ti4.discord.interactions.buttons.handlers.faction.homebrew.beans.crystellum.CrystellumAbilityHandler;
@@ -44,7 +45,6 @@ import ti4.discord.interactions.buttons.handlers.faction.homebrew.theodisi.Ponth
 import ti4.discord.interactions.buttons.handlers.faction.homebrew.theodisi.Ponthous.PonthousUnitHandler;
 import ti4.discord.interactions.buttons.handlers.faction.homebrew.theodisi.Revenant.RevenantLeadersHandler;
 import ti4.discord.interactions.buttons.handlers.faction.homebrew.theodisi.Thrones.ThronesLeadersHandler;
-import ti4.discord.interactions.buttons.handlers.faction.homebrew.theodisi.Thrones.ThronesUnitHandler;
 import ti4.discord.interactions.buttons.handlers.faction.homebrew.whispers.arvaxi.ArvaxiLeaderHandler;
 import ti4.discord.interactions.buttons.handlers.faction.homebrew.whispers.kalora.KaloraAbilityHandler;
 import ti4.discord.interactions.buttons.handlers.faction.homebrew.whispers.kalora.KaloraLeaderHandler;
@@ -189,7 +189,6 @@ public class StartCombatService {
             Tile tile,
             GenericInteractionCreateEvent event,
             String specialCombatTitle) {
-        ThronesUnitHandler.clearGholaRollBonus(game);
         if (CombatContestSettings.isEnabledStatic()) {
             SpringContext.getBean(CombatReplayService.class).onSpaceCombatStarted(game, player, player2, tile);
         }
@@ -239,7 +238,6 @@ public class StartCombatService {
             GenericInteractionCreateEvent event,
             UnitHolder unitHolder,
             Tile tile) {
-        ThronesUnitHandler.clearGholaRollBonus(game);
         String threadName = combatThreadName(game, player, player2, tile, null);
         game.setStoredValue(
                 "currentActionSummary" + player.getFaction(),
@@ -249,6 +247,7 @@ public class StartCombatService {
         GameEventDraft.stage(
                 game,
                 new GameSubEvent.Combat("ground", tile.getPosition(), unitHolder.getName(), player2.getFaction()));
+        LostLegciesExploreHandler.offerBattleworldCombatReward(game, player, player2, tile, unitHolder);
         if (!game.isFowMode()) {
             findOrCreateCombatThread(
                     game,
@@ -1556,9 +1555,6 @@ public class StartCombatService {
         OblivionTechHandler.addOblivionCannonButton(buttons, game, p2, p1, tile, isSpaceCombat);
         RevenantLeadersHandler.addRevKryxosHeroButton(buttons, game, p1, p2, tile, isSpaceCombat);
         RevenantLeadersHandler.addRevKryxosHeroButton(buttons, game, p2, p1, tile, isSpaceCombat);
-        ThronesUnitHandler.addGholaButton(buttons, game, p1, tile, groundOrSpace);
-        ThronesUnitHandler.addGholaButton(buttons, game, p2, tile, groundOrSpace);
-
         checkAndAddIncomprehensibleFormButton(game, p1, p2, isSpaceCombat, tile, buttons);
 
         if (p1.hasTechReady("sc") || (!game.isFowMode() && p2.hasTechReady("sc"))) {
@@ -2273,6 +2269,15 @@ public class StartCombatService {
                 && !AeternaLeadersHandler.hasUsedAeternaCommanderThisAction(game, p2)) {
             buttons.add(Buttons.gray(
                     p2.factionButtonChecker() + "gainAeternaCCOnLoss", "Gain 1 CC (On Loss)", FactionEmojis.aeterna));
+        }
+
+        // Veylor Flagship
+        if ((p1.ownsUnit("veylor_flagship") && ButtonHelper.doesPlayerHaveFSHere("veylor_flagship", p1, tile))
+                || (p2.ownsUnit("veylor_flagship") && ButtonHelper.doesPlayerHaveFSHere("veylor_flagship", p2, tile))) {
+            buttons.add(Buttons.gray(
+                    "assCannonNDihmohn_silentEdict_" + tile.getPosition(),
+                    "Use Silent Edict (end of combat round)",
+                    FactionEmojis.veylor));
         }
 
         if (game.isLiberationC4Mode()) {

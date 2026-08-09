@@ -29,6 +29,7 @@ import org.jetbrains.annotations.NotNull;
 import ti4.discord.interactions.buttons.Buttons;
 import ti4.discord.interactions.buttons.handlers.actioncards.acd2.PublicOutrageAcd2ButtonHandler;
 import ti4.discord.interactions.buttons.handlers.actioncards.acd2.SettlementsAcd2ButtonHandler;
+import ti4.discord.interactions.buttons.handlers.explore.theodisi.LostLegciesExploreHandler;
 import ti4.discord.interactions.buttons.handlers.faction.homebrew.beans.DreamButtonHandler;
 import ti4.discord.interactions.buttons.handlers.faction.homebrew.beans.ta.TaLeadersHandler;
 import ti4.discord.interactions.buttons.handlers.faction.homebrew.theodisi.Myrr.MyrrAbilitiesHandler;
@@ -920,6 +921,16 @@ public final class AgendaHelper {
                     }
 
                     if (winningR != null
+                            && winningR.hasTech("thveylory")
+                            && specificVote.contains("Kleptocratic Politics")) {
+                        MessageHelper.sendMessageToChannelWithButtons(
+                                winningR.getCorrectChannel(),
+                                winningR.getRepresentation()
+                                        + ", please resolve _Kleptocratic Politics_ by using the buttons below. You do not spend a command token when doing this, if it removes one just use /player stats to add one back.",
+                                ButtonHelperHeroes.getSecondaryButtons(game));
+                    }
+
+                    if (winningR != null
                             && (specificVote.contains("Rider")
                                     || (winningR.hasAbility("future_sight")
                                             && game.getStoredValue("executiveOrder")
@@ -1616,6 +1627,10 @@ public final class AgendaHelper {
                         AddUnitService.addUnits(event, tile, game, player.getColor(), "1 infantry " + planet);
                         MessageHelper.sendMessageToChannel(player.getCorrectChannel(), msg);
                     }
+                    if (uH.getTokenList().contains("attachment_polymorphism.png")
+                            && FoWHelper.playerHasShipsInSystem(player, game.getTileFromPlanet(planet))) {
+                        LostLegciesExploreHandler.offerPolymorphism(event, game, player, planet);
+                    }
                 }
             }
             if (thing.contains("dsghotg") && !prevoting) {
@@ -1670,6 +1685,10 @@ public final class AgendaHelper {
                                         + " due to the _Arcane Citadel_.";
                                 AddUnitService.addUnits(event, tile, game, player.getColor(), "1 infantry " + planet);
                                 MessageHelper.sendMessageToChannel(player.getCorrectChannel(), msg);
+                            }
+                            if (uH.getTokenList().contains("attachment_polymorphism.png")
+                                    && FoWHelper.playerHasShipsInSystem(player, game.getTileFromPlanet(planet))) {
+                                LostLegciesExploreHandler.offerPolymorphism(event, game, player, planet);
                             }
                         }
                     }
@@ -2811,6 +2830,18 @@ public final class AgendaHelper {
                             + game.getStoredValue(key).replace("_", ", ") + ".";
                 }
                 MessageHelper.sendMessageToChannel(channel, message);
+            }
+            if ("evenfall_sc".equalsIgnoreCase(game.getScSetID())) {
+                for (Player player : game.getRealPlayers()) {
+                    if (player.getPlanets().contains("mr")
+                            || player.getPlanets().contains("mrte")) {
+                        game.setSpeaker(player);
+                        MessageHelper.sendMessageToChannel(
+                                channel,
+                                "## " + player.getRepresentationUnfogged()
+                                        + " has Mecatol Rex and has been set as the speaker.");
+                    }
+                }
             }
         }
         if (!action) {

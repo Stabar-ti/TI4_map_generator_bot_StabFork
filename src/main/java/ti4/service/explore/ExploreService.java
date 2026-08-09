@@ -19,6 +19,7 @@ import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEve
 import net.dv8tion.jda.api.events.interaction.component.ButtonInteractionEvent;
 import org.apache.commons.lang3.StringUtils;
 import ti4.discord.interactions.buttons.Buttons;
+import ti4.discord.interactions.buttons.handlers.explore.theodisi.LostLegciesExploreHandler;
 import ti4.discord.interactions.buttons.handlers.faction.homebrew.beans.Iron.IronBreakthroughHandler;
 import ti4.discord.interactions.buttons.handlers.faction.homebrew.beans.ta.TaAbilityHandler;
 import ti4.discord.interactions.buttons.handlers.faction.homebrew.beans.ta.TaLeadersHandler;
@@ -623,7 +624,10 @@ public class ExploreService {
                                         .orElse(new ArrayList<>())
                                         .isEmpty()
                                 || ButtonHelper.doesPlanetHaveAttachmentTechSkip(tile, planetID)) {
-                            if ((Constants.WARFARE.equals(attachment)
+                            if ("diversifiedresearchfacility".equals(attachment)) {
+                                attachment = "diversifiedresearchfacilitystat";
+                                attachmentFilename = Mapper.getAttachmentImagePath(attachment);
+                            } else if ((Constants.WARFARE.equals(attachment)
                                     || Constants.PROPULSION.equals(attachment)
                                     || Constants.CYBERNETIC.equals(attachment)
                                     || Constants.BIOTIC.equals(attachment)
@@ -733,6 +737,15 @@ public class ExploreService {
                                         player.getRepresentation() + " has explored Mallice in " + game.getName()
                                                 + ", and discovered the _Gamma Wormhole_.");
                             }
+                            if ("loststation".equalsIgnoreCase(token)) {
+                                Helper.addTokenPlanetToTile(game, tile, "loststation");
+                                game.clearPlanetsCache();
+                                player.addPlanet("loststation");
+                                player.refreshPlanet("loststation");
+                                MessageHelper.sendMessageToChannel(
+                                        event.getMessageChannel(),
+                                        "Lost Station added to map, play area, and readied.");
+                            }
                             DSHelperBreakthroughs.doLanefirBtCheck(game, player);
                             OblivionUnitHandler.doOblivionMechCheck(game, player);
                         }
@@ -773,28 +786,22 @@ public class ExploreService {
                 ? "`error?`"
                 : Mapper.getPlanet(planetID).getName();
         Button decline = Buttons.red("decline_explore", "Decline Exploration");
-        String fragMessage = player.getFactionEmojiOrColor() + " gained a %s fragment.";
+        String fragMessage = player.getFactionEmojiOrColor() + " gained a "
+                + (exploreModel.getAlias().contains("supermassive") ? "supermassive" : "") + " %s fragment.";
         if (RandomHelper.isOneInX(100)) {
             fragMessage = "%s\n" + ExploreEmojis.LinkGet;
         }
 
         // Specific Explore Handling
         switch (cardID) {
-            case "crf1", "crf2", "crf3", "crf4", "crf5", "crf6", "crf7", "crf8", "crf9" ->
+            case "crf1", "crf2", "crf3", "crf4", "crf5", "crf6", "crf7", "crf8", "crf9", "supermassivecultural" ->
                 MessageHelper.sendMessageToEventChannel(event, String.format(fragMessage, ExploreEmojis.CFrag));
-            case "hrf1", "hrf2", "hrf3", "hrf4", "hrf5", "hrf6", "hrf7" ->
+            case "hrf1", "hrf2", "hrf3", "hrf4", "hrf5", "hrf6", "hrf7", "supermassivehazardous" ->
                 MessageHelper.sendMessageToEventChannel(event, String.format(fragMessage, ExploreEmojis.HFrag));
-            case "irf1", "irf2", "irf3", "irf4", "irf5" ->
+            case "irf1", "irf2", "irf3", "irf4", "irf5", "supermassiveindustrial" ->
                 MessageHelper.sendMessageToEventChannel(event, String.format(fragMessage, ExploreEmojis.IFrag));
-            case "urf1", "urf2", "urf3" ->
+            case "urf1", "urf2", "urf3", "supermassiveunknown" ->
                 MessageHelper.sendMessageToEventChannel(event, String.format(fragMessage, ExploreEmojis.UFrag));
-            case "culturalartifact", "hazardousartifact", "industrialartifact", "unknownartifact" -> {
-                game.purgeExplore(ogID);
-                player.addRelic(cardID);
-                message = new StringBuilder(
-                        "Card has been added to play area.\nAdded as a relic (not actually a relic).");
-                MessageHelper.sendMessageToEventChannel(event, message.toString());
-            }
             case "ed1", "ed2" -> {
                 message = new StringBuilder("_Enigmatic Device_ has been placed in play area.");
                 player.addRelic(Constants.ENIGMATIC_DEVICE);
@@ -1257,7 +1264,22 @@ public class ExploreService {
                 ButtonHelperAbilities.pillageCheck(player, game);
                 ButtonHelperAgents.resolveArtunoCheck(player, tgGain);
             }
-            case "starchartcultural", "starchartindustrial", "starcharthazardous", "starchartfrontier" -> {
+            case "starchartcultural",
+                    "starchartindustrial",
+                    "starcharthazardous",
+                    "starchartfrontier",
+                    "culturalartifact",
+                    "hazardousartifact",
+                    "industrialartifact",
+                    "unknownartifact",
+                    "economicboon",
+                    "naturesboon",
+                    "diplomaticboon",
+                    "cosmicboon",
+                    "mutagenindustrial",
+                    "mutagenhazardous",
+                    "mutagencultural",
+                    "mutagenunknown" -> {
                 game.purgeExplore(ogID);
                 player.addRelic(cardID);
                 message =
@@ -1270,6 +1292,47 @@ public class ExploreService {
                         "Resolve Suspicious Wreckage");
                 MessageHelper.sendMessageToChannelWithButton(event.getMessageChannel(), "", button);
                 MessageHelper.sendMessageToChannelWithButton(event.getMessageChannel(), "", button);
+            }
+            case "freedomfighters" -> {
+                AddUnitService.addUnits(event, tile, game, player.getColor(), "2 dd, 2 inf " + planetName);
+                MessageHelper.sendMessageToChannel(
+                        event.getMessageChannel(),
+                        "Automatically placed 2 destroyers in the space area, and 2 infantry on the explored planet.");
+            }
+            case "spatialdisplacement" ->
+                LostLegciesExploreHandler.resolveSpatialDisplacement(event, game, player, tile);
+            case "immediateassembly" -> {
+                message = new StringBuilder(
+                        player.getRepresentation() + ", please resolve _Immediate Assembly_:\n-# You have ");
+                message.append(
+                        ExploreHelper.getUnitListEmojisOnPlanetForHazardousExplorePurposes(game, player, planetID));
+
+                List<Button> buttons = new ArrayList<>();
+                if (ExploreHelper.checkForMech(planetID, game, player)) {
+                    buttons.add(Buttons.green(
+                                    player.factionButtonChecker() + "resolveImmediateAssemblyMech_" + planetID
+                                            + "_production",
+                                    "Gain PRODUCTION 3 With A Mech On " + planetName)
+                            .withEmoji(UnitEmojis.mech.asEmoji()));
+                    buttons.add(Buttons.blue(
+                                    player.factionButtonChecker() + "resolveImmediateAssemblyMech_" + planetID
+                                            + "_mech",
+                                    "Place A Mech With A Mech On " + planetName)
+                            .withEmoji(UnitEmojis.mech.asEmoji()));
+                }
+                if (ExploreHelper.checkForInf(planetID, game, player)) {
+                    buttons.add(Buttons.green(
+                                    player.factionButtonChecker() + "resolveImmediateAssemblyInf_" + planetID
+                                            + "_production",
+                                    "Gain PRODUCTION 3 By Removing 1 Infantry On " + planetName)
+                            .withEmoji(UnitEmojis.infantry.asEmoji()));
+                    buttons.add(Buttons.blue(
+                                    player.factionButtonChecker() + "resolveImmediateAssemblyInf_" + planetID + "_mech",
+                                    "Place A Mech By Removing 1 Infantry On " + planetName)
+                            .withEmoji(UnitEmojis.infantry.asEmoji()));
+                }
+                buttons.add(decline);
+                MessageHelper.sendMessageToChannelWithButtons(event.getMessageChannel(), message.toString(), buttons);
             }
         }
         RiftSetModeService.resolveExplore(ogID, player, game);

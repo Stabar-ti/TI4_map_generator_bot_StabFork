@@ -26,6 +26,7 @@ import ti4.discord.interactions.buttons.handlers.faction.homebrew.beans.ashen.As
 import ti4.discord.interactions.buttons.handlers.faction.homebrew.theodisi.Ponthous.PonthousUnitHandler;
 import ti4.discord.interactions.buttons.handlers.faction.homebrew.theodisi.Revenant.RevenantLeadersHandler;
 import ti4.discord.interactions.buttons.handlers.faction.homebrew.theodisi.Revenant.RevenantTechHandler;
+import ti4.discord.interactions.buttons.handlers.faction.homebrew.theodisi.Veylor.VeylorUnitHandler;
 import ti4.discord.interactions.buttons.handlers.faction.homebrew.whispers.kalora.KaloraAbilityHandler;
 import ti4.discord.interactions.routing.ButtonHandler;
 import ti4.game.Game;
@@ -1573,6 +1574,11 @@ public final class ButtonHelperModifyUnits {
     }
 
     public static List<Button> getOpposingUnitsToHit(Player player, Game game, Tile tile, boolean exoHit) {
+        return getOpposingUnitsToHit(player, game, tile, exoHit, false);
+    }
+
+    public static List<Button> getOpposingUnitsToHit(
+            Player player, Game game, Tile tile, boolean exoHit, boolean excludeCarriers) {
         String exo = exoHit ? "exo" : "";
         List<Button> buttons = new ArrayList<>();
         for (UnitHolder unitHolder : tile.getUnitHolders().values()) {
@@ -1586,6 +1592,9 @@ public final class ButtonHelperModifyUnits {
                 }
                 UnitModel unitModel = p2.getUnitFromUnitKey(unitKey);
                 if (!unitModel.getIsShip() && !game.isTwilightsFallMode()) {
+                    continue;
+                }
+                if (excludeCarriers && unitKey.unitType() == UnitType.Carrier) {
                     continue;
                 }
 
@@ -2686,6 +2695,12 @@ public final class ButtonHelperModifyUnits {
             msg = opponent.getRepresentationUnfogged()
                     + ", your opponent used _Assault Escort_, forcing you to destroy a non-fighter ship. Please assign it with buttons.";
             buttons = ButtonHelper.getButtonsForRemovingAllUnitsInSystem(opponent, game, tile, "assaultcannoncombat");
+        } else if (cause.contains("silentEdict")) {
+            MessageHelper.sendMessageToChannel(
+                    event.getMessageChannel(), player.getRepresentation(false, false) + " used _Silent Edict_.");
+            buttons = getOpposingUnitsToHit(player, game, tile, false, true);
+            msg = player.getRepresentation() + ", please choose which non-carrier opposing unit to hit.";
+            VeylorUnitHandler.sendEdictDiscardButtons(game, player);
         } else {
             MessageHelper.sendMessageToChannel(
                     event.getMessageChannel(), player.getRepresentation(false, false) + " used _Assault Cannon_.");
