@@ -36,6 +36,15 @@ public class SpaceTokenModel implements TokenModelInterface, EmbeddableModel {
     private Boolean isPlanet;
     private String attachmentID;
 
+    /** Whether the bot has behaviour attached to this token, or it is purely cosmetic. Required in the JSON. */
+    private TokenAutomation automation;
+
+    /** Whether the bot prompts a player (buttons/questions). Only meaningful when automation is {@code automated}. */
+    private Boolean needsUserInput;
+
+    /** Optional one-line description of what the bot does with this token. */
+    private String automationNote;
+
     @Override
     public boolean isValid() {
         return id != null && imagePath != null;
@@ -95,6 +104,10 @@ public class SpaceTokenModel implements TokenModelInterface, EmbeddableModel {
 
     public boolean isEmpty() {
         return isEmpty != null && isEmpty;
+    }
+
+    public boolean needsUserInput() {
+        return needsUserInput != null && needsUserInput;
     }
 
     public boolean isAnomaly() {

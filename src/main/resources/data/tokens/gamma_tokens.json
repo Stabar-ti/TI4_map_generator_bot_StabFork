@@ -2,6 +2,7 @@
     {
         "id": "hallucination1",
         "imagePath": "token_gg_hallucination1.png",
+        "automation": "cosmetic",
         "spaceOrPlanet": "space",
         "aliasList": [
             "hallucination",
@@ -12,6 +13,7 @@
     {
         "id": "hallucination2",
         "imagePath": "token_gg_hallucination2.png",
+        "automation": "cosmetic",
         "spaceOrPlanet": "space",
         "aliasList": [
             "hallucination2"
@@ -21,6 +23,7 @@
     {
         "id": "hallucination3",
         "imagePath": "token_gg_hallucination3.png",
+        "automation": "cosmetic",
         "spaceOrPlanet": "space",
         "aliasList": [
             "hallucination3"
@@ -30,6 +33,7 @@
     {
         "id": "hallucination4",
         "imagePath": "token_gg_hallucination4.png",
+        "automation": "cosmetic",
         "spaceOrPlanet": "space",
         "aliasList": [
             "hallucination4"
@@ -39,6 +43,7 @@
     {
         "id": "hallucination5",
         "imagePath": "token_gg_hallucination5.png",
+        "automation": "cosmetic",
         "spaceOrPlanet": "space",
         "aliasList": [
             "hallucination5"
@@ -48,6 +53,7 @@
     {
         "id": "hallucination_back",
         "imagePath": "token_gg_hallucination_back.png",
+        "automation": "cosmetic",
         "spaceOrPlanet": "space",
         "aliasList": [
             "hallucinationback",
@@ -58,6 +64,7 @@
     {
         "id": "weaveway_spacedock_marker",
         "imagePath": "token_gg_weaveway_spacedock.png",
+        "automation": "cosmetic",
         "spaceOrPlanet": "space",
         "aliasList": [
             "weavewayspacedock",
@@ -68,6 +75,7 @@
     {
         "id": "weaveway_back",
         "imagePath": "token_gg_weaveway_back.png",
+        "automation": "cosmetic",
         "spaceOrPlanet": "space",
         "aliasList": [
             "weavewayback"
@@ -77,6 +85,7 @@
     {
         "id": "weaveway_node1",
         "imagePath": "token_gg_weaveway_node1.png",
+        "automation": "cosmetic",
         "spaceOrPlanet": "space",
         "aliasList": [
             "weavewaynode1",
@@ -87,6 +96,7 @@
     {
         "id": "weaveway_node2",
         "imagePath": "token_gg_weaveway_node2.png",
+        "automation": "cosmetic",
         "spaceOrPlanet": "space",
         "aliasList": [
             "weavewaynode2",
@@ -97,6 +107,7 @@
     {
         "id": "weaveway_node3",
         "imagePath": "token_gg_weaveway_node3.png",
+        "automation": "cosmetic",
         "spaceOrPlanet": "space",
         "aliasList": [
             "weavewaynode3",

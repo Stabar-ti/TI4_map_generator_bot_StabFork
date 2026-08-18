@@ -2,6 +2,8 @@
     {
         "id": "creussalpha",
         "imagePath": "token_creussalpha.png",
+        "automation": "automated",
+        "automationNote": "Creates real wormhole adjacency via the generic filename rule in FoWHelper.getTileWHs(); movable via /special move_creuss_wormhole",
         "spaceOrPlanet": "space",
         "aliasList": [
             "creussalpha",
@@ -16,6 +18,8 @@
     {
         "id": "creussbeta",
         "imagePath": "token_creussbeta.png",
+        "automation": "automated",
+        "automationNote": "Creates real wormhole adjacency via the generic filename rule in FoWHelper.getTileWHs(); movable via /special move_creuss_wormhole",
         "spaceOrPlanet": "space",
         "aliasList": ["creussbeta", "token_creussbeta", "ghostbeta"],
         "wormholes": ["BETA"],
@@ -24,6 +28,9 @@
     {
         "id": "custodian",
         "imagePath": "token_custodian.png",
+        "automation": "automated",
+        "needsUserInput": true,
+        "automationNote": "Auto-scores Custodians when the planet is taken, then offers influence-spend buttons",
         "spaceOrPlanet": "planet",
         "aliasList": ["custodian", "token_custodian"],
         "source": "base"
@@ -31,6 +38,8 @@
     {
         "id": "custodianvp",
         "imagePath": "token_custodianvp.png",
+        "automation": "unknown",
+        "automationNote": "Custodian variant; not confirmed whether the Custodians scoring path reads this id",
         "spaceOrPlanet": "planet",
         "aliasList": ["custodianvp", "token_custodianvp"],
         "source": "base"
@@ -38,6 +47,8 @@
     {
         "id": "custc1",
         "imagePath": "token_custc1.png",
+        "automation": "automated",
+        "automationNote": "Ordinian C1 scenario; drives Game.isCustodiansScored()",
         "spaceOrPlanet": "space",
         "aliasList": ["custc1"],
         "source": "base"
@@ -45,6 +56,8 @@
     {
         "id": "custvpc1",
         "imagePath": "token_custvpc1.png",
+        "automation": "automated",
+        "automationNote": "Ordinian C1 scenario; drives Game.isCustodiansScored()",
         "spaceOrPlanet": "space",
         "aliasList": ["custvpc1"],
         "source": "base",

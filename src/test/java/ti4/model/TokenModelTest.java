@@ -27,6 +27,9 @@ class TokenModelTest extends BaseTi4Test {
         validators.put("E1", TokenModel::isValid);
         validators.put("E2", TokenModelTest::tokenExistsElsewhere);
         validators.put("E3", TokenModelTest::tokenComplete);
+        validators.put("E4 - missing 'automation'", TokenModelTest::declaresAutomation);
+        validators.put(
+                "E5 - 'needsUserInput' requires automation=automated", TokenModelTest::userInputImpliesAutomated);
 
         for (TokenModel token : tokens)
             for (Entry<String, Predicate<TokenModel>> e : validators.entrySet())
@@ -34,6 +37,18 @@ class TokenModelTest extends BaseTi4Test {
         for (String token : Mapper.getTokensFromProperties()) {
             // assertTrue(tokenIsTokenModel(token), "Error: " + token + " is not represented in TokenModel.");
         }
+    }
+
+    /**
+     * Every token must say whether the bot does anything with it. {@code unknown} is a legal answer, so this never
+     * blocks adding a token - it only forbids leaving the question silently unanswered.
+     */
+    private static boolean declaresAutomation(TokenModel token) {
+        return token.getAutomation() != null;
+    }
+
+    private static boolean userInputImpliesAutomated(TokenModel token) {
+        return !Boolean.TRUE.equals(token.getNeedsUserInput()) || token.getAutomation() == TokenAutomation.automated;
     }
 
     private static boolean tokenExistsElsewhere(TokenModel token) {

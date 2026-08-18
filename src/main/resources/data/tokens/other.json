@@ -2,6 +2,8 @@
     {
         "id": "anomaly",
         "imagePath": "token_anomalydummy.png",
+        "automation": "automated",
+        "automationNote": "Makes the tile a generic anomaly",
         "spaceOrPlanet": "space",
         "isAnomaly": true,
         "isRift": false,
@@ -11,11 +13,14 @@
     {
         "id": "big_obelisk",
         "imagePath": "token_big_obelisk.png",
+        "automation": "cosmetic",
         "source": "other"
     },
     {
         "id": "consulate",
         "imagePath": "token_consulate.png",
+        "automation": "cosmetic",
+        "automationNote": "Has a Constants entry and a special_case.properties line, but no reader",
         "spaceOrPlanet": "planet",
         "aliasList": [
             "consulate",
@@ -26,6 +31,8 @@
     {
         "id": "creussepsilon",
         "imagePath": "token_creussepsilon.png",
+        "automation": "automated",
+        "automationNote": "Creates real wormhole adjacency via the generic filename rule in FoWHelper.getTileWHs(); movable via /special move_creuss_wormhole",
         "spaceOrPlanet": "space",
         "wormholes": [
             "EPSILON"
@@ -35,6 +42,8 @@
     {
         "id": "custom_eronous_whepsilon",
         "imagePath": "token_custom_eronous_whepsilon.png",
+        "automation": "automated",
+        "automationNote": "Creates real wormhole adjacency via the generic filename rule in FoWHelper.getTileWHs()",
         "spaceOrPlanet": "space",
         "wormholes": [
             "CUSTOM_ERONOUS_WHEPSILON"
@@ -44,6 +53,8 @@
     {
         "id": "custom_eronous_wheta",
         "imagePath": "token_custom_eronous_wheta.png",
+        "automation": "automated",
+        "automationNote": "Creates real wormhole adjacency via the generic filename rule in FoWHelper.getTileWHs()",
         "spaceOrPlanet": "space",
         "wormholes": [
             "CUSTOM_ERONOUS_WHETA"
@@ -53,6 +64,8 @@
     {
         "id": "custom_eronous_whiota",
         "imagePath": "token_custom_eronous_whiota.png",
+        "automation": "automated",
+        "automationNote": "Creates real wormhole adjacency via the generic filename rule in FoWHelper.getTileWHs()",
         "spaceOrPlanet": "space",
         "wormholes": [
             "CUSTOM_ERONOUS_WHIOTA"
@@ -62,6 +75,8 @@
     {
         "id": "custom_eronous_whtheta",
         "imagePath": "token_custom_eronous_whtheta.png",
+        "automation": "automated",
+        "automationNote": "Creates real wormhole adjacency via the generic filename rule in FoWHelper.getTileWHs()",
         "spaceOrPlanet": "space",
         "wormholes": [
             "CUSTOM_ERONOUS_WHTHETA"
@@ -71,6 +86,8 @@
     {
         "id": "custom_eronous_whzeta",
         "imagePath": "token_custom_eronous_whzeta.png",
+        "automation": "automated",
+        "automationNote": "Creates real wormhole adjacency via the generic filename rule in FoWHelper.getTileWHs()",
         "spaceOrPlanet": "space",
         "wormholes": [
             "CUSTOM_ERONOUS_WHZETA"
@@ -80,36 +97,44 @@
     {
         "id": "customempyrean",
         "imagePath": "token_empyrean.png",
+        "automation": "cosmetic",
         "source": "other"
     },
     {
         "id": "customkollecc",
         "imagePath": "token_ds_customkollecc.png",
+        "automation": "cosmetic",
         "source": "other"
     },
     {
         "id": "customnivyn",
         "imagePath": "token_ds_customnivyn.png",
+        "automation": "cosmetic",
         "source": "other"
     },
     {
         "id": "customnokar",
         "imagePath": "token_ds_customnokar.png",
+        "automation": "cosmetic",
         "source": "other"
     },
     {
         "id": "customtnelis",
         "imagePath": "token_ds_customtnelis.png",
+        "automation": "cosmetic",
         "source": "other"
     },
     {
         "id": "customwinnu",
         "imagePath": "token_winnu.png",
+        "automation": "cosmetic",
         "source": "other"
     },
     {
         "id": "speaker",
         "imagePath": "token_speaker.png",
+        "automation": "cosmetic",
+        "automationNote": "Art only - the speaker is tracked by game.getSpeakerUserID()",
         "aliasList": [
             "speaker",
             "token_speaker"
@@ -119,6 +144,8 @@
     {
         "id": "tyrant",
         "imagePath": "token_tyrant.png",
+        "automation": "cosmetic",
+        "automationNote": "Art only - the tyrant is tracked by game.getTyrantUserID()",
         "aliasList": [
             "tyrant",
             "token_tyrant"
@@ -128,11 +155,15 @@
     {
         "id": "installation",
         "imagePath": "token_installation.png",
+        "automation": "cosmetic",
+        "automationNote": "Placed via /installation add_sweep_token; render only, no rules effect",
         "source": "asteroid"
     },
     {
         "id": "whalpha",
         "imagePath": "token_whalpha.png",
+        "automation": "automated",
+        "automationNote": "Creates real wormhole adjacency via the generic filename rule in FoWHelper.getTileWHs()",
         "spaceOrPlanet": "space",
         "wormholes": [
             "ALPHA"
@@ -142,6 +173,8 @@
     {
         "id": "whbeta",
         "imagePath": "token_whbeta.png",
+        "automation": "automated",
+        "automationNote": "Creates real wormhole adjacency via the generic filename rule in FoWHelper.getTileWHs()",
         "spaceOrPlanet": "space",
         "wormholes": [
             "BETA"
@@ -151,6 +184,8 @@
     {
         "id": "whchampion",
         "imagePath": "token_whchampion.png",
+        "automation": "automated",
+        "automationNote": "Creates real wormhole adjacency via the generic filename rule in FoWHelper.getTileWHs()",
         "spaceOrPlanet": "space",
         "wormholes": [
             "WHCHAMPION"
@@ -160,6 +195,8 @@
     {
         "id": "whdelta",
         "imagePath": "token_whdelta.png",
+        "automation": "automated",
+        "automationNote": "Creates real wormhole adjacency via the generic filename rule in FoWHelper.getTileWHs()",
         "spaceOrPlanet": "space",
         "wormholes": [
             "DELTA"
@@ -169,6 +206,8 @@
     {
         "id": "whepsilon",
         "imagePath": "token_custom_eronous_whepsilon.png",
+        "automation": "automated",
+        "automationNote": "Creates real wormhole adjacency via the generic filename rule in FoWHelper.getTileWHs(); note this id points at the same PNG as the matching custom_eronous_* entry",
         "spaceOrPlanet": "space",
         "wormholes": [
             "EPSILON"
@@ -178,6 +217,8 @@
     {
         "id": "wheta",
         "imagePath": "token_custom_eronous_wheta.png",
+        "automation": "automated",
+        "automationNote": "Creates real wormhole adjacency via the generic filename rule in FoWHelper.getTileWHs(); note this id points at the same PNG as the matching custom_eronous_* entry",
         "spaceOrPlanet": "space",
         "wormholes": [
             "ETA"
@@ -187,6 +228,8 @@
     {
         "id": "whkappa",
         "imagePath": "token_custom_eronous_whkappa.png",
+        "automation": "automated",
+        "automationNote": "Creates real wormhole adjacency via the generic filename rule in FoWHelper.getTileWHs(); note this id points at the same PNG as the matching custom_eronous_* entry",
         "spaceOrPlanet": "space",
         "wormholes": [
             "KAPPA"
@@ -196,6 +239,8 @@
     {
         "id": "whgamma",
         "imagePath": "token_whgamma.png",
+        "automation": "automated",
+        "automationNote": "Creates real wormhole adjacency via the generic filename rule in FoWHelper.getTileWHs()",
         "spaceOrPlanet": "space",
         "wormholes": [
             "GAMMA"
@@ -205,6 +250,8 @@
     {
         "id": "whnarrows",
         "imagePath": "token_whnarrows.png",
+        "automation": "automated",
+        "automationNote": "Creates real wormhole adjacency via the generic filename rule in FoWHelper.getTileWHs()",
         "spaceOrPlanet": "space",
         "wormholes": [
             "WHNARROWS"
@@ -214,6 +261,8 @@
     {
         "id": "whprobability",
         "imagePath": "token_whprobability.png",
+        "automation": "automated",
+        "automationNote": "Creates real wormhole adjacency via the generic filename rule in FoWHelper.getTileWHs()",
         "spaceOrPlanet": "space",
         "wormholes": [
             "WHPROBABILITY"
@@ -223,6 +272,8 @@
     {
         "id": "whvoyage",
         "imagePath": "token_whvoyage.png",
+        "automation": "automated",
+        "automationNote": "Creates real wormhole adjacency via the generic filename rule in FoWHelper.getTileWHs()",
         "spaceOrPlanet": "space",
         "wormholes": [
             "WHVOYAGE"
@@ -232,6 +283,8 @@
     {
         "id": "whzeta",
         "imagePath": "token_custom_eronous_whzeta.png",
+        "automation": "automated",
+        "automationNote": "Creates real wormhole adjacency via the generic filename rule in FoWHelper.getTileWHs(); note this id points at the same PNG as the matching custom_eronous_* entry",
         "spaceOrPlanet": "space",
         "wormholes": [
             "ZETA"
@@ -241,6 +294,9 @@
     {
         "id": "vortex",
         "imagePath": "token_vortex.png",
+        "automation": "automated",
+        "needsUserInput": true,
+        "automationNote": "Creates real wormhole adjacency via the generic filename rule in FoWHelper.getTileWHs(); also counts as a gravity rift and offers rift roll buttons",
         "spaceOrPlanet": "space",
         "wormholes": [
             "VORTEX"
@@ -250,12 +306,16 @@
     {
         "id": "whall",
         "imagePath": "token_whunknown.png",
+        "automation": "cosmetic",
+        "automationNote": "Maps to token_whunknown.png, which matches no wormhole - unlike every other wh* token it creates no adjacency",
         "spaceOrPlanet": "space",
         "source": "other"
     },
     {
         "id": "illusion",
         "imagePath": "token_illusion.png",
+        "automation": "automated",
+        "automationNote": "Token-planet: creates a real planet unit holder on the tile",
         "spaceOrPlanet": "space",
         "tokenPlanetName": "illusion",
         "aliasList": [
@@ -267,6 +327,8 @@
     {
         "id": "phantasm",
         "imagePath": "token_phantasm.png",
+        "automation": "automated",
+        "automationNote": "Token-planet: creates a real planet unit holder on the tile",
         "spaceOrPlanet": "space",
         "tokenPlanetName": "phantasm",
         "aliasList": [
@@ -278,6 +340,8 @@
     {
         "id": "supernova",
         "imagePath": "token_supernova_async.png",
+        "automation": "automated",
+        "automationNote": "Makes the tile a supernova",
         "spaceOrPlanet": "space",
         "isAnomaly": true,
         "isNova": true,
@@ -291,6 +355,8 @@
     {
         "id": "nebula",
         "imagePath": "token_nebula_async.png",
+        "automation": "automated",
+        "automationNote": "Makes the tile a nebula",
         "spaceOrPlanet": "space",
         "isAnomaly": true,
         "isNebula": true,
@@ -303,6 +369,8 @@
     {
         "id": "entropicscar",
         "imagePath": "token_entropicscar_async.png",
+        "automation": "automated",
+        "automationNote": "Makes the tile an entropic scar",
         "spaceOrPlanet": "space",
         "isAnomaly": true,
         "isScar": true,
@@ -316,6 +384,8 @@
     {
         "id": "asteroids",
         "imagePath": "token_asteroids_async.png",
+        "automation": "automated",
+        "automationNote": "Makes the tile an asteroid field",
         "spaceOrPlanet": "space",
         "isAnomaly": true,
         "isAsteroids": true,

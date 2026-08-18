@@ -2,6 +2,8 @@
     {
         "id": "brokenplanet1",
         "imagePath": "token_brokenplanet1.png",
+        "automation": "automated",
+        "automationNote": "Token-planet: creates a real planet unit holder on the tile",
         "spaceOrPlanet": "space",
         "aliasList": [
             "brokenplanet1",
@@ -14,6 +16,8 @@
     {
         "id": "brokenplanet2",
         "imagePath": "token_brokenplanet2.png",
+        "automation": "automated",
+        "automationNote": "Token-planet: creates a real planet unit holder on the tile",
         "spaceOrPlanet": "space",
         "aliasList": [
             "brokenplanet2",
@@ -26,6 +30,8 @@
     {
         "id": "brokenplanet3",
         "imagePath": "token_brokenplanet3.png",
+        "automation": "automated",
+        "automationNote": "Token-planet: creates a real planet unit holder on the tile",
         "spaceOrPlanet": "space",
         "aliasList": [
             "brokenplanet3",
@@ -38,6 +44,8 @@
     {
         "id": "brokenplanet4",
         "imagePath": "token_brokenplanet4.png",
+        "automation": "automated",
+        "automationNote": "Token-planet: creates a real planet unit holder on the tile",
         "spaceOrPlanet": "space",
         "aliasList": [
             "brokenplanet4",
@@ -50,6 +58,8 @@
     {
         "id": "brokenplanet5",
         "imagePath": "token_brokenplanet5.png",
+        "automation": "automated",
+        "automationNote": "Token-planet: creates a real planet unit holder on the tile",
         "spaceOrPlanet": "space",
         "aliasList": [
             "brokenplanet5",
@@ -62,6 +72,8 @@
     {
         "id": "brokenplanet6",
         "imagePath": "token_brokenplanet6.png",
+        "automation": "automated",
+        "automationNote": "Token-planet: creates a real planet unit holder on the tile",
         "spaceOrPlanet": "space",
         "aliasList": [
             "brokenplanet6",

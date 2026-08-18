@@ -2,30 +2,39 @@
     {
         "id": "glory",
         "imagePath": "token_ds_glory.png",
+        "automation": "automated",
+        "automationNote": "Kjalengard glory supply tracking",
         "spaceOrPlanet": "space",
         "source": "ds"
     },
     {
         "id": "glory2",
         "imagePath": "token_ds_glory2.png",
+        "automation": "automated",
+        "automationNote": "Kjalengard glory supply tracking",
         "spaceOrPlanet": "space",
         "source": "ds"
     },
     {
         "id": "glory3",
         "imagePath": "token_ds_glory3.png",
+        "automation": "automated",
+        "automationNote": "Kjalengard glory supply tracking",
         "spaceOrPlanet": "space",
         "source": "ds"
     },
     {
         "id": "beansnexus",
         "imagePath": "token_beans_nexus.png",
+        "automation": "automated",
+        "automationNote": "Counts as a nebula",
         "spaceOrPlanet": "space",
         "source": "beans"
     },
     {
         "id": "compromised",
         "imagePath": "token_beans_compromised.png",
+        "automation": "cosmetic",
         "spaceOrPlanet": "planet",
         "placement": "center",
         "source": "beans"
@@ -33,6 +42,9 @@
     {
         "id": "wound",
         "imagePath": "token_ds_wound.png",
+        "automation": "automated",
+        "needsUserInput": true,
+        "automationNote": "Counts as nebula, gravity rift and anomaly; offers rift roll buttons",
         "spaceOrPlanet": "space",
         "isAnomaly": true,
         "isRift": true,
@@ -42,6 +54,8 @@
     {
         "id": "gledge_core",
         "imagePath": "token_ds_gledgecore.png",
+        "automation": "automated",
+        "automationNote": "Overrides the planet's resources/influence to 2/0",
         "spaceOrPlanet": "planet",
         "source": "ds",
         "placement": "center",
@@ -50,18 +64,23 @@
     {
         "id": "blight",
         "imagePath": "token_ds_blight.png",
+        "automation": "cosmetic",
+        "automationNote": "Art only - the 'blight' string in code is an emoji/colour name, not this token",
         "spaceOrPlanet": "idk",
         "source": "ds"
     },
     {
         "id": "sigil",
         "imagePath": "token_ds_sigil.png",
+        "automation": "automated",
+        "automationNote": "Auto-added and removed under Edyn mechs on every game update; counts as an anomaly",
         "spaceOrPlanet": "planet",
         "source": "ds"
     },
     {
         "id": "freesystems_raccoon",
         "imagePath": "token_raccoon.png",
+        "automation": "cosmetic",
         "spaceOrPlanet": "planet",
         "aliasList": [
             "freesystems_raccoon",
@@ -73,6 +92,8 @@
     {
         "id": "freepeople",
         "imagePath": "token_freepeople.png",
+        "automation": "automated",
+        "automationNote": "Removed when the planet is taken; interacts with Faunus",
         "spaceOrPlanet": "planet",
         "aliasList": [
             "freepeople"

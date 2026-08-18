@@ -2,6 +2,8 @@
     {
         "id": "cradle",
         "imagePath": "token_cradle.png",
+        "automation": "automated",
+        "automationNote": "Token-planet: creates a real planet unit holder on the tile",
         "spaceOrPlanet": "space",
         "tokenPlanetName": "cradle",
         "aliasList": ["cradle", "token_cradle"],
@@ -10,6 +12,8 @@
     {
         "id": "oasis",
         "imagePath": "token_oasis.png",
+        "automation": "automated",
+        "automationNote": "Token-planet: creates a real planet unit holder on the tile",
         "spaceOrPlanet": "space",
         "tokenPlanetName": "oasis",
         "aliasList": ["oasis", "token_oasis"],

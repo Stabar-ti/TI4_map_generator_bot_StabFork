@@ -2,6 +2,9 @@
     {
         "id": "avernus",
         "imagePath": "token_avernus.png",
+        "automation": "automated",
+        "needsUserInput": true,
+        "automationNote": "Token-planet: creates a real planet unit holder on the tile; also offers a button to move it into the active system",
         "spaceOrPlanet": "space",
         "aliasList": [
             "avernus",
@@ -15,6 +18,9 @@
     {
         "id": "breachactive",
         "imagePath": "token_breachActive.png",
+        "automation": "automated",
+        "needsUserInput": true,
+        "automationNote": "Grants breach adjacency; offers a flip button on activation",
         "spaceOrPlanet": "space",
         "aliasList": [
             "breachactive",
@@ -25,6 +31,9 @@
     {
         "id": "breachinactive",
         "imagePath": "token_breachInactive.png",
+        "automation": "automated",
+        "needsUserInput": true,
+        "automationNote": "Offers a flip button on activation",
         "spaceOrPlanet": "space",
         "aliasList": [
             "breachinactive",
@@ -35,6 +44,8 @@
     {
         "id": "severed",
         "imagePath": "token_severed.png",
+        "automation": "cosmetic",
+        "automationNote": "Placed by Thunder's Edge code, but Constants.TOKEN_SEVERED has no reader - the token has no effect",
         "spaceOrPlanet": "space",
         "aliasList": [
             "sever",
@@ -47,6 +58,8 @@
     {
         "id": "ingress",
         "imagePath": "token_ingress.png",
+        "automation": "automated",
+        "automationNote": "Grants egress adjacency",
         "spaceOrPlanet": "space",
         "aliasList": [
             "ingress",
@@ -57,6 +70,8 @@
     {
         "id": "egress",
         "imagePath": "token_egress.png",
+        "automation": "automated",
+        "automationNote": "Grants ingress adjacency",
         "spaceOrPlanet": "space",
         "aliasList": [
             "egress",
@@ -67,6 +82,8 @@
     {
         "id": "fracture",
         "imagePath": "token_fracture_async.png",
+        "automation": "automated",
+        "automationNote": "Drives Tile.isFracture(); Call of the Void command token gain",
         "spaceOrPlanet": "space",
         "aliasList": [
             "fracture",
@@ -77,6 +94,9 @@
     {
         "id": "relictoken",
         "imagePath": "token_relictoken.png",
+        "automation": "automated",
+        "needsUserInput": true,
+        "automationNote": "Removed when the planet is taken, then offers a relic draw button",
         "spaceOrPlanet": "planet",
         "aliasList": [
             "relic",
@@ -89,6 +109,8 @@
     {
         "id": "thundersedge",
         "imagePath": "token_thundersedge.png",
+        "automation": "automated",
+        "automationNote": "Token-planet: creates a real planet unit holder on the tile",
         "spaceOrPlanet": "space",
         "aliasList": [
             "thundersedge",

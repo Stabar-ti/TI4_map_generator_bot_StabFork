@@ -2,6 +2,8 @@
     {
         "id": "kairnexpedition",
         "imagePath": "token_theodisi_kairnexpedition.png",
+        "automation": "unknown",
+        "automationNote": "Special-cased for placement in AddTokenCommand; no confirmed rules effect",
         "spaceOrPlanet": "planet",
         "aliasList": [
             "kairnexpedition",
@@ -12,6 +14,8 @@
     {
         "id": "xythrismine",
         "imagePath": "token_theodisi_mine.png",
+        "automation": "unknown",
+        "automationNote": "JSON id is 'xythrismine' but tokens.properties and XytherisAbilityHandler use 'xytherismine', and no PNG matches this spelling",
         "spaceOrPlanet": "space",
         "aliasList": [
             "xytherismine",
@@ -22,6 +26,8 @@
     {
         "id": "oblivionreflection",
         "imagePath": "token_theodisi_oblivionreflection.png",
+        "automation": "automated",
+        "automationNote": "Supply-limited placement (max 6)",
         "spaceOrPlanet": "space",
         "aliasList": [
             "oblivionreflection",
@@ -33,6 +39,8 @@
     {
         "id": "revenantlich",
         "imagePath": "token_theodisi_revenantlich.png",
+        "automation": "unknown",
+        "automationNote": "Theodisi token; behaviour not confirmed",
         "aliasList": [
             "revenantlich",
             "revenant",
@@ -43,6 +51,8 @@
     {
         "id": "cineron",
         "imagePath": "token_theodisi_cineron.png",
+        "automation": "automated",
+        "automationNote": "Token-planet: creates a real planet unit holder on the tile",
         "spaceOrPlanet": "space",
         "aliasList": [
             "cineron"
@@ -54,6 +64,8 @@
     {
         "id": "gyraxis",
         "imagePath": "token_theodisi_gyraxis.png",
+        "automation": "automated",
+        "automationNote": "Token-planet: creates a real planet unit holder on the tile",
         "spaceOrPlanet": "space",
         "aliasList": [
             "gyraxis"
@@ -65,6 +77,8 @@
     {
         "id": "lethara",
         "imagePath": "token_theodisi_lethara.png",
+        "automation": "automated",
+        "automationNote": "Token-planet: creates a real planet unit holder on the tile",
         "spaceOrPlanet": "space",
         "aliasList": [
             "lethara"
@@ -76,6 +90,8 @@
     {
         "id": "skarnath",
         "imagePath": "token_theodisi_skarnath.png",
+        "automation": "automated",
+        "automationNote": "Token-planet: creates a real planet unit holder on the tile",
         "spaceOrPlanet": "space",
         "aliasList": [
             "skarnath"
@@ -87,6 +103,8 @@
     {
         "id": "loststation",
         "imagePath": "token_theodisi_loststation.png",
+        "automation": "automated",
+        "automationNote": "Becomes a real claimed planet on explore",
         "spaceOrPlanet": "space",
         "aliasList": [
             "loststation"
@@ -98,6 +116,9 @@
     {
         "id": "illustrion",
         "imagePath": "token_theodisi_illustrion.png",
+        "automation": "automated",
+        "needsUserInput": true,
+        "automationNote": "Token-planet: creates a real planet unit holder on the tile; also offers a button to move it into the active system",
         "spaceOrPlanet": "space",
         "aliasList": ["illustrion", "alluringthrone"],
         "tokenPlanetName": "illustrion",

@@ -31,6 +31,15 @@ public class TokenModel implements ModelInterface, EmbeddableModel {
     private Double scale;
     private Boolean isPlanet;
 
+    /** Whether the bot has behaviour attached to this token, or it is purely cosmetic. Required in the JSON. */
+    private TokenAutomation automation;
+
+    /** Whether the bot prompts a player (buttons/questions). Only meaningful when automation is {@code automated}. */
+    private Boolean needsUserInput;
+
+    /** Optional one-line description of what the bot does with this token. */
+    private String automationNote;
+
     @Override
     public boolean isValid() {
         return id != null && imagePath != null && source != null;

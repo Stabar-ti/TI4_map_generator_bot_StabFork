@@ -2,6 +2,8 @@
     {
         "id": "creussgamma",
         "imagePath": "token_creussgamma.png",
+        "automation": "automated",
+        "automationNote": "Creates real wormhole adjacency via the generic filename rule in FoWHelper.getTileWHs(); movable via /special move_creuss_wormhole",
         "spaceOrPlanet": "space",
         "aliasList": [
             "creussgamma",
@@ -16,6 +18,8 @@
     {
         "id": "dmz_large",
         "imagePath": "token_dmz_large.png",
+        "automation": "automated",
+        "automationNote": "Bounces ground units to space on placement; blocks invasion and deploy; enables planet trading",
         "spaceOrPlanet": "planet",
         "attachmentID": "dmz",
         "aliasList": [
@@ -29,6 +33,9 @@
     {
         "id": "frontier",
         "imagePath": "token_frontier.png",
+        "automation": "automated",
+        "needsUserInput": true,
+        "automationNote": "Auto-seeded at game start; drives the frontier explore button",
         "spaceOrPlanet": "space",
         "aliasList": [
             "frontier",
@@ -39,6 +46,8 @@
     {
         "id": "gamma",
         "imagePath": "token_gamma.png",
+        "automation": "automated",
+        "automationNote": "Creates real wormhole adjacency via the generic filename rule in FoWHelper.getTileWHs(); placed by the Nexus agenda and by exploring Mallice",
         "spaceOrPlanet": "space",
         "aliasList": [
             "gamma",
@@ -53,6 +62,9 @@
     {
         "id": "gravityrift",
         "imagePath": "token_gravityrift.png",
+        "automation": "automated",
+        "needsUserInput": true,
+        "automationNote": "Shortens movement distance, then offers rift roll buttons",
         "spaceOrPlanet": "space",
         "isAnomaly": true,
         "isRift": true,
@@ -68,6 +80,9 @@
     {
         "id": "ionalpha",
         "imagePath": "token_ionalpha.png",
+        "automation": "automated",
+        "needsUserInput": true,
+        "automationNote": "Creates real wormhole adjacency via the generic filename rule in FoWHelper.getTileWHs(); offers a flip prompt when used",
         "spaceOrPlanet": "space",
         "aliasList": [
             "ionalpha",
@@ -82,6 +97,9 @@
     {
         "id": "ionbeta",
         "imagePath": "token_ionbeta.png",
+        "automation": "automated",
+        "needsUserInput": true,
+        "automationNote": "Creates real wormhole adjacency via the generic filename rule in FoWHelper.getTileWHs(); offers a flip prompt when used",
         "spaceOrPlanet": "space",
         "aliasList": [
             "ionbeta",
@@ -95,6 +113,8 @@
     {
         "id": "mirage",
         "imagePath": "token_mirage.png",
+        "automation": "automated",
+        "automationNote": "Becomes a real planet on explore - auto-claimed, readied and explored",
         "spaceOrPlanet": "space",
         "tokenPlanetName": "mirage",
         "aliasList": [
@@ -107,6 +127,9 @@
     {
         "id": "sleeper",
         "imagePath": "token_sleeper.png",
+        "automation": "automated",
+        "needsUserInput": true,
+        "automationNote": "Titans awaken: offers PDS/mech replacement buttons on activation",
         "spaceOrPlanet": "planet",
         "aliasList": [
             "sleeper",
@@ -119,6 +142,8 @@
     {
         "id": "worlddestroyed",
         "imagePath": "token_worlddestroyed.png",
+        "automation": "automated",
+        "automationNote": "Placed by Stellar Converter; excludes the planet from several effects",
         "spaceOrPlanet": "planet",
         "aliasList": [
             "worlddestroyed",
