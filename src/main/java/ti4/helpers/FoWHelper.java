@@ -855,11 +855,14 @@ public final class FoWHelper {
     }
 
     public static boolean isTileInExileRange(Game game, Tile tile, Player player) {
+        return isTileInExileRange(game, tile, player, FogViewer.unrestricted());
+    }
+
+    public static boolean isTileInExileRange(Game game, Tile tile, Player player, FogViewer viewer) {
         if (player.hasUnit("crimson_destroyer")) {
             List<Tile> destroyers = ButtonHelper.getTilesOfPlayersSpecificUnits(game, player, UnitType.Destroyer);
             for (Tile tile2 : destroyers) {
-                if (getAdjacentTiles(game, tile.getPosition(), player, false, true)
-                        .contains(tile2.getPosition())) {
+                if (viewer.adjacent(game, tile.getPosition(), player, true).contains(tile2.getPosition())) {
                     return true;
                 }
             }
@@ -868,11 +871,15 @@ public final class FoWHelper {
     }
 
     public static boolean isTileInUpgradedExileRange(Game game, Tile tile, Player player) {
+        return isTileInUpgradedExileRange(game, tile, player, FogViewer.unrestricted());
+    }
+
+    public static boolean isTileInUpgradedExileRange(Game game, Tile tile, Player player, FogViewer viewer) {
         if (player.hasUnit("crimson_destroyer2")) {
             List<Tile> destroyers = ButtonHelper.getTilesOfPlayersSpecificUnits(game, player, UnitType.Destroyer);
-            for (String adjPos : getAdjacentTiles(game, tile.getPosition(), player, false, true)) {
+            for (String adjPos : viewer.adjacent(game, tile.getPosition(), player, true)) {
                 for (Tile tile2 : destroyers) {
-                    if (getAdjacentTiles(game, adjPos, player, false, true).contains(tile2.getPosition())) {
+                    if (viewer.adjacent(game, adjPos, player, true).contains(tile2.getPosition())) {
                         return true;
                     }
                 }
@@ -882,7 +889,11 @@ public final class FoWHelper {
     }
 
     public static boolean isTileAdjacentToAnAnomaly(Game game, String position, Player player) {
-        for (String adjPos : getAdjacentTilesAndNotThisTile(game, position, player, false)) {
+        return isTileAdjacentToAnAnomaly(game, position, player, FogViewer.unrestricted());
+    }
+
+    public static boolean isTileAdjacentToAnAnomaly(Game game, String position, Player player, FogViewer viewer) {
+        for (String adjPos : viewer.adjacent(game, position, player, false)) {
             if (game.getTileByPosition(adjPos).isAnomaly(game, player)) {
                 return true;
             }

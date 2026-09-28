@@ -18,6 +18,7 @@ import ti4.logging.BotLogger;
 import ti4.logging.LogOrigin;
 import ti4.message.MessageHelper;
 import ti4.service.combat.StartCombatService;
+import ti4.service.fow.FogMapAccessService;
 
 @UtilityClass
 class MapViewButtonHandler {
@@ -43,6 +44,11 @@ class MapViewButtonHandler {
     @ButtonHandler(value = "checkExileView", save = false)
     public static void calculateExileView(ButtonInteractionEvent event, Game game) {
         ButtonHelper.showFeatureType(event, game, DisplayType.exile);
+    }
+
+    @ButtonHandler(value = FogMapAccessService.ENDED_CHOICE_PREFIX, save = false)
+    public static void showEndedFogMap(ButtonInteractionEvent event, String buttonID, Game game) {
+        FogMapAccessService.resolveEndedChoice(game, event, buttonID);
     }
 
     @ButtonHandler(value = "refreshViewOfSystem_", save = false)

@@ -12,6 +12,7 @@ import ti4.helpers.DisplayType;
 import ti4.image.MapRenderPipeline;
 import ti4.message.MessageHelper;
 import ti4.service.ShowGameService;
+import ti4.service.fow.FogMapAccessService;
 
 public class ShowGameCommand extends GameStateCommand {
 
@@ -43,8 +44,13 @@ public class ShowGameCommand extends GameStateCommand {
     @Override
     public void execute(SlashCommandInteractionEvent event) {
         Game game = getGame();
-        DisplayType displayType = null;
         OptionMapping statsOption = event.getOption(Constants.DISPLAY_TYPE);
+        if (game.isFowMode()) {
+            String requested = statsOption == null ? "" : statsOption.getAsString();
+            FogMapAccessService.showGame(game, event, FogMapAccessService.displayTypes(requested));
+            return;
+        }
+        DisplayType displayType = null;
         if (statsOption != null) {
             String temp = statsOption.getAsString();
             if (temp.equals(DisplayType.split.getValue())) {

@@ -41,6 +41,7 @@ import ti4.helpers.Constants;
 import ti4.helpers.DateTimeHelper;
 import ti4.helpers.DisplayType;
 import ti4.helpers.FoWHelper;
+import ti4.helpers.FogViewer;
 import ti4.helpers.PlayerStatsHelper;
 import ti4.helpers.Storage;
 import ti4.helpers.TIGLHelper;
@@ -110,6 +111,7 @@ public class MapGenerator implements AutoCloseable {
     private int fractureYbump;
     private boolean isFoWPrivate;
     private Player fowPlayer;
+    private FogViewer fogViewer = FogViewer.unrestricted();
 
     // Map to aggregate unit coordinates by faction from all tiles with global coordinates
     private final Map<String, Map<String, List<Point>>> globalUnitCoordinatesByFaction = new HashMap<>();
@@ -370,6 +372,7 @@ public class MapGenerator implements AutoCloseable {
                 game, event.getMember(), event.getUser().getId());
 
         Set<String> tilesToShow = FoWHelper.fowFilter(game, fowPlayer);
+        fogViewer = new FogViewer(fowPlayer, Set.copyOf(tilesToShow));
         Set<String> keys = new HashSet<>(tilesToDisplay.keySet());
         keys.removeAll(tilesToShow);
         for (String key : keys) {
@@ -2456,7 +2459,7 @@ public class MapGenerator implements AutoCloseable {
             int tileX = positionPoint.x + EXTRA_X - TILE_PADDING;
             int tileY = positionPoint.y + EXTRA_Y - TILE_PADDING;
 
-            TileGenerator tileGenerator = new TileGenerator(game, event, displayType);
+            TileGenerator tileGenerator = new TileGenerator(game, event, displayType, fogViewer);
             BufferedImage tileImage = tileGenerator.draw(tile, step);
             graphics.drawImage(tileImage, tileX, tileY, null);
 

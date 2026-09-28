@@ -2,8 +2,10 @@ package ti4.service;
 
 import java.util.List;
 import java.util.function.Consumer;
+import javax.annotation.Nullable;
 import lombok.experimental.UtilityClass;
 import net.dv8tion.jda.api.components.buttons.Button;
+import net.dv8tion.jda.api.entities.Member;
 import net.dv8tion.jda.api.entities.Message;
 import net.dv8tion.jda.api.entities.channel.middleman.MessageChannel;
 import net.dv8tion.jda.api.events.interaction.GenericInteractionCreateEvent;
@@ -58,7 +60,12 @@ public class ShowGameService {
                                 msg.getChannel().getIdLong())
                 : null;
 
-        MapRenderPipeline.queue(game, event, displayType, fileUpload -> {
+        GenericInteractionCreateEvent renderEvent = renderEventFor(game, event);
+        if (renderEvent == null) {
+            MessageHelper.sendEphemeralMessageToEventChannel(event, "Could not render your fog of war view.");
+            return;
+        }
+        MapRenderPipeline.queue(game, renderEvent, displayType, fileUpload -> {
             if (includeButtons(displayType)) {
                 List<Button> buttons = Buttons.mapImageButtons(game);
 
@@ -80,6 +87,21 @@ public class ShowGameService {
                 buttonEvent.getHook().deleteOriginal().queue(Consumers.nop(), BotLogger::catchRestError);
             }
         });
+    }
+
+    @Nullable
+    private static GenericInteractionCreateEvent renderEventFor(Game game, GenericInteractionCreateEvent event) {
+        return isSendingToPrivateChannel(game, event) ? asPlayerView(game, event) : event;
+    }
+
+    @Nullable
+    public static GenericInteractionCreateEvent asPlayerView(Game game, GenericInteractionCreateEvent event) {
+        Member member = event.getMember();
+        if (member == null) {
+            Player player = game.getPlayer(event.getUser().getId());
+            member = player == null ? null : player.getMember();
+        }
+        return member == null ? null : new UserOverridenGenericInteractionCreateEvent(event, member);
     }
 
     /**

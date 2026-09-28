@@ -43,6 +43,7 @@ import ti4.helpers.ButtonHelper;
 import ti4.helpers.Constants;
 import ti4.helpers.DisplayType;
 import ti4.helpers.FoWHelper;
+import ti4.helpers.FogViewer;
 import ti4.helpers.Helper;
 import ti4.helpers.PatternHelper;
 import ti4.helpers.PdsCoverage;
@@ -89,6 +90,7 @@ public class TileGenerator {
     private final int context;
     private final String focusTile;
     private final DisplayType displayType;
+    private FogViewer viewer;
 
     // Map of nucleus slice number to border color. This should correspond to the
     // colors used in the MapTemplateHelper.getTileFromTemplateTile for draft tiles, given a player number.
@@ -133,12 +135,37 @@ public class TileGenerator {
         this.context = context;
         this.focusTile = focusTile;
         isFoWPrivate = isFowModeActive();
-        this.fowPlayer = fowPlayer != null
-                ? fowPlayer
-                : (event != null
-                        ? CommandHelper.getPlayerFromGame(
-                                game, event.getMember(), event.getUser().getId())
-                        : null);
+        this.fowPlayer = fowPlayer != null ? fowPlayer : playerFromEvent(game, event);
+    }
+
+    TileGenerator(
+            @NotNull Game game,
+            GenericInteractionCreateEvent event,
+            @Nullable DisplayType displayType,
+            @NotNull FogViewer viewer) {
+        this.game = game;
+        this.event = event;
+        this.displayType = displayType;
+        this.context = 0;
+        this.focusTile = "000";
+        this.isFoWPrivate = viewer.isRestricted();
+        this.fowPlayer = viewer.player() != null ? viewer.player() : playerFromEvent(game, event);
+        this.viewer = viewer;
+    }
+
+    @Nullable
+    private static Player playerFromEvent(Game game, @Nullable GenericInteractionCreateEvent event) {
+        return event == null
+                ? null
+                : CommandHelper.getPlayerFromGame(
+                        game, event.getMember(), event.getUser().getId());
+    }
+
+    private FogViewer viewer() {
+        if (viewer == null) {
+            viewer = FogViewer.of(game, isFoWPrivate, fowPlayer);
+        }
+        return viewer;
     }
 
     private boolean isFowModeActive() {
@@ -725,7 +752,7 @@ public class TileGenerator {
                 }
             }
             case Wormholes -> {
-                if (game.isFowMode()) {
+                if (!viewer().canSee(tile.getPosition())) {
                     break;
                 }
                 if (tile.getTileModel().isHyperlane()) {
@@ -764,7 +791,7 @@ public class TileGenerator {
                 }
             }
             case Anomalies -> {
-                if (game.isFowMode()) {
+                if (!viewer().canSee(tile.getPosition())) {
                     break;
                 }
                 if (tile.getTileModel().isHyperlane()) {
@@ -793,7 +820,7 @@ public class TileGenerator {
                 }
             }
             case Exile -> {
-                if (game.isFowMode()) {
+                if (!viewer().canSee(tile.getPosition())) {
                     break;
                 }
                 if (tile.getTileModel().isHyperlane()) {
@@ -801,8 +828,11 @@ public class TileGenerator {
                 }
                 boolean inRangeOfExile = false;
                 for (Player p : game.getRealPlayers()) {
-                    if (FoWHelper.isTileInExileRange(game, tile, p)
-                            || FoWHelper.isTileInUpgradedExileRange(game, tile, p)) {
+                    if (!viewer().canSeeStats(game, p)) {
+                        continue;
+                    }
+                    if (FoWHelper.isTileInExileRange(game, tile, p, viewer())
+                            || FoWHelper.isTileInUpgradedExileRange(game, tile, p, viewer())) {
                         inRangeOfExile = true;
                         break;
                     }
@@ -832,7 +862,7 @@ public class TileGenerator {
                 }
             }
             case Aetherstream -> {
-                if (game.isFowMode()) {
+                if (!viewer().canSee(tile.getPosition())) {
                     break;
                 }
                 if (tile.getTileModel().isHyperlane()) {
@@ -846,7 +876,8 @@ public class TileGenerator {
 
                 int x = TILE_PADDING;
                 int y = TILE_PADDING;
-                boolean anomalyIsAdjacent = FoWHelper.isTileAdjacentToAnAnomaly(game, tile.getPosition(), null);
+                boolean anomalyIsAdjacent =
+                        FoWHelper.isTileAdjacentToAnAnomaly(game, tile.getPosition(), viewer().player(), viewer());
 
                 if (!anomalyIsAdjacent) {
                     BufferedImage fogging = ImageHelper.read(tile.getFowTilePath(null));
@@ -865,7 +896,7 @@ public class TileGenerator {
                 }
             }
             case Legendaries -> {
-                if (game.isFowMode()) {
+                if (!viewer().canSee(tile.getPosition())) {
                     break;
                 }
                 if (tile.getTileModel().isHyperlane()) {
@@ -946,7 +977,7 @@ public class TileGenerator {
                 }
             }
             case Empties -> {
-                if (game.isFowMode()) {
+                if (!viewer().canSee(tile.getPosition())) {
                     break;
                 }
                 if (tile.getTileModel().isHyperlane()) {
@@ -978,7 +1009,10 @@ public class TileGenerator {
                 }
             }
             case SpaceCannon -> {
-                Map<String, PdsCoverage> pdsCoverageMap = PdsCoverageHelper.calculatePdsCoverage(game, tile);
+                if (!viewer().canSee(tile.getPosition())) {
+                    break;
+                }
+                Map<String, PdsCoverage> pdsCoverageMap = PdsCoverageHelper.calculatePdsCoverage(game, tile, viewer());
 
                 BufferedImage tileImage = ImageHelper.read(tile.getTilePath());
                 if (tileImage == null) {
@@ -1146,7 +1180,7 @@ public class TileGenerator {
                 }
             }
             case Traits -> {
-                if (game.isFowMode()) {
+                if (!viewer().canSee(tile.getPosition())) {
                     break;
                 }
                 if (tile.getTileModel().isHyperlane()) {
@@ -1242,7 +1276,7 @@ public class TileGenerator {
                 }
             }
             case TechSkips -> {
-                if (game.isFowMode()) {
+                if (!viewer().canSee(tile.getPosition())) {
                     break;
                 }
                 if (tile.getTileModel().isHyperlane()) {
@@ -1341,7 +1375,7 @@ public class TileGenerator {
                 }
             }
             case Attachments -> {
-                if (game.isFowMode()) {
+                if (!viewer().canSee(tile.getPosition())) {
                     break;
                 }
                 if (tile.getTileModel().isHyperlane()) {

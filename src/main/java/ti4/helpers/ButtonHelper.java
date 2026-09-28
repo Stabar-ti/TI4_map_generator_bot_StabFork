@@ -152,6 +152,7 @@ import ti4.service.explore.ExploreService;
 import ti4.service.fow.BlindSelectionService;
 import ti4.service.fow.FOWCombatThreadMirroring;
 import ti4.service.fow.FOWPlusService;
+import ti4.service.fow.FogMapAccessService;
 import ti4.service.fow.GMService;
 import ti4.service.fow.PlanetTargetService;
 import ti4.service.game.GameColorsService;
@@ -8250,6 +8251,10 @@ public class ButtonHelper {
     }
 
     public static void showFeatureType(GenericInteractionCreateEvent event, Game game, DisplayType feature) {
+        if (game.isFowMode()) {
+            FogMapAccessService.showFeature(game, event, feature);
+            return;
+        }
         MapRenderPipeline.queue(
                 game,
                 event,

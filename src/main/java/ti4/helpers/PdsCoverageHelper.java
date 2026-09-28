@@ -27,7 +27,14 @@ public final class PdsCoverageHelper {
      * @return Map of faction -> comprehensive PDS coverage data, null if no coverage
      */
     public static Map<String, PdsCoverage> calculatePdsCoverage(Game game, Tile tile) {
-        if (game.isFowMode() || tile.getTileModel().isHyperlane() || tile.isScar()) {
+        if (game.isFowMode()) {
+            return null;
+        }
+        return calculatePdsCoverage(game, tile, FogViewer.unrestricted());
+    }
+
+    public static Map<String, PdsCoverage> calculatePdsCoverage(Game game, Tile tile, FogViewer viewer) {
+        if (tile.getTileModel().isHyperlane() || tile.isScar() || !viewer.canSee(tile.getPosition())) {
             return null;
         }
 
@@ -35,6 +42,9 @@ public final class PdsCoverageHelper {
         Map<String, List<Integer>> pdsDiceByPlayer = new HashMap<>();
 
         for (Player player : game.getRealPlayers()) {
+            if (!viewer.canSeeStats(game, player)) {
+                continue;
+            }
             List<Integer> diceCount = new ArrayList<>();
             List<Integer> diceCountMirveda = new ArrayList<>();
             int mod = (game.playerHasLeaderUnlockedOrAlliance(player, "kolumecommander") ? 1 : 0);
@@ -52,7 +62,7 @@ public final class PdsCoverageHelper {
             }
 
             // Check adjacent tiles for PDS coverage
-            for (String adjTilePos : FoWHelper.getAdjacentTiles(game, tilePos, player, false, true)) {
+            for (String adjTilePos : viewer.adjacent(game, tilePos, player, true)) {
                 Tile adjTile = game.getTileByPosition(adjTilePos);
                 if (adjTile == null) {
                     continue;
