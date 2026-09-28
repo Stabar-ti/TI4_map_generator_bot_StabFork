@@ -5,7 +5,6 @@ import java.util.List;
 import javax.annotation.Nullable;
 import lombok.experimental.UtilityClass;
 import net.dv8tion.jda.api.components.buttons.Button;
-import net.dv8tion.jda.api.entities.channel.Channel;
 import net.dv8tion.jda.api.events.interaction.GenericInteractionCreateEvent;
 import net.dv8tion.jda.api.events.interaction.component.ButtonInteractionEvent;
 import org.apache.commons.lang3.StringUtils;
@@ -36,13 +35,7 @@ public class MapSegmentService {
     }
 
     public static boolean isFoggedView(Game game, GenericInteractionCreateEvent event) {
-        return game.isFowMode()
-                && (event instanceof UserOverridenGenericInteractionCreateEvent
-                        || FoWHelper.isPrivateGame(game, event));
-    }
-
-    public static boolean isFoggedView(Game game, @Nullable Channel channel) {
-        return game.isFowMode() && channel != null && FoWHelper.isPrivateGame(game, null, channel);
+        return FoWHelper.rendersFogged(game, event);
     }
 
     public static List<String> viewableNames(Game game, String userId, boolean foggedView) {

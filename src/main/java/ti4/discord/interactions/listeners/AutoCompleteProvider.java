@@ -267,7 +267,7 @@ class AutoCompleteProvider {
                 List<String> names = List.of();
                 if (GameManager.isValid(gameName)) {
                     Game game = GameManager.getManagedGame(gameName).getGame();
-                    boolean foggedView = MapSegmentService.isFoggedView(game, event.getChannel());
+                    boolean foggedView = MapSegmentService.isFoggedView(game, event);
                     names = MapSegmentService.viewableNames(
                             game, event.getUser().getId(), foggedView);
                 }

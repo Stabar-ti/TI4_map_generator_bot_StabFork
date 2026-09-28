@@ -39,6 +39,7 @@ import ti4.model.TileModel;
 import ti4.model.WormholeModel;
 import ti4.service.combat.StartCombatService;
 import ti4.service.fow.FOWPlusService;
+import ti4.service.fow.UserOverridenGenericInteractionCreateEvent;
 import ti4.service.game.GameNameService;
 import ti4.service.game.MonumentsService;
 import ti4.service.option.FOWOptionService.FOWOption;
@@ -1582,6 +1583,15 @@ public final class FoWHelper {
             return true;
         }
         return isGameMaster(event.getUser().getId(), game) && isGmRoom(game, event.getChannel());
+    }
+
+    public static boolean rendersFogged(Game game, @Nullable GenericInteractionCreateEvent event) {
+        if (!game.isFowMode() || event == null) {
+            return false;
+        }
+        return event instanceof UserOverridenGenericInteractionCreateEvent
+                || isPrivateGame(game, event)
+                || !canSeeWholeMap(game, event);
     }
 
     static boolean isGmRoom(Game game, @Nullable Channel channel) {

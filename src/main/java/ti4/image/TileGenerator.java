@@ -60,7 +60,6 @@ import ti4.model.MapTemplateModel;
 import ti4.model.MapTemplateModel.MapTemplateTile;
 import ti4.model.ShipPositionModel.ShipPosition;
 import ti4.model.UnitModel;
-import ti4.service.fow.UserOverridenGenericInteractionCreateEvent;
 import ti4.service.image.FileUploadService;
 import ti4.service.map.CustomHyperlaneService;
 
@@ -142,10 +141,7 @@ public class TileGenerator {
     }
 
     private boolean isFowModeActive() {
-        return game.isFowMode()
-                && event != null
-                && (event.getMessageChannel().getName().endsWith(Constants.PRIVATE_CHANNEL)
-                        || event instanceof UserOverridenGenericInteractionCreateEvent);
+        return FoWHelper.rendersFogged(game, event);
     }
 
     /**

@@ -60,7 +60,6 @@ import ti4.model.EventModel;
 import ti4.model.ModelInterface;
 import ti4.model.PlanetModel;
 import ti4.model.StrategyCardModel;
-import ti4.service.fow.UserOverridenGenericInteractionCreateEvent;
 import ti4.service.image.FileUploadService;
 import ti4.service.map.FractureService;
 import ti4.service.option.FOWOptionService.FOWOption;
@@ -770,10 +769,7 @@ public class MapGenerator implements AutoCloseable {
     }
 
     private boolean isFowModeActive() {
-        return game.isFowMode()
-                && event != null
-                && (FoWHelper.isPrivateGame(game, event)
-                        || event instanceof UserOverridenGenericInteractionCreateEvent);
+        return FoWHelper.rendersFogged(game, event);
     }
 
     public boolean shouldConvertToGeneric(Player player) {

@@ -17,6 +17,7 @@ import ti4.game.Player;
 import ti4.game.Tile;
 import ti4.helpers.CheckDistanceHelper;
 import ti4.helpers.Constants;
+import ti4.helpers.FoWHelper;
 import ti4.message.MessageHelper;
 
 class CheckAllDistance extends GameStateSubcommand {
@@ -28,6 +29,11 @@ class CheckAllDistance extends GameStateSubcommand {
 
     @Override
     public void execute(SlashCommandInteractionEvent event) {
+        if (!FoWHelper.canSeeWholeMap(getGame(), event)) {
+            MessageHelper.replyToMessage(
+                    event, "In an active Fog of War game only the GM can check all distances, in the GM room.");
+            return;
+        }
 
         int maxDistance = event.getOption(Constants.MAX_DISTANCE, 10, OptionMapping::getAsInt);
 
