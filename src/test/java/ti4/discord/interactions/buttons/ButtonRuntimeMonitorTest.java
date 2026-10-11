@@ -137,6 +137,52 @@ class ButtonRuntimeMonitorTest {
         assertThat(monitor.formatStatistics("`2026-10-03 21:00:29.056`")).hasSizeLessThan(1900);
     }
 
+    // Golden output captured from the monitor before its table formatting moved to LatencyTables, which the
+    // slash command statistics share. The bot-log post must not change by a single character.
+    @Test
+    void statisticsOutputIsUnchangedByTheSharedTableFormatter() {
+        when(event.getButton().getLabel()).thenReturn("Move");
+        ButtonRuntimeMonitor monitor = new ButtonRuntimeMonitor();
+        for (int i = 0; i < 3; i++) {
+            monitor.recordQueued();
+            monitor.recordStarted();
+        }
+        monitor.recordQueued();
+        monitor.recordInvalid();
+        monitor.submit(event, fastPress());
+        monitor.submit(event, pressResolvedBy("turnEnd", 95));
+        monitor.submit(event, pressResolvedBy("concludeMove_", 1250));
+        monitor.submit(event, pressResolvedBy("concludeMove_", 40));
+
+        String n = System.lineSeparator();
+        String expected = "Button Processor Statistics: now\n"
+                + "> Total button presses: 4\n"
+                + "> Not processed: 1 from a non-player or non-owner, 1 not run (game busy or bot paused)\n"
+                + "> Threshold misses: 25% (1)\n"
+                + "```\n"
+                + "stage             count     mean     p50     p95" + n
+                + "preprocessing         4   21.3ms     0ms    85ms" + n
+                + "  gateway             4   20.0ms     0ms    80ms" + n
+                + "  handoff             4    1.3ms     0ms     5ms" + n
+                + "processing            4  365.3ms    76ms  1200ms" + n
+                + "  context             1   20.0ms    20ms    20ms" + n
+                + "  log                 1    1.0ms     1ms     1ms" + n
+                + "  replay-snap         0        -       -       -" + n
+                + "  resolve             4  354.8ms    40ms  1200ms" + n
+                + "  save                1   20.0ms    20ms    20ms" + n
+                + "  replay-settle       0        -       -       -" + n
+                + "total                 4  386.5ms    95ms  1200ms" + n
+                + "```\n"
+                + "Most total resolve time:\n"
+                + "```\n"
+                + "handler        count   total     mean     p95      max" + n
+                + "concludeMove_      2    1.3s  645.0ms  1200ms   1250ms" + n
+                + "turnEnd            1    95ms   95.0ms    95ms     95ms" + n
+                + "```";
+
+        assertThat(monitor.formatStatistics("now")).isEqualTo(expected);
+    }
+
     @Test
     void noHandlerTableBeforeAnyPressIsResolved() {
         assertThat(new ButtonRuntimeMonitor().formatStatistics("now")).doesNotContain("Most total resolve time");

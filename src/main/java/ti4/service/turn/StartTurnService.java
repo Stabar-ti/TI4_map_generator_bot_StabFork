@@ -229,19 +229,13 @@ public class StartTurnService {
             if (!goingToPass) {
                 FowCommunicationThreadService.checkNewCommPartners(game, player);
             }
-            if (getMissedSCFollowsText(game, player) != null
-                    && !"".equalsIgnoreCase(getMissedSCFollowsText(game, player))) {
-                MessageHelper.sendMessageToChannel(player.getPrivateChannel(), getMissedSCFollowsText(game, player));
-            }
+            sendMissedSCFollowsReminder(player.getPrivateChannel(), game, player);
             reviveInfantryII(player);
             game.resetListOfTilesPinged();
 
         } else {
             MessageHelper.sendMessageToChannel(gameChannel, text);
-            if (getMissedSCFollowsText(game, player) != null
-                    && !"".equalsIgnoreCase(getMissedSCFollowsText(game, player))) {
-                MessageHelper.sendMessageToChannel(gameChannel, getMissedSCFollowsText(game, player));
-            }
+            sendMissedSCFollowsReminder(gameChannel, game, player);
             reviveInfantryII(player);
             if (!goingToPass) {
                 MessageHelper.sendMessageToChannelWithButtons(gameChannel, buttonText, buttons);
@@ -362,6 +356,12 @@ public class StartTurnService {
             buttons.add(Buttons.red(player.factionButtonChecker() + "declinePath", "Refuse Path"));
             MessageHelper.sendMessageToChannelWithButtons(player.getCorrectChannel(), msg, buttons);
         }
+    }
+
+    static void sendMissedSCFollowsReminder(MessageChannel channel, Game game, Player player) {
+        String missedFollowsText = getMissedSCFollowsText(game, player);
+        if (missedFollowsText == null || missedFollowsText.isEmpty()) return;
+        MessageHelper.sendMessageToChannel(channel, missedFollowsText);
     }
 
     public static String getMissedSCFollowsText(Game game, Player player) {

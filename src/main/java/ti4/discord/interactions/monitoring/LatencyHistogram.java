@@ -1,6 +1,6 @@
-package ti4.discord.interactions.buttons;
+package ti4.discord.interactions.monitoring;
 
-class LatencyHistogram {
+public class LatencyHistogram {
 
     private static final long[] BUCKET_RANGE_STARTS = {0, 100, 1000, 10_000, 120_000};
     private static final long[] BUCKET_WIDTHS = {1, 10, 100, 1000};
@@ -11,7 +11,7 @@ class LatencyHistogram {
     private long totalMillis;
     private long maxMillis;
 
-    void record(long millis) {
+    public void record(long millis) {
         long clampedMillis = Math.max(0, millis);
         bucketCounts[bucketIndex(clampedMillis)]++;
         count++;
@@ -19,23 +19,23 @@ class LatencyHistogram {
         maxMillis = Math.max(maxMillis, clampedMillis);
     }
 
-    long count() {
+    public long count() {
         return count;
     }
 
-    long totalMillis() {
+    public long totalMillis() {
         return totalMillis;
     }
 
-    long maxMillis() {
+    public long maxMillis() {
         return maxMillis;
     }
 
-    double meanMillis() {
+    public double meanMillis() {
         return count == 0 ? 0 : totalMillis / (double) count;
     }
 
-    long percentileMillis(double percentile) {
+    public long percentileMillis(double percentile) {
         if (count == 0) return 0;
         long rank = Math.max(1, (long) Math.ceil(percentile * count));
         long seen = 0;

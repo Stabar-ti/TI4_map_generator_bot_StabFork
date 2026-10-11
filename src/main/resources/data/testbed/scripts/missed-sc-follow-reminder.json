@@ -1,0 +1,23 @@
+{
+  "name": "missed-sc-follow-reminder",
+  "description": "At the start of a turn, a seat that has not followed a played strategy card gets one reminder with a link to the card's message; a seat that already followed gets none.",
+  "preset": "action-3p-normal",
+  "stopOnFail": true,
+  "steps": [
+    { "expect": { "state": "game.activePlayer", "equals": "sol" } },
+    { "as": "sol", "press": "strategicAction_3" },
+    { "expect": { "state": "game.playedScs", "contains": "3" } },
+    { "note": "Hacan follows Politics before its own turn; Jol-Nar never follows." },
+    { "as": "hacan", "press": "sc_follow_3" },
+    { "expect": { "state": "hacan.followed", "contains": "3" } },
+    { "as": "sol", "pressId": "FFCC_sol_turnEnd" },
+    { "expect": { "state": "game.activePlayer", "equals": "hacan" } },
+    { "expect": { "in": "main", "notContains": "Please resolve these before doing anything else" } },
+    { "as": "hacan", "pressId": "FFCC_hacan_turnEnd" },
+    { "expect": { "state": "game.activePlayer", "equals": "jolnar" } },
+    { "note": "Exactly one reminder reaches the main channel. That the text is built only once is covered by StartTurnServiceTest." },
+    { "expect": { "in": "main", "contains": "Please resolve these before doing anything else", "count": 1 } },
+    { "note": "The jump link only appears when the strategy card message is found in the database." },
+    { "expect": { "in": "main", "matches": "Please resolve these before doing anything else:.*discord\\.com/channels/\\d+/\\d+/\\d+" } }
+  ]
+}

@@ -17,6 +17,7 @@ public class DeveloperCommand implements ParentCommand {
                     new RunManualDataMigration(),
                     new GiveTheBotABreather(),
                     new ButtonProcessingStatistics(),
+                    new SlashCommandStatistics(),
                     new CacheStatistics(),
                     new RestoreGame(),
                     new ReloadCorruptedSaves(),

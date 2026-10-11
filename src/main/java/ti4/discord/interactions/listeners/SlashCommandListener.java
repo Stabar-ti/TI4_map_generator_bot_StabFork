@@ -8,12 +8,16 @@ import net.dv8tion.jda.api.events.interaction.command.GenericCommandInteractionE
 import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEvent;
 import net.dv8tion.jda.api.hooks.ListenerAdapter;
 import org.apache.commons.lang3.function.Consumers;
+import ti4.AsyncTI4DiscordBot;
 import ti4.contest.replay.core.CombatContestSettings;
 import ti4.contest.replay.service.CombatReplayService;
 import ti4.discord.interactions.commands.Command;
 import ti4.discord.interactions.commands.GameStateContainer;
 import ti4.discord.interactions.commands.ParentCommand;
 import ti4.discord.interactions.commands.SlashCommandManager;
+import ti4.discord.interactions.monitoring.SlashCommandRuntimeMonitor;
+import ti4.discord.interactions.monitoring.SlashCommandStage;
+import ti4.discord.interactions.monitoring.SlashCommandTimeline;
 import ti4.executors.ExecutionLockType;
 import ti4.executors.ExecutorServiceManager;
 import ti4.helpers.Constants;
@@ -35,6 +39,8 @@ class SlashCommandListener extends ListenerAdapter implements CommandListener {
     @Override
     public void onSlashCommandInteraction(@Nonnull SlashCommandInteractionEvent event) {
         if (!canReceiveCommands(event)) return;
+        SlashCommandTimeline timeline = SlashCommandTimeline.received(event);
+        SlashCommandRuntimeMonitor.get().recordQueued();
 
         if (!isModalCommand(event)) {
             Command<SlashCommandInteractionEvent> command = getCommand(event);
@@ -43,20 +49,20 @@ class SlashCommandListener extends ListenerAdapter implements CommandListener {
                     .queue(Consumers.nop(), BotLogger::catchRestError);
         }
 
-        queue(event);
+        queue(event, timeline);
     }
 
-    private void queue(SlashCommandInteractionEvent event) {
+    private void queue(SlashCommandInteractionEvent event, SlashCommandTimeline timeline) {
         Command<SlashCommandInteractionEvent> command = getCommand(event);
         ExecutionLockType lockType = getLockType(command);
         String eventString = eventToString(event);
         if (lockType == null) {
-            ExecutorServiceManager.runAsync(eventString, () -> process(event));
+            ExecutorServiceManager.runAsync(eventString, () -> process(event, timeline));
             return;
         }
         String gameName = GameNameService.getGameName(event);
         ExecutorServiceManager.runAsyncWithLock(
-                eventString, gameName, event.getMessageChannel(), () -> process(event), lockType);
+                eventString, gameName, event.getMessageChannel(), () -> process(event, timeline), lockType);
     }
 
     public String eventToString(GenericCommandInteractionEvent event) {
@@ -67,26 +73,38 @@ class SlashCommandListener extends ListenerAdapter implements CommandListener {
                 + event.getCommandString() + "`";
     }
 
-    private void process(SlashCommandInteractionEvent event) {
+    private void process(SlashCommandInteractionEvent event, SlashCommandTimeline timeline) {
         long processStartTime = System.currentTimeMillis();
+        timeline.markStarted(processStartTime);
+        SlashCommandRuntimeMonitor.get().recordStarted();
+        String gameName = GameNameService.getGameName(event);
+        timeline.setGameName(gameName);
         RollbarManager.putInteractionMetadata("slash_command", event);
         RollbarManager.put("command_name", event.getCommandString());
-        RollbarManager.put("game_name", GameNameService.getGameName(event));
+        RollbarManager.put("game_name", gameName);
 
         ParentCommand command = SlashCommandManager.getCommand(event.getName());
         Command<SlashCommandInteractionEvent> resolvedCommand = getCommand(event);
         CombatReplayService combatReplayService =
                 CombatContestSettings.isEnabledStatic() ? SpringContext.getBean(CombatReplayService.class) : null;
+        boolean accepted = false;
         try {
-            if (command.accept(event)) {
+            accepted = command.accept(event);
+            timeline.markCompleted(SlashCommandStage.ACCEPT);
+            if (!accepted) {
+                SlashCommandRuntimeMonitor.get().recordNotAccepted();
+            } else {
                 command.preExecute(event);
                 if (combatReplayService != null && resolvedCommand instanceof GameStateContainer gameStateContainer) {
                     CombatReplayService.setPreInteractionSnapshot(
                             combatReplayService.capturePreInteractionSnapshot(gameStateContainer.getGame()));
                 }
                 logSlashCommand(event);
+                timeline.markCompleted(SlashCommandStage.PRE_EXECUTE);
                 command.execute(event);
+                timeline.markCompleted(SlashCommandStage.EXECUTE);
                 command.postExecute(event);
+                timeline.markCompleted(SlashCommandStage.POST_EXECUTE);
                 InteractionCountService.get().incrementSlashCommand(event.getFullCommandName());
                 if (!isModalCommand(event) && !resolvedCommand.isEphemeral(event)) {
                     event.getHook().deleteOriginal().queue(Consumers.nop(), BotLogger::catchRestError);
@@ -102,6 +120,10 @@ class SlashCommandListener extends ListenerAdapter implements CommandListener {
         }
 
         warnForLongRunningCommands(event, processStartTime);
+        timeline.markFinished();
+        if (accepted && !AsyncTI4DiscordBot.isUnstable()) {
+            SlashCommandRuntimeMonitor.get().submit(timeline);
+        }
     }
 
     private static boolean isModalCommand(SlashCommandInteractionEvent event) {

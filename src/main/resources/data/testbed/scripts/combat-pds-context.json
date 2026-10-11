@@ -1,0 +1,15 @@
+{
+  "name": "combat-pds-context",
+  "description": "A space combat in Wellon (101) with a Nekro PDS in the system opens its thread with the system image and the SPACE CANNON offer.",
+  "preset": "2p-pds",
+  "stopOnFail": true,
+  "steps": [
+    { "expect": { "state": "game.activePlayer", "equals": "letnev" } },
+    { "expect": { "state": "planet.wellon.units", "contains": "_pd=" } },
+    { "note": "Guards the combat thread output around the skipped PDS calculation: image and SPACE CANNON offer must still appear. A new thread takes the precomputed image; a reused thread from an earlier run in this game builds it inside initializeCombatThread. Both paths must pass." },
+    { "do": "combatCheck", "value": "101" },
+    { "expect": { "state": "stored:factionsInCombat", "contains": ["letnev", "nekro"] } },
+    { "expect": { "in": "you:combat", "contains": "Image of System" } },
+    { "expect": { "in": "you:combat", "contains": "SPACE CANNON coverage", "buttons": ["Roll SPACE CANNON Offence", "Decline SPACE CANNON"] } }
+  ]
+}

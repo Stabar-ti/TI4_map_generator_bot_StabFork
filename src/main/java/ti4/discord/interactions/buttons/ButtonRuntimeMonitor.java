@@ -4,12 +4,13 @@ import java.text.DecimalFormat;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import net.dv8tion.jda.api.events.interaction.component.ButtonInteractionEvent;
+import ti4.discord.interactions.monitoring.LatencyHistogram;
+import ti4.discord.interactions.monitoring.LatencyTables;
 import ti4.helpers.ButtonHelper;
 import ti4.helpers.DateTimeHelper;
 import ti4.logging.BotLogger;
@@ -24,7 +25,6 @@ class ButtonRuntimeMonitor {
             Duration.ofMinutes(1).toSeconds();
     private static final long PAUSE_AFTER_WARNING_SECONDS =
             Duration.ofMinutes(5).toSeconds();
-    private static final String STATISTICS_ROW_FORMAT = "%-15s %7s %8s %7s %7s%n";
     private static final int SLOWEST_HANDLER_COUNT = 5;
 
     private int runtimeWarningCount;
@@ -182,12 +182,12 @@ class ButtonRuntimeMonitor {
         var decimalFormatter = new DecimalFormat("#.##");
 
         StringBuilder table = new StringBuilder();
-        table.append(String.format(STATISTICS_ROW_FORMAT, "stage", "count", "mean", "p50", "p95"));
-        appendRow(table, "preprocessing", preprocessing);
+        LatencyTables.appendStageHeader(table);
+        LatencyTables.appendStageRow(table, "preprocessing", preprocessing);
         appendStageRows(table, true);
-        appendRow(table, "processing", processing);
+        LatencyTables.appendStageRow(table, "processing", processing);
         appendStageRows(table, false);
-        appendRow(table, "total", total);
+        LatencyTables.appendStageRow(table, "total", total);
 
         return "Button Processor Statistics: " + timestamp
                 + "\n> Total button presses: " + processedCount
@@ -200,65 +200,15 @@ class ButtonRuntimeMonitor {
     }
 
     private String formatSlowestHandlers() {
-        List<Map.Entry<String, LatencyHistogram>> slowestHandlers = resolveByHandler.entrySet().stream()
-                .sorted(Comparator.comparingLong((Map.Entry<String, LatencyHistogram> entry) ->
-                                entry.getValue().totalMillis())
-                        .reversed())
-                .limit(SLOWEST_HANDLER_COUNT)
-                .toList();
-        if (slowestHandlers.isEmpty()) {
-            return "";
-        }
-
-        int nameWidth = slowestHandlers.stream()
-                .mapToInt(entry -> entry.getKey().length())
-                .max()
-                .orElse(0);
-        nameWidth = Math.max(nameWidth, "handler".length());
-        String rowFormat = "%-" + nameWidth + "s %6s %7s %8s %7s %8s%n";
-
-        StringBuilder table = new StringBuilder();
-        table.append(String.format(rowFormat, "handler", "count", "total", "mean", "p95", "max"));
-        for (Map.Entry<String, LatencyHistogram> entry : slowestHandlers) {
-            LatencyHistogram histogram = entry.getValue();
-            table.append(String.format(
-                    rowFormat,
-                    entry.getKey(),
-                    histogram.count(),
-                    formatTotalMillis(histogram.totalMillis()),
-                    String.format("%.1fms", histogram.meanMillis()),
-                    histogram.percentileMillis(0.95) + "ms",
-                    histogram.maxMillis() + "ms"));
-        }
-        return "\nMost total resolve time:\n```\n" + table + "```";
-    }
-
-    private static String formatTotalMillis(long totalMillis) {
-        if (totalMillis < 1000) {
-            return totalMillis + "ms";
-        }
-        return String.format("%.1fs", totalMillis / 1000.0);
+        return LatencyTables.formatTopByTotal(
+                resolveByHandler, "Most total resolve time", "handler", SLOWEST_HANDLER_COUNT);
     }
 
     private void appendStageRows(StringBuilder table, boolean preprocessingStages) {
         for (ButtonPressStage stage : ButtonPressStage.values()) {
             if (stage.isPreprocessing() != preprocessingStages) continue;
-            appendRow(table, "  " + stage.getShortName(), stages.get(stage));
+            LatencyTables.appendStageRow(table, "  " + stage.getShortName(), stages.get(stage));
         }
-    }
-
-    private static void appendRow(StringBuilder table, String label, LatencyHistogram histogram) {
-        if (histogram == null || histogram.count() == 0) {
-            table.append(String.format(STATISTICS_ROW_FORMAT, label, 0, "-", "-", "-"));
-            return;
-        }
-        table.append(String.format(
-                STATISTICS_ROW_FORMAT,
-                label,
-                histogram.count(),
-                String.format("%.1fms", histogram.meanMillis()),
-                histogram.percentileMillis(0.5) + "ms",
-                histogram.percentileMillis(0.95) + "ms"));
     }
 
     private record ThresholdWarningReason(String occurredAt, String buttonRepresentation, String totalRuntime) {}

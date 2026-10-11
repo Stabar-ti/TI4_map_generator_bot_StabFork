@@ -1,4 +1,4 @@
-package ti4.discord.interactions.buttons;
+package ti4.discord.interactions.monitoring;
 
 import static org.assertj.core.api.Assertions.assertThat;
 

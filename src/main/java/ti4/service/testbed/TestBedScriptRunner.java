@@ -25,6 +25,7 @@ import ti4.cron.CronManager;
 import ti4.executors.ExecutorServiceManager;
 import ti4.game.Game;
 import ti4.game.Player;
+import ti4.game.Tile;
 import ti4.game.persistence.GameManager;
 import ti4.game.persistence.ManagedGame;
 import ti4.logging.BotLogger;
@@ -33,6 +34,7 @@ import ti4.model.TestBedPreset;
 import ti4.model.TestBedScript;
 import ti4.model.TestBedScript.Expect;
 import ti4.model.TestBedScript.Step;
+import ti4.service.combat.StartCombatService;
 import ti4.service.fow.GMService;
 import ti4.service.game.StartPhaseService;
 import ti4.service.testbed.TestBedPress.PressResult;
@@ -481,6 +483,14 @@ public final class TestBedScriptRunner {
     private void applyAction(Game game, Step step, List<String> problems) {
         switch (step.getAction()) {
             case "startPhase" -> StartPhaseService.startPhase(origin, game, step.getValue());
+            case "combatCheck" -> {
+                Tile tile = game.getTileByPosition(step.getValue());
+                if (tile == null) {
+                    problems.add("no tile at `" + step.getValue() + "`");
+                    return;
+                }
+                StartCombatService.combatCheck(game, origin, tile);
+            }
             case "setStored" -> TestBedService.store(game, step.getKey(), step.getValue());
             case "removeStored" -> game.removeStoredValue(step.getKey());
             case "setActivePlayer" -> {

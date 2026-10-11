@@ -1,0 +1,16 @@
+{
+  "name": "2p-pds",
+  "description": "Letnev and Nekro fleets share Wellon (101, next to Mecatol Rex) and Nekro has a PDS on Wellon; no combat opens on apply, so a script can open it with do: combatCheck.",
+  "fog": false,
+  "you": {
+    "faction": "letnev",
+    "home": "301",
+    "sc": 1,
+    "units": { "101": "2 dn, cv, 4 ff" }
+  },
+  "seats": [
+    { "faction": "nekro", "home": "310", "sc": 2, "units": { "101": "ca, 2 dd, 3 ff, pds wellon" } }
+  ],
+  "defaults": { "acs": 3, "tg": 4, "ccs": "3/3/2" },
+  "start": "action"
+}

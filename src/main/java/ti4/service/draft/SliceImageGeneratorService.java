@@ -81,10 +81,9 @@ public class SliceImageGeneratorService {
         int spanW = (int) Math.ceil(Math.sqrt(sliceCount));
         int spanH = (sliceCount + spanW - 1) / spanW;
 
-        float scale = 1.0f;
-        int scaled = (int) (mapTemplate.squareSliceImageSize() * scale);
-        int width = scaled * spanW;
-        int height = scaled * spanH;
+        int sliceSize = mapTemplate.squareSliceImageSize();
+        int width = sliceSize * spanW;
+        int height = sliceSize * spanH;
         BufferedImage mainImage = new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB);
         Graphics graphicsMain = mainImage.getGraphics();
 
@@ -105,12 +104,11 @@ public class SliceImageGeneratorService {
                 sliceImage = sliceImageWithPlayerInfo(mapTemplate, slice, playerPicked, factionModel);
             }
 
-            BufferedImage resizedSlice = ImageHelper.scale(sliceImage, scale);
-            graphicsMain.drawImage(resizedSlice, deltaX, deltaY, null);
+            graphicsMain.drawImage(sliceImage, deltaX, deltaY, null);
             index++;
 
-            int heightSlice = resizedSlice.getHeight();
-            int widthSlice = resizedSlice.getWidth();
+            int heightSlice = sliceImage.getHeight();
+            int widthSlice = sliceImage.getWidth();
 
             deltaX += widthSlice;
             if (index % spanW == 0) {

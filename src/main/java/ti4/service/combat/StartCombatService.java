@@ -515,11 +515,11 @@ public class StartCombatService {
         if (isGroundCombat) message.append(getGroundCombatIntroMessage());
 
         // PDS2 Context
-        int context = getTileImageContextForPDS2(game, player1, tile, spaceOrGround);
-        if (threadChannel.getName().toLowerCase().contains("benediction")) {
-            context = 0;
-        }
         if (file == null) {
+            int context = getTileImageContextForPDS2(game, player1, tile, spaceOrGround);
+            if (threadChannel.getName().toLowerCase().contains("benediction")) {
+                context = 0;
+            }
             file = new TileGenerator(game, event, null, context, tile.getPosition(), player1).createFileUpload();
         }
 

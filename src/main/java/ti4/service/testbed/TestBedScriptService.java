@@ -17,6 +17,7 @@ import java.util.regex.PatternSyntaxException;
 import javax.annotation.Nullable;
 import lombok.experimental.UtilityClass;
 import ti4.image.Mapper;
+import ti4.image.PositionMapper;
 import ti4.logging.BotLogger;
 import ti4.model.TestBedPreset;
 import ti4.model.TestBedPreset.Seat;
@@ -294,6 +295,12 @@ public class TestBedScriptService {
                 }
             }
             case "removeStored" -> requireValue(step.getKey(), "key", label, errors);
+            case "combatCheck" -> {
+                requireValue(step.getValue(), "value", label, errors);
+                if (step.getValue() != null && !PositionMapper.isTilePositionValid(step.getValue())) {
+                    errors.add(label + ": `combatCheck` needs a tile position, not `" + step.getValue() + "`.");
+                }
+            }
             case "setActivePlayer" -> requireSeat(step, label, errors);
             case "actAs" -> requireValue(step.getAs(), "as", label, errors);
             case "hand" -> {
