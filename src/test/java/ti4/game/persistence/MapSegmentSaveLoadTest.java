@@ -46,6 +46,23 @@ class MapSegmentSaveLoadTest extends BaseTi4Test {
         }
     }
 
+    // Assigned positions are stored as "name=pos,pos;name=pos", which needs the same escaping as sectors.
+    @Test
+    void assignedPositionsSurviveSaveAndLoad() {
+        try (var harness = TestGameHarness.forDefaultMap()) {
+            Game game = harness.load();
+            game.setFowMode(true);
+            MapSegment.assign(game, "outpost", List.of("1237", "1201"));
+            MapSegment.assign(game, "rim", List.of("a000"));
+            GameSaveService.save(game, "test");
+
+            Game reloaded = harness.load();
+
+            assertThat(MapSegment.tags(reloaded)).isEqualTo(MapSegment.tags(game));
+            assertThat(MapSegment.tagOf(reloaded, "1201")).isEqualTo("outpost");
+        }
+    }
+
     // Normal games must save exactly as before: the ghost-hex flag is only written when a player turned it off.
     @Test
     void ghostHexFlagIsOnlySavedWhenTurnedOff() throws IOException {

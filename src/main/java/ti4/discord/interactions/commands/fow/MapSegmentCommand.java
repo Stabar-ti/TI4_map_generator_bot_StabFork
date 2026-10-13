@@ -1,7 +1,10 @@
 package ti4.discord.interactions.commands.fow;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
+import java.util.Locale;
+import java.util.Set;
 import java.util.stream.Collectors;
 import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEvent;
 import net.dv8tion.jda.api.interactions.commands.OptionMapping;
@@ -24,6 +27,8 @@ class MapSegmentCommand extends GameStateSubcommand {
     private static final String AUTO_SECTORS = "auto_sectors";
     private static final String GAP = "gap";
     private static final String RENAME = "rename";
+    private static final String ASSIGN = "assign";
+    private static final String UNASSIGN = "unassign";
 
     MapSegmentCommand() {
         super(
@@ -45,6 +50,10 @@ class MapSegmentCommand extends GameStateSubcommand {
                 new OptionData(OptionType.INTEGER, GAP, "Empty hexes a cluster may jump (0-" + MapSegment.MAX_GAP + ")")
                         .setRequiredRange(0, MapSegment.MAX_GAP));
         addOptions(new OptionData(OptionType.STRING, RENAME, "New name for the segment given in name"));
+        addOptions(new OptionData(
+                OptionType.STRING, ASSIGN, "Comma list of positions that always belong to the segment given in name"));
+        addOptions(
+                new OptionData(OptionType.STRING, UNASSIGN, "Comma list of positions to release from their segment"));
     }
 
     @Override
@@ -72,8 +81,17 @@ class MapSegmentCommand extends GameStateSubcommand {
             MapSegment.setGap(game, gap);
             replies.add("Clusters may now jump " + gap + " empty hex(es).");
         }
+        String unassign = event.getOption(UNASSIGN, null, OptionMapping::getAsString);
+        if (unassign != null) {
+            replies.add(unassignPositions(game, positionList(unassign)));
+        }
         String name = event.getOption(NAME, "", OptionMapping::getAsString).trim();
-        if (!name.isEmpty()) {
+        String assign = event.getOption(ASSIGN, null, OptionMapping::getAsString);
+        if (assign != null && name.isEmpty()) {
+            replies.add("Give the segment `name` the positions should belong to.");
+        } else if (assign != null) {
+            replies.add(assignPositions(game, name, positionList(assign)));
+        } else if (!name.isEmpty()) {
             replies.addAll(handleNamedSegment(event, game, name));
         }
         if (replies.isEmpty()) {
@@ -124,6 +142,36 @@ class MapSegmentCommand extends GameStateSubcommand {
                 : new MapSegment(name, centre, radius);
         MapSegment.put(game, segment);
         return "Saved segment " + MapSegment.find(game, name).orElse(segment).describe() + ".";
+    }
+
+    private static List<String> positionList(String raw) {
+        return Arrays.stream(raw.split(","))
+                .map(position -> position.trim().toLowerCase(Locale.ROOT))
+                .filter(position -> !position.isEmpty())
+                .distinct()
+                .toList();
+    }
+
+    private static String assignPositions(Game game, String name, List<String> positions) {
+        if (positions.isEmpty()) {
+            return "No positions given to assign.";
+        }
+        String problem = MapSegment.assign(game, name, positions);
+        if (problem != null) {
+            return problem;
+        }
+        List<String> empty = positions.stream()
+                .filter(position -> game.getTileByPosition(position) == null)
+                .toList();
+        return "Assigned " + String.join(", ", positions) + " to `" + name + "`."
+                + (empty.isEmpty() ? "" : " No system there yet: " + String.join(", ", empty) + ".");
+    }
+
+    private static String unassignPositions(Game game, List<String> positions) {
+        Set<String> removed = MapSegment.unassign(game, positions);
+        return removed.isEmpty()
+                ? "None of those positions were assigned to a segment."
+                : "Released " + String.join(", ", removed) + " from their segment.";
     }
 
     private static String updateDefault(Game game, String name, boolean makeDefault) {

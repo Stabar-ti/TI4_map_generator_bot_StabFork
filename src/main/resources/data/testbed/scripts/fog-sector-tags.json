@@ -1,0 +1,20 @@
+{
+  "name": "fog-sector-tags",
+  "description": "Assigned positions win over the circle around them: Sol (carrier in 305) is offered the rim view, Hacan who never saw rim is refused it.",
+  "preset": "fog-sector-tags-2p",
+  "settleSeconds": 3,
+  "timeoutSeconds": 40,
+  "steps": [
+    { "note": "you = sol (home 301, carrier at 305 inside rim); seat1 = hacan (home 310, never near rim). core = 000 radius 3 minus 305-307." },
+    { "expect": { "state": "stored:fowMapTileSectors", "contains": ["rim=305,306,307"] } },
+
+    { "label": "Sol opens the rim view", "as": "you", "in": "you", "pressId": "showMapSegment_rim" },
+    { "label": "Sol is offered core from the rim view", "as": "you", "in": "you", "press": "showMapSegment_core" },
+
+    { "label": "Hacan may not open rim", "as": "seat1", "in": "seat1", "pressId": "showMapSegment_rim" },
+    { "expect": { "ephemeral": "That part of the map is not available to you." } },
+
+    { "expect": { "in": "main", "noFactionLeak": true, "since": "start" } },
+    { "note": "By hand (images): 'Map: rim' shows 305-307 only, with adjacency arrows on their edges labelled with known core positions (e.g. 204, 205) and no arrow toward hexes Sol never saw. 'Map: core' has no 305-307. GM `/fow map_segment` lists rim as 'assigned positions (3)'." }
+  ]
+}

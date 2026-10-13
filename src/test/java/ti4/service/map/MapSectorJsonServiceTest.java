@@ -3,6 +3,9 @@ package ti4.service.map;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -17,6 +20,7 @@ import ti4.game.Tile;
 import ti4.image.GalaxyNames;
 import ti4.image.MapSegment;
 import ti4.service.map.MapJsonIOService.MapDataIO;
+import ti4.service.map.MapJsonIOService.SectorDefIO;
 import ti4.service.map.MapJsonIOService.SectorIO;
 import ti4.service.map.MapJsonIOService.TileIO;
 import ti4.testUtils.BaseTi4Test;
@@ -336,6 +340,232 @@ class MapSectorJsonServiceTest extends BaseTi4Test {
         assertThat(describe(reimported)).isEqualTo(describe(game));
         assertThat(GalaxyNames.name(reimported, "a")).isEqualTo("andromeda");
         assertThat(MapSegment.gap(reimported)).isEqualTo(MapSegment.gap(game));
+    }
+
+    // The two examples below are copied from .idea/map-json-sectors-handoff.md; keep them in sync.
+    private static final String HANDOFF_MINIMAL = """
+            {
+              "formatVersion": 2,
+              "mapInfo": [
+                { "position": "000", "tileID": "18", "sectorName": "core" },
+                { "position": "101", "tileID": "19", "sectorName": "core" },
+                { "position": "301", "tileID": "20", "sectorName": "rim" },
+                { "position": "a000", "tileID": "39", "sectorName": "outpost" }
+              ],
+              "galaxies": { "a": "andromeda" },
+              "defaultSector": "core"
+            }
+            """;
+
+    private static final String HANDOFF_FULL = """
+            {
+              "formatVersion": 2,
+              "mapInfo": [
+                { "position": "000", "tileID": "18" },
+                { "position": "101", "tileID": "19" },
+                { "position": "301", "tileID": "20", "sectorName": "rim" },
+                { "position": "302", "tileID": "21", "sectorName": "rim" },
+                { "position": "a000", "tileID": "39" },
+                { "position": "a101", "tileID": "22" }
+              ],
+              "sectors": [
+                { "name": "core", "type": "circle", "centre": "000", "distance": 1,
+                  "positions": ["000", "101", "102", "103", "104", "105", "106"],
+                  "galaxy": "main", "displayName": "milky-way / core" },
+                { "name": "rim", "type": "assigned",
+                  "positions": ["301", "302", "303"],
+                  "galaxy": "main", "displayName": "milky-way / rim" },
+                { "name": "beyond", "type": "automatic", "pinned": true,
+                  "positions": ["a000", "a101"],
+                  "galaxy": "a", "displayName": "andromeda / beyond" }
+              ],
+              "autoSectors": true,
+              "sectorGap": 1,
+              "defaultSector": "core",
+              "galaxies": { "a": "andromeda" }
+            }
+            """;
+
+    private static final ObjectMapper JSON = new ObjectMapper().setSerializationInclusion(JsonInclude.Include.NON_NULL);
+
+    private static SectorDefIO listed(String type, String name, String... positions) {
+        SectorDefIO sector = new SectorDefIO();
+        sector.setType(type);
+        sector.setName(name);
+        sector.setPositions(List.of(positions));
+        return sector;
+    }
+
+    private static SectorDefIO centred(String type, String name, String centre, int distance) {
+        SectorDefIO sector = new SectorDefIO();
+        sector.setType(type);
+        sector.setName(name);
+        sector.setCentre(centre);
+        sector.setDistance(distance);
+        return sector;
+    }
+
+    private MapDataIO exportOf(Game source) {
+        MapDataIO exported = new MapDataIO();
+        exported.setMapInfo(source.getTileMap().values().stream()
+                .map(tile -> {
+                    TileIO io = new TileIO();
+                    io.setPosition(tile.getPosition());
+                    io.setTileID(tile.getTileID());
+                    return io;
+                })
+                .collect(Collectors.toCollection(ArrayList::new)));
+        MapSectorJsonService.exportSectors(source, exported);
+        return exported;
+    }
+
+    @Test
+    void handoffMinimalExampleAssignsEachTileToItsSector() {
+        MapJsonIOService.importMapFromJson(game, HANDOFF_MINIMAL, null);
+
+        assertThat(segmentNamed("core").positions()).containsExactlyInAnyOrder("000", "101");
+        assertThat(segmentNamed("core").kind()).isEqualTo(MapSegment.Kind.TAGGED);
+        assertThat(segmentNamed("rim").positions()).containsExactly("301");
+        assertThat(segmentNamed("outpost").displayName(game)).isEqualTo("andromeda / outpost");
+        assertThat(MapSegment.find(game, "board-a")).isEmpty();
+        assertThat(MapSegment.defaultSegment(game).map(MapSegment::name)).contains("core");
+    }
+
+    // The full example is exactly what the bot exports for that map, so importing and exporting it is lossless.
+    @Test
+    void handoffFullExampleExportsItselfAgain() throws Exception {
+        game.setName("handoff-full");
+        MapJsonIOService.importMapFromJson(game, HANDOFF_FULL, null);
+
+        MapDataIO exported = exportOf(game);
+
+        JsonNode expected = JSON.readTree(HANDOFF_FULL);
+        JsonNode actual = JSON.valueToTree(exported);
+        for (String field :
+                List.of("formatVersion", "sectors", "autoSectors", "sectorGap", "defaultSector", "galaxies")) {
+            assertThat(actual.get(field)).as(field).isEqualTo(expected.get(field));
+        }
+        assertThat(exported.getMapInfo().stream()
+                        .filter(tile -> tile.getSectorName() != null)
+                        .map(TileIO::getPosition))
+                .containsExactlyInAnyOrder("301", "302");
+    }
+
+    // Both were lost by v1, which hung each sector on its centre tile.
+    @Test
+    void twoSectorsOnOneCentreAndACircleOnAnEmptyHexSurviveARoundTrip() {
+        place("000");
+        place("101");
+        place("1237");
+        data.setSectors(List.of(
+                centred("circle", "core", "000", 1),
+                centred("cluster", "heart", "000", 0),
+                centred("circle", "void", "1201", 1)));
+        MapSectorJsonService.importSectors(game, data, errors);
+        assertThat(MapSegment.stored(game).stream().map(MapSegment::name))
+                .containsExactlyInAnyOrder("core", "heart", "void");
+
+        MapDataIO exported = exportOf(game);
+        Game reimported = new Game();
+        reimported.setName("sector-json-reimport");
+        reimported.setFowMode(true);
+        game.getTileMap().values().forEach(tile -> reimported.setTile(new Tile(tile.getTileID(), tile.getPosition())));
+        MapSectorJsonService.importSectors(reimported, exported, new StringBuilder());
+
+        assertThat(describe(reimported)).isEqualTo(describe(game));
+        assertThat(MapSegment.stored(reimported)).isEqualTo(MapSegment.stored(game));
+    }
+
+    @Test
+    void assignedSectorCoversEmptyHexesAndExtendsACircleOfTheSameName() {
+        place("000");
+        place("301");
+        data.setSectors(List.of(centred("circle", "core", "000", 1), listed("assigned", "core", "301", "302")));
+
+        MapSectorJsonService.importSectors(game, data, errors);
+
+        assertThat(segmentNamed("core").positions()).contains("000", "101", "301", "302");
+        assertThat(MapSegment.tags(game)).containsOnlyKeys("301", "302");
+        assertThat(errors).isEmpty();
+    }
+
+    @Test
+    void tileSectorNameWinsOverTheSectorListAndWarns() {
+        place("301").setSectorName("edge");
+        data.setSectors(List.of(listed("assigned", "rim", "301", "302")));
+
+        MapSectorJsonService.importSectors(game, data, errors);
+
+        assertThat(MapSegment.tagOf(game, "301")).isEqualTo("edge");
+        assertThat(MapSegment.tagOf(game, "302")).isEqualTo("rim");
+        assertThat(errors.toString()).contains("overrides the `sectors` list");
+    }
+
+    @Test
+    void legacyTileSectorsAreIgnoredWhenTheFileHasASectorList() {
+        place("000").setSector(sector("manual_circle", 1, "old"));
+        data.setSectors(List.of(centred("circle", "core", "000", 1)));
+
+        MapSectorJsonService.importSectors(game, data, errors);
+
+        assertThat(MapSegment.find(game, "old")).isEmpty();
+        assertThat(segmentNamed("core")).isNotNull();
+        assertThat(errors.toString()).contains("per-tile `sector` objects were ignored");
+    }
+
+    @Test
+    void derivedBoardAndFractureEntriesAreSkippedQuietly() {
+        place("a000");
+        data.setSectors(List.of(listed("board", "board-a", "a000"), listed("fracture", "fracture", "frac1")));
+
+        MapSectorJsonService.importSectors(game, data, errors);
+
+        assertThat(MapSegment.stored(game)).isEmpty();
+        assertThat(MapSegment.tags(game)).isEmpty();
+        assertThat(errors).isEmpty();
+    }
+
+    @Test
+    void unpinnedAutomaticEntryOnlySwitchesAutomaticSectorsOn() {
+        place("000");
+        SectorDefIO automatic = listed("automatic", "lyra", "000");
+        automatic.setPinned(false);
+        data.setSectors(List.of(automatic));
+
+        MapSectorJsonService.importSectors(game, data, errors);
+
+        assertThat(MapSegment.isAutoSectors(game)).isTrue();
+        assertThat(MapSegment.isPinned(game, "lyra")).isFalse();
+    }
+
+    @Test
+    void listedProblemsAreReportedAndTheRestImports() {
+        place("000");
+        data.setSectors(List.of(
+                listed("spiral", "odd", "000"),
+                centred("circle", "nowhere", "", 1),
+                listed("assigned", "", "000"),
+                listed("assigned", "rim", "frac1", "301")));
+
+        MapSectorJsonService.importSectors(game, data, errors);
+
+        assertThat(MapSegment.tags(game)).containsOnlyKeys("301");
+        assertThat(errors.toString())
+                .contains("spiral")
+                .contains("needs a `centre`")
+                .contains("needs a `name`")
+                .contains("`frac1` cannot be part of a sector");
+    }
+
+    @Test
+    void unknownDefaultSectorIsReported() {
+        place("000").setSectorName("core");
+        data.setDefaultSector("elsewhere");
+
+        MapSectorJsonService.importSectors(game, data, errors);
+
+        assertThat(MapSegment.defaultSegment(game)).isEmpty();
+        assertThat(errors.toString()).contains("`defaultSector` elsewhere");
     }
 
     private static List<String> describe(Game game) {

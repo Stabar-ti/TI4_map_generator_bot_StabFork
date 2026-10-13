@@ -1,0 +1,15 @@
+{
+  "name": "fog-sector-tags-2p",
+  "description": "Fog game with a circle sector `core` around Mecatol and three ring-3 systems assigned to sector `rim`; map connections on so rim shows border arrows into core.",
+  "fog": true,
+  "you": { "faction": "sol", "home": "301", "units": { "305": "cv" } },
+  "seats": [
+    { "faction": "hacan", "home": "310" }
+  ],
+  "defaults": { "tg": 2 },
+  "fowOptions": ["map_connections"],
+  "stored": {
+    "fowMapSegments": "core=000:3",
+    "fowMapTileSectors": "rim=305,306,307"
+  }
+}

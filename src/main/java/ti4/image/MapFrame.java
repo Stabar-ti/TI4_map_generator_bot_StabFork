@@ -20,7 +20,7 @@ public record MapFrame(int offsetX, int offsetY, int width, int height) {
     static final int MAX_WIDTH = 5800;
     static final int MAX_HEIGHT = 6400;
     private static final Set<String> CORNER_POSITIONS = Set.of("tl", "tr", "bl", "br");
-    static final Comparator<String> POSITION_ORDER =
+    public static final Comparator<String> POSITION_ORDER =
             Comparator.comparingInt(String::length).thenComparing(Comparator.naturalOrder());
 
     @Nullable

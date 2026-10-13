@@ -91,6 +91,7 @@ public class TileGenerator {
     private final int context;
     private final String focusTile;
     private final DisplayType displayType;
+    private Map<Integer, String> sectorBorderArrows = Map.of();
 
     // Map of nucleus slice number to border color. This should correspond to the
     // colors used in the MapTemplateHelper.getTileFromTemplateTile for draft tiles, given a player number.
@@ -141,6 +142,10 @@ public class TileGenerator {
                         ? CommandHelper.getPlayerFromGame(
                                 game, event.getMember(), event.getUser().getId())
                         : null);
+    }
+
+    void setSectorBorderArrows(Map<Integer, String> sectorBorderArrows) {
+        this.sectorBorderArrows = sectorBorderArrows;
     }
 
     private boolean isFowModeActive() {
@@ -513,6 +518,8 @@ public class TileGenerator {
                         }
                         direction++;
                     }
+                    sectorBorderArrows.forEach((arrowDirection, target) ->
+                            addBorderDecoration(arrowDirection, target, tileGraphics, getAdjacencyArrowImagePath()));
                 }
 
                 if (!game.getBorderAnomalies().isEmpty()) {

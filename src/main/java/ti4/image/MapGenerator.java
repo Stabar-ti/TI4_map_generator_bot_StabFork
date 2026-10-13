@@ -153,6 +153,8 @@ public class MapGenerator implements AutoCloseable {
 
     private List<SectorConnections.Connection> connections = List.of();
 
+    private Map<String, Map<Integer, String>> sectorBorderArrows = Map.of();
+
     private int connectionStripTop;
 
     @Nullable
@@ -272,6 +274,7 @@ public class MapGenerator implements AutoCloseable {
             mapHeight = mapFrame.height();
             framedWidth = mapFrame.width();
             connections = sectorConnections();
+            sectorBorderArrows = sectorBorderArrows();
             connectionStripTop = mapHeight;
             mapHeight += connectionStripHeight(framedWidth);
         }
@@ -472,6 +475,7 @@ public class MapGenerator implements AutoCloseable {
         tilesWithExtra.addAll(game.getBorderAnomalies().stream()
                 .map(BorderAnomalyHolder::getTile)
                 .collect(Collectors.toSet()));
+        tilesWithExtra.addAll(sectorBorderArrows.keySet());
 
         sortedTiles.forEach(key -> addTile(tileMap.get(key), TileStep.Tile));
         drawGhostHexes(tileMap.keySet());
@@ -971,6 +975,13 @@ public class MapGenerator implements AutoCloseable {
             return List.of();
         }
         return SectorConnections.find(game, fowPlayer, shownSegment, visibleSystems, knownSystems);
+    }
+
+    private Map<String, Map<Integer, String>> sectorBorderArrows() {
+        if (segmentDrawPositions == null || !game.getFowOption(FOWOption.MAP_CONNECTIONS)) {
+            return Map.of();
+        }
+        return SectorBorders.find(game, segmentDrawPositions, knownSystems);
     }
 
     private int connectionStripHeight(int stripWidth) {
@@ -3178,6 +3189,7 @@ public class MapGenerator implements AutoCloseable {
             }
 
             TileGenerator tileGenerator = new TileGenerator(game, event, displayType);
+            tileGenerator.setSectorBorderArrows(sectorBorderArrows.getOrDefault(position, Map.of()));
             BufferedImage tileImage = tileGenerator.draw(tile, step);
             graphics.drawImage(tileImage, tileX, tileY, null);
 

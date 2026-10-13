@@ -127,7 +127,7 @@ public class FogGameSummaryService {
     }
 
     public static boolean usesSectors(Game game) {
-        return !MapSegment.stored(game).isEmpty() || MapSegment.isAutoSectors(game);
+        return !MapSegment.stored(game).isEmpty() || !MapSegment.tags(game).isEmpty() || MapSegment.isAutoSectors(game);
     }
 
     private static TextChannel settingsLogChannel() {

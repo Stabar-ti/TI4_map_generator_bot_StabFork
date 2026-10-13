@@ -521,6 +521,10 @@ public class MapJsonIOService {
         private Map<String, List<LoreIO>> phaseLore;
         private Map<String, String> galaxies;
         private Integer sectorGap;
+        private Integer formatVersion;
+        private Boolean autoSectors;
+        private String defaultSector;
+        private List<SectorDefIO> sectors;
     }
 
     @Data
@@ -529,6 +533,19 @@ public class MapJsonIOService {
         private String type;
         private Integer distance;
         private String name;
+    }
+
+    @Data
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public static class SectorDefIO {
+        private String name;
+        private String type;
+        private String centre;
+        private Integer distance;
+        private Boolean pinned;
+        private List<String> positions;
+        private String galaxy;
+        private String displayName;
     }
 
     @Data
@@ -548,6 +565,7 @@ public class MapJsonIOService {
         private List<String> customAdjacencies;
         private List<AdjacencyOverrideIO> adjacencyOverrides;
         private SectorIO sector;
+        private String sectorName;
     }
 
     @Data

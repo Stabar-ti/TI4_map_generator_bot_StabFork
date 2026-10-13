@@ -9,6 +9,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.List;
 import java.util.Set;
+import java.util.stream.Collectors;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import ti4.game.Game;
@@ -315,5 +316,103 @@ class MapSegmentTest extends BaseTi4Test {
         assertEquals(
                 mainGalaxy + " / home",
                 MapSegment.find(game, "home").orElseThrow().displayName(game));
+    }
+
+    @Test
+    void assignedPositionsAreStoredPerSectorName() {
+        assertNull(MapSegment.assign(game, "rim", List.of("301", "101")));
+
+        assertEquals("rim=101,301", game.getStoredValue("fowMapTileSectors"));
+        assertEquals("rim", MapSegment.tagOf(game, "301"));
+        assertNull(MapSegment.tagOf(game, "000"));
+    }
+
+    // Tags win: an assigned position leaves the circle it would otherwise fall into.
+    @Test
+    void assignedPositionLeavesTheCircleAroundIt() {
+        MapSegment.put(game, new MapSegment("home", "000", 1));
+        MapSegment.assign(game, "rim", List.of("101"));
+
+        assertFalse(positionsOf("home").contains("101"));
+        MapSegment rim = MapSegment.find(game, "rim").orElseThrow();
+        assertEquals(MapSegment.Kind.TAGGED, rim.kind());
+        assertEquals(Set.of("101"), rim.positions());
+    }
+
+    @Test
+    void tagWithTheCirclesOwnNameExtendsIt() {
+        MapSegment.put(game, new MapSegment("home", "000", 1));
+        MapSegment.assign(game, "home", List.of("301"));
+
+        assertTrue(positionsOf("home").contains("301"));
+        assertEquals(
+                MapSegment.Kind.CIRCLE,
+                MapSegment.find(game, "home").orElseThrow().kind());
+        assertEquals(1, names().stream().filter("home"::equals).count());
+    }
+
+    // Tagging one system must not drop the rest of its automatic cluster onto the main map.
+    @Test
+    void automaticClusterKeepsItsUntaggedSystems() {
+        MapSegment.setAutoSectors(game, true);
+        MapSegment.assign(game, "outpost", List.of("106"));
+
+        Set<String> autoPositions = MapSegment.all(game).stream()
+                .filter(segment -> segment.kind() == MapSegment.Kind.AUTO)
+                .flatMap(segment -> segment.positions().stream())
+                .collect(Collectors.toSet());
+        assertFalse(autoPositions.contains("106"));
+        assertTrue(autoPositions.contains("000"));
+        assertEquals(Set.of("106"), positionsOf("outpost"));
+    }
+
+    @Test
+    void assignedBoardPositionLeavesTheBoardView() {
+        game.setTile(new Tile("19", "a000"));
+        MapSegment.assign(game, "outpost", List.of("a000"));
+
+        assertFalse(names().contains("board-a"));
+        assertEquals(Set.of("a000"), positionsOf("outpost"));
+    }
+
+    @Test
+    void renameAndRemoveCarryTheTags() {
+        MapSegment.assign(game, "rim", List.of("301"));
+
+        assertNull(MapSegment.rename(game, "rim", "edge"));
+        assertEquals("edge", MapSegment.tagOf(game, "301"));
+
+        assertTrue(MapSegment.remove(game, "edge"));
+        assertNull(MapSegment.tagOf(game, "301"));
+        assertTrue(MapSegment.find(game, "edge").isEmpty());
+    }
+
+    @Test
+    void unassignReleasesOnlyTaggedPositions() {
+        MapSegment.assign(game, "rim", List.of("301", "101"));
+
+        assertEquals(Set.of("301"), MapSegment.unassign(game, List.of("301", "000")));
+        assertEquals("rim=101", game.getStoredValue("fowMapTileSectors"));
+    }
+
+    @Test
+    void reservedNamesAndBuiltInPositionsCannotBeAssigned() {
+        assertNotNull(MapSegment.assign(game, MapSegment.MAIN, List.of("101")));
+        assertNotNull(MapSegment.assign(game, "board-a", List.of("101")));
+        assertNotNull(MapSegment.assign(game, "rim", List.of("frac1")));
+        assertNotNull(MapSegment.assign(game, "rim", List.of("tl")));
+        assertTrue(MapSegment.tags(game).isEmpty());
+    }
+
+    @Test
+    void segmentCapCountsAssignedNames() {
+        for (int index = 0; index < MapSegment.MAX_SEGMENTS - 1; index++) {
+            MapSegment.put(game, new MapSegment("s" + index, "000", 0));
+        }
+        assertNull(MapSegment.assign(game, "last", List.of("301")));
+
+        assertNotNull(MapSegment.assign(game, "one-more", List.of("101")));
+        assertNotNull(MapSegment.validate(game, "another", "000", 0, false));
+        assertNull(MapSegment.assign(game, "last", List.of("101")), "adding to an existing name is fine");
     }
 }

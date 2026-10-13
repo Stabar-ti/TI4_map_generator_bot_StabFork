@@ -7,11 +7,13 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.TreeMap;
+import java.util.TreeSet;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -34,7 +36,8 @@ public record MapSegment(
         CLUSTER,
         AUTO,
         FRACTURE,
-        BOARD
+        BOARD,
+        TAGGED
     }
 
     public static final int MAX_RADIUS = 9;
@@ -47,6 +50,7 @@ public record MapSegment(
     private static final String AUTO_KEY = "fowMapAutoSectors";
     private static final String GAP_KEY = "fowMapSegmentGap";
     private static final String PIN_KEY = "fowMapSectorNames";
+    private static final String TAG_KEY = "fowMapTileSectors";
     private static final String CLUSTER_TOKEN = "c";
     private static final Pattern NAME_PATTERN = Pattern.compile("[a-z0-9-]{1,20}");
     private static final Pattern BOARD_NAME_PATTERN = Pattern.compile("board-[a-g]");
@@ -67,7 +71,11 @@ public record MapSegment(
     private record Pin(String name, Set<String> positions) {}
 
     private static List<Pin> pins(Game game) {
-        String stored = game.getStoredValue(PIN_KEY);
+        return groups(game, PIN_KEY);
+    }
+
+    private static List<Pin> groups(Game game, String key) {
+        String stored = game.getStoredValue(key);
         if (StringUtils.isBlank(stored)) {
             return List.of();
         }
@@ -91,8 +99,12 @@ public record MapSegment(
     }
 
     private static void savePins(Game game, List<Pin> pins) {
+        saveGroups(game, PIN_KEY, pins);
+    }
+
+    private static void saveGroups(Game game, String key, List<Pin> pins) {
         game.setStoredValue(
-                PIN_KEY,
+                key,
                 pins.stream()
                         .map(pin -> pin.name() + "="
                                 + pin.positions().stream()
@@ -113,12 +125,14 @@ public record MapSegment(
 
     // TODO: clusters are recomputed on every call (several per render); cache per game keyed on occupied positions
     public static List<MapSegment> all(Game game) {
+        Map<String, String> tags = tags(game);
         List<MapSegment> segments = new ArrayList<>();
         for (MapSegment segment : stored(game)) {
-            segments.add(segment.resolve(game));
+            segments.add(segment.resolve(game).withTags(tags));
         }
+        segments.addAll(taggedSegments(tags, segments));
         if (isAutoSectors(game)) {
-            segments.addAll(autoSectors(game, segments));
+            segments.addAll(autoSectors(game, segments, tags.keySet()));
         }
         segments.addAll(boardSegments(game, segments));
         fractureSegment(game).ifPresent(segments::add);
@@ -207,7 +221,115 @@ public record MapSegment(
                 : Optional.of(new MapSegment(FRACTURE, "frac1", 0, Kind.FRACTURE, placed));
     }
 
-    private static List<MapSegment> autoSectors(Game game, List<MapSegment> named) {
+    private MapSegment withTags(Map<String, String> tags) {
+        if (tags.isEmpty()) {
+            return this;
+        }
+        Set<String> positions = new HashSet<>(positions());
+        boolean changed = positions.removeIf(
+                position -> tags.containsKey(position) && !tags.get(position).equals(name));
+        for (Map.Entry<String, String> tag : tags.entrySet()) {
+            if (tag.getValue().equals(name)) {
+                changed |= positions.add(tag.getKey());
+            }
+        }
+        return changed ? new MapSegment(name, centre, radius, kind, positions) : this;
+    }
+
+    private static List<MapSegment> taggedSegments(Map<String, String> tags, List<MapSegment> stored) {
+        Map<String, Set<String>> positionsByName = new LinkedHashMap<>();
+        tags.forEach((position, name) ->
+                positionsByName.computeIfAbsent(name, key -> new HashSet<>()).add(position));
+        stored.forEach(segment -> positionsByName.remove(segment.name()));
+        return positionsByName.entrySet().stream()
+                .map(entry -> new MapSegment(entry.getKey(), "", 0, Kind.TAGGED, entry.getValue()))
+                .toList();
+    }
+
+    public static Map<String, String> tags(Game game) {
+        Map<String, String> tags = new LinkedHashMap<>();
+        for (Pin group : groups(game, TAG_KEY)) {
+            group.positions().stream()
+                    .filter(MapSegment::canJoinSector)
+                    .forEach(position -> tags.put(position, group.name()));
+        }
+        return tags;
+    }
+
+    @Nullable
+    public static String tagOf(Game game, String position) {
+        return tags(game).get(position);
+    }
+
+    @Nullable
+    public static String assign(Game game, String name, Collection<String> positions) {
+        if (!isValidName(name) || isReservedName(name)) {
+            return "`" + name + "` is not a usable sector name.";
+        }
+        List<String> unusable =
+                positions.stream().filter(position -> !canJoinSector(position)).toList();
+        if (!unusable.isEmpty()) {
+            return "These positions cannot be part of a sector: " + String.join(", ", unusable) + ".";
+        }
+        Map<String, String> tags = tags(game);
+        boolean isNew = !tags.containsValue(name)
+                && stored(game).stream().noneMatch(segment -> segment.name().equals(name));
+        if (isNew && isPinned(game, name)) {
+            return "`" + name + "` already names an automatic sector. Pick another name.";
+        }
+        if (isNew && namedCount(game, tags) >= MAX_SEGMENTS) {
+            return "This game already has the maximum of " + MAX_SEGMENTS + " segments.";
+        }
+        positions.forEach(position -> tags.put(position, name));
+        saveTags(game, tags);
+        return null;
+    }
+
+    public static Set<String> unassign(Game game, Collection<String> positions) {
+        Map<String, String> tags = tags(game);
+        Set<String> removed = positions.stream()
+                .filter(position -> tags.remove(position) != null)
+                .collect(Collectors.toCollection(TreeSet::new));
+        saveTags(game, tags);
+        return removed;
+    }
+
+    private static int namedCount(Game game, Map<String, String> tags) {
+        Set<String> names = new HashSet<>(tags.values());
+        stored(game).forEach(segment -> names.add(segment.name()));
+        return names.size();
+    }
+
+    private static void saveTags(Game game, Map<String, String> tags) {
+        Map<String, Set<String>> positionsByName = new LinkedHashMap<>();
+        tags.forEach((position, name) ->
+                positionsByName.computeIfAbsent(name, key -> new HashSet<>()).add(position));
+        saveGroups(
+                game,
+                TAG_KEY,
+                positionsByName.entrySet().stream()
+                        .map(entry -> new Pin(entry.getKey(), entry.getValue()))
+                        .toList());
+    }
+
+    private static void renameTags(Game game, String from, String to) {
+        Map<String, String> tags = tags(game);
+        if (tags.containsValue(from)) {
+            tags.replaceAll((position, name) -> name.equals(from) ? to : name);
+            saveTags(game, tags);
+        }
+    }
+
+    private static boolean removeTags(Game game, String name) {
+        Map<String, String> tags = tags(game);
+        boolean removed = tags.values().removeIf(name::equals);
+        if (removed) {
+            saveTags(game, tags);
+        }
+        return removed;
+    }
+
+    private static List<MapSegment> autoSectors(Game game, List<MapSegment> named, Set<String> tagged) {
         Set<String> takenNames = new HashSet<>(Set.of(MAIN, FRACTURE));
         named.forEach(segment -> takenNames.add(segment.name()));
         List<Pin> pins = pins(game);
@@ -216,7 +338,7 @@ public record MapSegment(
                 .filter(pin ->
                         named.stream().noneMatch(segment -> segment.name().equals(pin.name())))
                 .toList();
-        List<Set<String>> clusters = uncoveredClusters(game, named);
+        List<Set<String>> clusters = uncoveredClusters(game, named, tagged);
         Map<Integer, Pin> pinByCluster = assignPins(clusters, usablePins);
         List<MapSegment> sectors = new ArrayList<>();
         for (int index = 0; index < clusters.size(); index++) {
@@ -229,8 +351,9 @@ public record MapSegment(
         return sectors;
     }
 
-    private static List<Set<String>> uncoveredClusters(Game game, List<MapSegment> named) {
+    private static List<Set<String>> uncoveredClusters(Game game, List<MapSegment> named, Set<String> tagged) {
         Set<String> placed = placedGridPositions(game);
+        placed.removeAll(tagged);
         return MapFrame.clusters(placed, gap(game) + 1, adjacencyLinks(game, placed)).stream()
                 .filter(cluster ->
                         named.stream().allMatch(segment -> Collections.disjoint(segment.positions(), cluster)))
@@ -323,6 +446,7 @@ public record MapSegment(
         game.removeStoredValue(AUTO_KEY);
         game.removeStoredValue(GAP_KEY);
         game.removeStoredValue(PIN_KEY);
+        game.removeStoredValue(TAG_KEY);
     }
 
     @Nullable
@@ -345,9 +469,10 @@ public record MapSegment(
         if (cluster && game.getTileByPosition(centre) == null) {
             return "There is no tile at `" + centre + "` to grow a cluster from.";
         }
-        boolean isNew =
-                stored(game).stream().noneMatch(segment -> segment.name().equals(name));
-        if (isNew && stored(game).size() >= MAX_SEGMENTS) {
+        Map<String, String> tags = tags(game);
+        boolean isNew = !tags.containsValue(name)
+                && stored(game).stream().noneMatch(segment -> segment.name().equals(name));
+        if (isNew && namedCount(game, tags) >= MAX_SEGMENTS) {
             return "This game already has the maximum of " + MAX_SEGMENTS + " segments.";
         }
         return null;
@@ -412,6 +537,7 @@ public record MapSegment(
         List<Pin> pins = new ArrayList<>(pins(game));
         removed |= pins.removeIf(pin -> pin.name().equals(name));
         savePins(game, pins);
+        removed |= removeTags(game, name);
         if (name.equals(game.getStoredValue(DEFAULT_KEY))) {
             game.removeStoredValue(DEFAULT_KEY);
         }
@@ -443,6 +569,7 @@ public record MapSegment(
             return "This game already has the maximum of " + MAX_SEGMENTS + " renamed sectors.";
         }
         pins.removeIf(pin -> pin.name().equals(to));
+        renameTags(game, from, to);
         if (storedSegment) {
             renameStored(game, from, to);
         } else {
@@ -604,6 +731,7 @@ public record MapSegment(
                 "`" + name + "`: cluster around " + centre + (radius > 0 ? ", at most radius " + radius : "")
                         + (fixedPositions == null ? "" : " (" + fixedPositions.size() + " systems)");
             case CIRCLE -> "`" + name + "`: centre " + centre + ", radius " + radius;
+            case TAGGED -> "`" + name + "`: assigned positions (" + positions().size() + ")";
         };
     }
 
