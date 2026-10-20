@@ -295,8 +295,7 @@ public final class ButtonHelperTacticalAction {
                             + ", your **Warfare** action is finished, so a dreadnaught, a cruiser and 2 fighters has been automatically added to mecatol rex or an enemy HS if you control them. This has been automatically done.";
                     for (Tile tile : game.getTileMap().values()) {
                         boolean control = false;
-                        if (tile.isHomeSystem(game)
-                                && player.getHomeSystemTile() != tile
+                        if (tile.isOtherPlayersHomeSystem(game, player)
                                 && !FoWHelper.otherPlayersHaveShipsInSystem(player, tile, game)) {
                             for (UnitHolder planet : tile.getPlanetUnitHolders()) {
                                 if (player.getPlanets().contains(planet.getName())) {

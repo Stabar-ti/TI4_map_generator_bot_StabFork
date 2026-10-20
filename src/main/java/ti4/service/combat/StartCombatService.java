@@ -1095,9 +1095,7 @@ public class StartCombatService {
                         msg + ", a reminder that if you win the combat, you could score _Brave the Void_.",
                         buttons2);
             }
-            if (player.getSecretsUnscored().containsKey("dts")
-                    && tile.isHomeSystem(game)
-                    && tile != player.getHomeSystemTile()) {
+            if (player.getSecretsUnscored().containsKey("dts") && tile.isOtherPlayersHomeSystem(game, player)) {
                 MessageHelper.sendMessageToChannel(
                         player.getCardsInfoThread(),
                         msg + ", a reminder that if you win the combat, you could score _Darken the Skies_.",

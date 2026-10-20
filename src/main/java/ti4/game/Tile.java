@@ -871,6 +871,7 @@ public class Tile {
     }
 
     public boolean isHomeSystem(Game game) {
+        if (hasHomeSystemToken()) return true;
         for (Player p : game.getRealAndEliminatedPlayers()) {
             Tile home = p.getHomeSystemTile();
             if (home != null && home.tileID.equals(tileID)) return true;
@@ -878,8 +879,23 @@ public class Tile {
         return false;
     }
 
+    public boolean isOtherPlayersHomeSystem(Game game, Player player) {
+        for (Player p : game.getRealAndEliminatedPlayers()) {
+            if (p == player) continue;
+            Tile home = p.getHomeSystemTile();
+            if (home != null && home.tileID.equals(tileID)) return true;
+        }
+        return false;
+    }
+
+    @JsonIgnore
+    public boolean hasHomeSystemToken() {
+        return hasAnyToken(Constants.TOKEN_HOME_SYSTEM);
+    }
+
     @JsonIgnore
     public boolean isHomeSystem() {
+        if (hasHomeSystemToken()) return true;
         if ("0g".equalsIgnoreCase(tileID)) {
             return true;
         }

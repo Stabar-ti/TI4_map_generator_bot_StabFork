@@ -26,6 +26,16 @@
         "source": "other"
     },
     {
+        "id": "homesystem",
+        "imagePath": "token_homesystem.png",
+        "spaceOrPlanet": "space",
+        "aliasList": [
+            "homesystem",
+            "token_homesystem"
+        ],
+        "source": "eronous"
+    },
+    {
         "id": "oceanus",
         "imagePath": "token_oceanus.png",
         "spaceOrPlanet": "space",

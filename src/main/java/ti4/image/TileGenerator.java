@@ -2081,6 +2081,8 @@ public class TileGenerator {
                         TILE_PADDING + FOW_VISION_TOKEN_POINT.x,
                         TILE_PADDING + FOW_VISION_TOKEN_POINT.y,
                         null);
+            } else if (tokenPath.contains(Constants.TOKEN_HOME_SYSTEM)) {
+                tileGraphics.drawImage(tokenImage, TILE_PADDING, TILE_PADDING, null);
             } else {
 
                 int drawX = TILE_PADDING + x;

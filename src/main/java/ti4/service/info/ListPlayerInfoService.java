@@ -751,7 +751,7 @@ public class ListPlayerInfoService {
 
                 for (Planet planet : planets) {
                     Tile tile = game.getTileFromPlanet(planet.getName());
-                    if (tile != null && tile.isHomeSystem(game) && tile != player.getHomeSystemTile()) {
+                    if (tile != null && tile.isOtherPlayersHomeSystem(game, player)) {
                         count++;
                     }
                 }
@@ -767,7 +767,7 @@ public class ListPlayerInfoService {
                         Units.UnitType.Lady,
                         Units.UnitType.Celagrom,
                         Units.UnitType.Aurelion)) {
-                    if ((tile.isHomeSystem(game) && tile != player.getHomeSystemTile()) || tile.isMecatol(game)) {
+                    if (tile.isOtherPlayersHomeSystem(game, player) || tile.isMecatol(game)) {
                         count++;
                     }
                 }
