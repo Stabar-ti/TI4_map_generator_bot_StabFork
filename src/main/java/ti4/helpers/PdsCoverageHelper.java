@@ -53,7 +53,7 @@ public final class PdsCoverageHelper {
             }
 
             // Check adjacent tiles for PDS coverage
-            for (String adjTilePos : FoWHelper.getAdjacentTiles(game, tilePos, player, false, true)) {
+            for (String adjTilePos : FoWHelper.getInboundAdjacentTiles(game, tilePos, player, false, true)) {
                 Tile adjTile = game.getTileByPosition(adjTilePos);
                 if (adjTile == null) {
                     continue;

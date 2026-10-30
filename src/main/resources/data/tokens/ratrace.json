@@ -1,7 +1,7 @@
 [
     {
-        "id": "alpha_rat",
-        "imagePath": "token_ratrace_alpha.png",
+        "id": "whratalpha",
+        "imagePath": "token_whratalpha.png",
         "spaceOrPlanet": "space",
         "wormholes": [
             "ALPHA_RAT"
@@ -9,8 +9,8 @@
         "source": "other"
     },
     {
-        "id": "beta_rat",
-        "imagePath": "token_ratrace_beta.png",
+        "id": "whratbeta",
+        "imagePath": "token_whratbeta.png",
         "spaceOrPlanet": "space",
         "wormholes": [
             "BETA_RAT"
@@ -18,8 +18,8 @@
         "source": "other"
     },
     {
-        "id": "gamma_rat",
-        "imagePath": "token_ratrace_gamma.png",
+        "id": "whratgamma",
+        "imagePath": "token_whratgamma.png",
         "spaceOrPlanet": "space",
         "wormholes": [
             "GAMMA_RAT"
@@ -27,8 +27,8 @@
         "source": "other"
     },
     {
-        "id": "delta_rat",
-        "imagePath": "token_ratrace_delta.png",
+        "id": "whratdelta",
+        "imagePath": "token_whratdelta.png",
         "spaceOrPlanet": "space",
         "wormholes": [
             "DELTA_RAT"
@@ -36,8 +36,8 @@
         "source": "other"
     },
     {
-        "id": "epsilon_rat",
-        "imagePath": "token_ratrace_epsilon.png",
+        "id": "whratepsilon",
+        "imagePath": "token_whratepsilon.png",
         "spaceOrPlanet": "space",
         "wormholes": [
             "EPSILON_RAT"
@@ -45,8 +45,8 @@
         "source": "other"
     },
     {
-        "id": "zeta_rat",
-        "imagePath": "token_ratrace_zeta.png",
+        "id": "whratzeta",
+        "imagePath": "token_whratzeta.png",
         "spaceOrPlanet": "space",
         "wormholes": [
             "ZETA_RAT"
@@ -54,8 +54,8 @@
         "source": "other"
     },
     {
-        "id": "eta_rat",
-        "imagePath": "token_ratrace_eta.png",
+        "id": "whrateta",
+        "imagePath": "token_whrateta.png",
         "spaceOrPlanet": "space",
         "wormholes": [
             "ETA_RAT"
@@ -63,8 +63,8 @@
         "source": "other"
     },
     {
-        "id": "theta_rat",
-        "imagePath": "token_ratrace_theta.png",
+        "id": "whrattheta",
+        "imagePath": "token_whrattheta.png",
         "spaceOrPlanet": "space",
         "wormholes": [
             "THETA_RAT"
@@ -72,8 +72,8 @@
         "source": "other"
     },
     {
-        "id": "iota_rat",
-        "imagePath": "token_ratrace_iota.png",
+        "id": "whratiota",
+        "imagePath": "token_whratiota.png",
         "spaceOrPlanet": "space",
         "wormholes": [
             "IOTA_RAT"
@@ -81,8 +81,8 @@
         "source": "other"
     },
     {
-        "id": "kappa_rat",
-        "imagePath": "token_ratrace_kappa.png",
+        "id": "whratkappa",
+        "imagePath": "token_whratkappa.png",
         "spaceOrPlanet": "space",
         "wormholes": [
             "KAPPA_RAT"

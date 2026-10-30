@@ -59,9 +59,7 @@ public class AddTokenCommand extends AddRemoveTokenCommand {
         } else {
             tokenName = AliasHandler.resolveToken(tokenName);
             tokenFileName = Mapper.getTokenID(tokenName);
-            tokenPath = ImageResources.tokenOrAttachment(tokenFileName);
-
-            if (tokenPath == null) {
+            if (!ImageResources.hasTokenImage(tokenFileName)) {
                 MessageHelper.sendMessageToChannel(channel, "Token: " + tokenName + " is not valid");
                 return;
             }

@@ -32,6 +32,7 @@ final class OneWayWormholeIcon {
         String basePath = ImageResources.tokenOrAttachment(token.getBaseImagePath());
         BufferedImage base = basePath == null ? null : ImageHelper.read(basePath);
         OneWay oneWay = token.getOneWay();
+        if (base == null) return compose(null, oneWay);
         String key = "oneWayWormhole:" + token.getBaseImagePath() + ":" + oneWay;
         BufferedImage cached = ImageHelper.cached(key, () -> compose(base, oneWay));
         return cached != null ? cached : compose(base, oneWay);

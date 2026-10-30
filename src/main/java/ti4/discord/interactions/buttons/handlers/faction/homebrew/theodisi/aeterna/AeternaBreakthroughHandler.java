@@ -32,7 +32,8 @@ public class AeternaBreakthroughHandler {
             return false;
         }
 
-        Set<String> coveredTiles = new HashSet<>(FoWHelper.getAdjacentTiles(game, tilePosition, player, false, true));
+        Set<String> coveredTiles =
+                new HashSet<>(FoWHelper.getInboundAdjacentTiles(game, tilePosition, player, false, true));
         coveredTiles.add(tilePosition);
 
         for (String position : coveredTiles) {

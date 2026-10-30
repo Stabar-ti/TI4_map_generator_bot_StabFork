@@ -3061,7 +3061,7 @@ public class CombatRollService {
             return;
         }
         List<Pair<UnitModel, UnitHolder>> candidates =
-                FoWHelper.getAdjacentTiles(game, combatTile.getPosition(), player, false, false).stream()
+                FoWHelper.getInboundAdjacentTiles(game, combatTile.getPosition(), player, false, false).stream()
                         .map(game::getTileByPosition)
                         .filter(Objects::nonNull)
                         .map(Tile::getSpaceUnitHolder)
@@ -3283,7 +3283,7 @@ public class CombatRollService {
 
         Map<String, Integer> adjacentUnitsByAsyncId = new HashMap<>();
         Map<Pair<UnitModel, UnitHolder>, Integer> unitsOnAdjacentTiles = new HashMap<>();
-        Set<String> adjTiles = FoWHelper.getAdjacentTiles(game, tile.getPosition(), player, false);
+        Set<String> adjTiles = FoWHelper.getInboundAdjacentTiles(game, tile.getPosition(), player, false);
         for (String adjacentTilePosition : adjTiles) {
             if (adjacentTilePosition.equals(tile.getPosition())) {
                 continue;

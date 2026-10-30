@@ -279,7 +279,7 @@ public class DestroyUnitService {
             for (Player p2 : game.getRealPlayersExcludingThis(player)) {
                 if (p2.ownsUnit("tf-vortexer")) {
                     for (String pos :
-                            FoWHelper.getAdjacentTiles(game, unit.tile().getPosition(), p2, false, true)) {
+                            FoWHelper.getInboundAdjacentTiles(game, unit.tile().getPosition(), p2, false, true)) {
                         if (game.getTileByPosition(pos).getSpaceUnitHolder().getUnitCount(UnitType.Carrier, p2) > 0) {
                             capturing.add(p2);
                             break;

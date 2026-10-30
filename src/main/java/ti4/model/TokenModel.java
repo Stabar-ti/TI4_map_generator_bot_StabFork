@@ -6,6 +6,7 @@ import lombok.Data;
 import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.entities.MessageEmbed;
 import ti4.model.Source.ComponentSource;
+import ti4.model.WormholeModel.OneWay;
 import ti4.model.WormholeModel.Wormhole;
 
 @Data
@@ -29,6 +30,13 @@ public class TokenModel implements ModelInterface, EmbeddableModel {
     private List<Wormhole> wormholes;
     private List<String> legacyImagePaths;
     private Boolean wormholeIconMerge;
+
+    @JsonIgnore
+    private OneWay oneWay;
+
+    @JsonIgnore
+    private String baseImagePath;
+
     private ComponentSource source;
     private String placement;
     private Double scale;

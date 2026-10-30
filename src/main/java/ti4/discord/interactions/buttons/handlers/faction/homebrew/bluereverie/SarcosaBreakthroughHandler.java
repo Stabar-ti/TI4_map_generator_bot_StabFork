@@ -174,7 +174,7 @@ public class SarcosaBreakthroughHandler {
         if (game == null || player == null || targetTile == null || game.getActivePlayer() != player) {
             return false;
         }
-        for (String position : FoWHelper.getAdjacentTiles(game, targetTile.getPosition(), player, false, true)) {
+        for (String position : FoWHelper.getInboundAdjacentTiles(game, targetTile.getPosition(), player, false, true)) {
             Tile tile = game.getTileByPosition(position);
             if (tile == null || tile.isScar(game)) {
                 continue;

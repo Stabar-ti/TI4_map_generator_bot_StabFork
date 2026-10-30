@@ -91,6 +91,60 @@ class WormholeDataTest extends BaseTi4Test {
     }
 
     @Test
+    void ratRaceTokensCarryOnlyTheirOwnRatWormhole() {
+        for (Wormhole rat : Wormhole.values()) {
+            if (!rat.isRatRace()) continue;
+            String plain = rat.name().replace("_RAT", "");
+            String image = Mapper.getWormholeTokenImagePath(rat);
+            assertThat(image).as(rat.name()).isEqualTo("token_" + rat.tokenId() + ".png");
+            assertThat(Mapper.getTokenWormholes(image)).as(image).containsExactly(rat);
+            assertThat(rat.symbol()).isEqualTo(Wormhole.valueOf(plain).symbol());
+        }
+    }
+
+    @Test
+    void everyPlainWormholeTypeHasEntryAndExitOnlyTokens() {
+        Set<Wormhole> plainTypes = EnumSet.noneOf(Wormhole.class);
+        Mapper.getTokensValues().stream()
+                .filter(token -> Mapper.isMergeableWormholeToken(token.getImagePath()))
+                .forEach(token -> plainTypes.addAll(Mapper.getTokenWormholes(token.getImagePath())));
+        assertThat(plainTypes).contains(Wormhole.ALPHA, Wormhole.OMEGA, Wormhole.KAPPA_RAT);
+
+        for (Wormhole wormhole : plainTypes) {
+            assertThat(Mapper.getToken(wormhole.tokenId()))
+                    .as(wormhole.tokenId())
+                    .isNotNull();
+            for (WormholeModel.OneWay oneWay : WormholeModel.OneWay.values()) {
+                String id = wormhole.tokenId() + "_" + oneWay.suffix();
+                assertThat(Mapper.isValidToken(id)).as(id).isTrue();
+                TokenModel token = Mapper.getOneWayWormholeToken(Mapper.getTokenID(id));
+                assertThat(token).as(id).isNotNull();
+                assertThat(token.getOneWay()).isEqualTo(oneWay);
+                assertThat(Mapper.getTokenWormholes(token.getImagePath())).containsExactly(wormhole);
+                assertThat(Mapper.isMergeableWormholeToken(token.getImagePath()))
+                        .isFalse();
+                assertThat(Mapper.getTokenWormholes(token.getBaseImagePath())).containsExactly(wormhole);
+            }
+        }
+    }
+
+    @Test
+    void renamedWormholeIdsStillResolveToTheirImages() {
+        Map<String, String> imageByOldId = Map.of(
+                "sigma_lamdba_wormhole", "token_sigma_lambda.png",
+                "custom_eronous_whepsilon", "token_custom_eronous_whepsilon.png",
+                "custom_eronous_wheta", "token_custom_eronous_wheta.png",
+                "custom_eronous_whzeta", "token_custom_eronous_whzeta.png",
+                "custom_eronous_whiota", "token_custom_eronous_whiota.png",
+                "custom_eronous_whtheta", "token_custom_eronous_whtheta.png");
+        imageByOldId.forEach((oldId, image) -> {
+            assertThat(Mapper.isValidToken(oldId)).as(oldId).isTrue();
+            assertThat(Mapper.getTokenID(oldId)).as(oldId).isEqualTo(image);
+        });
+        assertThat(Mapper.getTokenID("whlambda")).isEqualTo("token_sigma_lambda.png");
+    }
+
+    @Test
     void everyWormholeLookingImageDeclaresWormholes() {
         wormholeLookingImages("token_(wh|creuss|ion|gamma|custom_eronous_wh).*\\.png")
                 .forEach(name ->
@@ -109,6 +163,9 @@ class WormholeDataTest extends BaseTi4Test {
         }
         Mapper.getAttachments().values().forEach(attachment -> files.add(attachment.getImagePath()));
         files.addAll(wormholeLookingImages("token_(wh|custom_eronous_wh).*\\.png"));
+        // Rat race and generated one-way tokens came after the old parser and are checked on their own.
+        files.removeIf(file -> Mapper.getOneWayWormholeToken(file) != null
+                || Mapper.getTokenWormholes(file).stream().anyMatch(Wormhole::isRatRace));
         return files;
     }
 

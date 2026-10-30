@@ -2,7 +2,9 @@ package ti4.helpers;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
@@ -27,6 +29,11 @@ class WormholeAdjacencyTest extends BaseTi4Test {
         "token_sigma_lambda.png, token_sigma_palace_emperors.png, space, false",
         "token_wheta.png, token_custom_eronous_wheta.png, space, true",
         "token_whalpha.png, attachment_sigma_weirdway.png, planet, true",
+        // Rat race wormholes only link to the same rat race wormhole.
+        "token_whratalpha.png, token_whratalpha.png, space, true",
+        "token_whratalpha.png, token_whalpha.png, space, false",
+        "token_whalpha.png, token_whratalpha.png, space, false",
+        "token_whratalpha.png, token_whratbeta.png, space, false",
     })
     void tokensConnectOnlyThroughDeclaredWormholes(String onA, String onB, String holderB, boolean adjacent) {
         try (var harness = TestGameHarness.fromSourceGame("game-with-border-anomalies")) {
@@ -42,6 +49,99 @@ class WormholeAdjacencyTest extends BaseTi4Test {
             assertThat(FoWHelper.getWormholeAdjacencies(game, a.getPosition(), null, false))
                     .as(onA + " -> " + onB)
                     .matches(positions -> positions.contains(b.getPosition()) == adjacent);
+        }
+    }
+
+    // Same type on both sides: a link needs a departure (plain or entry-only) on A and an arrival
+    // (plain or exit-only) on B. Inbound from B must agree with outbound from A.
+    @ParameterizedTest(name = "{0} -> {1} reachable={2}")
+    @CsvSource({
+        "whalpha, whalpha, true",
+        "whalpha, whalpha_in, false",
+        "whalpha, whalpha_out, true",
+        "whalpha_in, whalpha, true",
+        "whalpha_in, whalpha_in, false",
+        "whalpha_in, whalpha_out, true",
+        "whalpha_out, whalpha, false",
+        "whalpha_out, whalpha_in, false",
+        "whalpha_out, whalpha_out, false",
+        "whratalpha_in, whalpha, false",
+        "whratalpha_in, whratalpha_out, true",
+    })
+    void oneWayWormholesLinkOnlyFromDepartureToArrival(String onA, String onB, boolean reachable) {
+        try (var harness = TestGameHarness.fromSourceGame("game-with-border-anomalies")) {
+            Game game = harness.load();
+            List<Tile> tiles = farApartTiles(game, 2);
+            String a = tiles.get(0).getPosition();
+            String b = tiles.get(1).getPosition();
+            tiles.get(0).getSpaceUnitHolder().addToken(Mapper.getTokenID(onA));
+            tiles.get(1).getSpaceUnitHolder().addToken(Mapper.getTokenID(onB));
+
+            assertThat(FoWHelper.getWormholeAdjacencies(game, a, null, false).contains(b))
+                    .as("outbound")
+                    .isEqualTo(reachable);
+            assertThat(FoWHelper.getInboundAdjacentTiles(game, b, null, false).contains(a))
+                    .as("inbound")
+                    .isEqualTo(reachable);
+        }
+    }
+
+    @Test
+    void oneWayWormholesDirectMovementVisionAndCoverage() {
+        try (var harness = TestGameHarness.fromSourceGame("game-with-border-anomalies")) {
+            Game game = harness.load();
+            Player player = game.getRealPlayers().getFirst();
+            List<Tile> tiles = farApartTiles(game, 3);
+            String entry = tiles.get(0).getPosition();
+            String exit = tiles.get(1).getPosition();
+            String otherEntry = tiles.get(2).getPosition();
+            tiles.get(0).getSpaceUnitHolder().addToken(Mapper.getTokenID("whalpha_in"));
+            tiles.get(1).getSpaceUnitHolder().addToken(Mapper.getTokenID("whalpha_out"));
+            tiles.get(2).getSpaceUnitHolder().addToken(Mapper.getTokenID("whalpha_in"));
+
+            assertThat(CheckDistanceHelper.getDistanceBetweenTwoTiles(game, player, entry, exit, true))
+                    .isEqualTo(1);
+            assertThat(CheckDistanceHelper.getDistanceBetweenTwoTiles(game, player, exit, entry, true))
+                    .isGreaterThan(1);
+            // Fog vision reads the toShow adjacency: an entry-only system sees the exit, never another entry.
+            assertThat(FoWHelper.getAdjacentTiles(game, entry, player, true))
+                    .contains(exit)
+                    .doesNotContain(otherEntry);
+            assertThat(FoWHelper.getAdjacentTiles(game, exit, player, true)).doesNotContain(entry, otherEntry);
+            // Space cannon asks who can reach the target: units in the entry system cover the exit system.
+            assertThat(FoWHelper.getInboundAdjacentTiles(game, exit, player, false))
+                    .contains(entry, otherEntry);
+            assertThat(FoWHelper.getInboundAdjacentTiles(game, entry, player, false))
+                    .doesNotContain(exit, otherEntry);
+        }
+    }
+
+    @Test
+    void oneWayTokensAreNeverATypesDisplayImage() {
+        // Lambda has no token_whlambda.png, so the wormhole view relies on this lookup for its icon.
+        assertThat(Mapper.getWormholeTokenImagePath(Wormhole.LAMBDA)).isEqualTo("token_sigma_lambda.png");
+        for (Wormhole wormhole : Wormhole.values()) {
+            assertThat(Mapper.getOneWayWormholeToken(Mapper.getWormholeTokenImagePath(wormhole)))
+                    .as(wormhole.name())
+                    .isNull();
+        }
+    }
+
+    @Test
+    void reconstructionKeepsTheDirectionOfAOneWayAlpha() {
+        try (var harness = TestGameHarness.fromSourceGame("game-with-border-anomalies")) {
+            Game game = harness.load();
+            game.addLaw("wormhole_recon", null);
+            List<Tile> tiles = farApartTiles(game, 2);
+            String entry = tiles.get(0).getPosition();
+            String beta = tiles.get(1).getPosition();
+            tiles.get(0).getSpaceUnitHolder().addToken(Mapper.getTokenID("whalpha_in"));
+            tiles.get(1).getSpaceUnitHolder().addToken("token_whbeta.png");
+
+            assertThat(FoWHelper.getWormholeAdjacencies(game, entry, null, false))
+                    .contains(beta);
+            assertThat(FoWHelper.getWormholeAdjacencies(game, beta, null, false))
+                    .doesNotContain(entry);
         }
     }
 
@@ -67,6 +167,18 @@ class WormholeAdjacencyTest extends BaseTi4Test {
                     .containsExactlyInAnyOrder(
                             Wormhole.DELTA, Wormhole.EPSILON, Wormhole.ALPHA, Wormhole.BETA, Wormhole.DELTA);
         }
+    }
+
+    private static List<Tile> farApartTiles(Game game, int count) {
+        List<Tile> picked = new ArrayList<>();
+        for (Tile candidate : wormholeFreeTilesWithPlanets(game)) {
+            Set<String> near = FoWHelper.getAdjacentTiles(game, candidate.getPosition(), null, false);
+            if (picked.stream().noneMatch(tile -> near.contains(tile.getPosition()))) {
+                picked.add(candidate);
+            }
+            if (picked.size() == count) return picked;
+        }
+        throw new IllegalStateException("map has fewer than " + count + " separated tiles");
     }
 
     private static List<Tile> wormholeFreeTilesWithPlanets(Game game) {

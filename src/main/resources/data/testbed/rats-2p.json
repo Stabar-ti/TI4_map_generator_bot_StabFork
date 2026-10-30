@@ -5,10 +5,10 @@
   "seats": [ { "faction": "hacan", "home": "316", "units": { "211": "dd" } } ],
   "defaults": { "tg": 2, "ccs": "3/3/2" },
   "tokens": {
-    "205": ["alpha_rat_in"],
-    "208": ["alpha_rat_in"],
-    "211": ["alpha_rat_out"],
-    "209": ["whalpha", "whbeta", "alpha_rat", "beta_rat"]
+    "205": ["whratalpha_in"],
+    "208": ["whratalpha_in"],
+    "211": ["whratalpha_out"],
+    "209": ["whalpha", "whbeta", "whratalpha", "whratbeta"]
   },
   "borderAnomalies": {
     "103": ["n:ratnest", "ne:ratnest", "se:ratnest", "s:ratnest", "sw:ratnest", "nw:ratnest"]

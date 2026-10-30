@@ -301,7 +301,7 @@ public class ButtonHelper {
         if (game.isTwilightsFallMode() && tile != null) {
             for (Player p2 : game.getRealPlayersExcludingThis(player)) {
                 if (p2.ownsUnit("tf-vortexer")) {
-                    for (String pos : FoWHelper.getAdjacentTiles(game, tile.getPosition(), p2, false, true)) {
+                    for (String pos : FoWHelper.getInboundAdjacentTiles(game, tile.getPosition(), p2, false, true)) {
                         if (game.getTileByPosition(pos).getSpaceUnitHolder().getUnitCount(UnitType.Carrier, p2) > 0) {
                             ButtonHelperFactionSpecific.cabalEatsUnit(player, game, p2, totalAmount, "infantry", null);
                             break;
@@ -1689,7 +1689,7 @@ public class ButtonHelper {
         }
         for (Player p2 : game.getRealPlayersExcludingThis(player)) {
             if (p2.hasTech("tf-smotheringpresence")) {
-                for (String tilePos : FoWHelper.getAdjacentTiles(game, tile.getPosition(), p2, false, true)) {
+                for (String tilePos : FoWHelper.getInboundAdjacentTiles(game, tile.getPosition(), p2, false, true)) {
                     Tile t2 = game.getTileByPosition(tilePos);
                     for (UnitHolder uH : t2.getUnitHolders().values()) {
                         if (uH.getUnitCount(UnitType.Pds, p2.getColor()) > 0
@@ -1774,7 +1774,7 @@ public class ButtonHelper {
             for (Player p2 : game.getRealPlayersExcludingThis(player)) {
                 if (p2.hasTech("tf-smotheringpresence")) {
                     for (String tilePos :
-                            FoWHelper.getAdjacentTiles(game, activeSystem.getPosition(), p2, false, true)) {
+                            FoWHelper.getInboundAdjacentTiles(game, activeSystem.getPosition(), p2, false, true)) {
                         Tile t2 = game.getTileByPosition(tilePos);
                         for (UnitHolder uH : t2.getUnitHolders().values()) {
                             if (uH.getUnitCount(UnitType.Pds, p2.getColor()) > 0
@@ -7019,7 +7019,7 @@ public class ButtonHelper {
         Tile destination = game.getTileFromPlanet(planetName);
         for (Tile tile : game.getTileMap().values()) {
             if (bioplasmosis && destination != null) {
-                if (!FoWHelper.getAdjacentTiles(game, destination.getPosition(), player, false, true)
+                if (!FoWHelper.getInboundAdjacentTiles(game, destination.getPosition(), player, false, true)
                         .contains(tile.getPosition())) {
                     continue;
                 }
@@ -8449,9 +8449,9 @@ public class ButtonHelper {
     }
 
     public static List<Player> getPlayersWithPds2Cover(Player targetPlayer, Game game, String tilePos) {
-        Set<String> adjTiles = FoWHelper.getAdjacentTiles(game, tilePos, targetPlayer, false, true);
+        Set<String> adjTiles = FoWHelper.getInboundAdjacentTiles(game, tilePos, targetPlayer, false, true);
         for (Player p2 : game.getRealPlayers()) {
-            adjTiles.addAll(FoWHelper.getAdjacentTiles(game, tilePos, p2, false, true));
+            adjTiles.addAll(FoWHelper.getInboundAdjacentTiles(game, tilePos, p2, false, true));
         }
         List<Player> playersWithPds2 = new ArrayList<>();
 
@@ -8535,7 +8535,7 @@ public class ButtonHelper {
                             game.getPlayerByColorID(unitKey.colorID()).orElse(null);
                     if (owningPlayer == null
                             || playersWithPds2.contains(owningPlayer)
-                            || !FoWHelper.getAdjacentTiles(game, tilePos, owningPlayer, false, true)
+                            || !FoWHelper.getInboundAdjacentTiles(game, tilePos, owningPlayer, false, true)
                                     .contains(adjTilePos)) {
                         continue;
                     }
@@ -8613,7 +8613,7 @@ public class ButtonHelper {
     }
 
     public static void sendEBSWarning(Player player, Game game, String tilePos) {
-        Set<String> adjTiles = FoWHelper.getAdjacentTiles(game, tilePos, player, false);
+        Set<String> adjTiles = FoWHelper.getInboundAdjacentTiles(game, tilePos, player, false);
         for (String adjTilePos : adjTiles) {
             Tile adjTile = game.getTileByPosition(adjTilePos);
             if (adjTile == null) {

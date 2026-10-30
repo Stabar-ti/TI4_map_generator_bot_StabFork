@@ -718,7 +718,7 @@ public class CombatModHelper {
                     tilesToCheck.add(tile);
                     if (unitsByQuantity.keySet().stream().anyMatch(UnitModel::getDeepSpaceCannon)) {
                         for (String adjPos :
-                                FoWHelper.getAdjacentTiles(game, tile.getPosition(), player, false, true)) {
+                                FoWHelper.getInboundAdjacentTiles(game, tile.getPosition(), player, false, true)) {
                             Tile adjTile = game.getTileByPosition(adjPos);
                             if (adjTile != null) {
                                 tilesToCheck.add(adjTile);
@@ -1107,7 +1107,7 @@ public class CombatModHelper {
         Set<UnitHolder> holders = Collections.newSetFromMap(new IdentityHashMap<>());
         holders.add(unitHolder);
         for (String adjacentPosition :
-                FoWHelper.getAdjacentTiles(game, activeSystem.getPosition(), player, false, true)) {
+                FoWHelper.getInboundAdjacentTiles(game, activeSystem.getPosition(), player, false, true)) {
             holders.addAll(
                     game.getTileByPosition(adjacentPosition).getUnitHolders().values());
         }

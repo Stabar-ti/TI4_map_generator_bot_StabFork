@@ -114,7 +114,7 @@ public final class TeHelperPromissories {
         Tile dest = game.getTileByPosition(destination);
         if (dest == null) return buttons;
 
-        for (String adj : FoWHelper.getAdjacentTilesAndNotThisTile(game, destination, player, false)) {
+        for (String adj : FoWHelper.getInboundAdjacentTiles(game, destination, player, false, false)) {
             Tile tile = game.getTileByPosition(adj);
             if (tile == null || tile.hasPlayerCC(player)) continue;
 

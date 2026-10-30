@@ -2069,7 +2069,7 @@ public class StartCombatService {
                     CheckUnitContainmentService.getTilesContainingPlayersUnits(game, agentHolder, UnitType.Flagship);
             if (agentHolder.hasUnit("empyrean_flagship")
                     && !flagshipTile.isEmpty()
-                    && FoWHelper.getAdjacentTiles(game, pos, agentHolder, false, true)
+                    && FoWHelper.getInboundAdjacentTiles(game, pos, agentHolder, false, true)
                             .contains(flagshipTile.getFirst().getPosition())) {
                 buttons.add(Buttons.gray(
                         factionChecker + "empyreanFlagshipAbilityStep1_" + pos,

@@ -66,7 +66,7 @@ public class ThurvialiTechHandler {
             return false;
         }
         for (String position :
-                ti4.helpers.FoWHelper.getAdjacentTiles(game, targetTile.getPosition(), player, false, true)) {
+                ti4.helpers.FoWHelper.getInboundAdjacentTiles(game, targetTile.getPosition(), player, false, true)) {
             Tile tile = game.getTileByPosition(position);
             if (tile == null || tile.isScar(game)) {
                 continue;

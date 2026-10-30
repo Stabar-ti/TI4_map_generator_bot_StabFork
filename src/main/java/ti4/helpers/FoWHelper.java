@@ -564,6 +564,26 @@ public final class FoWHelper {
 
     public static Set<String> getAdjacentTiles(
             Game game, String position, Player player, boolean toShow, boolean includeTile, boolean forDistance) {
+        return adjacentTiles(game, position, player, toShow, includeTile, forDistance, false);
+    }
+
+    public static Set<String> getInboundAdjacentTiles(Game game, String position, Player player, boolean toShow) {
+        return getInboundAdjacentTiles(game, position, player, toShow, true);
+    }
+
+    public static Set<String> getInboundAdjacentTiles(
+            Game game, String position, Player player, boolean toShow, boolean includeTile) {
+        return adjacentTiles(game, position, player, toShow, includeTile, false, true);
+    }
+
+    private static Set<String> adjacentTiles(
+            Game game,
+            String position,
+            Player player,
+            boolean toShow,
+            boolean includeTile,
+            boolean forDistance,
+            boolean inbound) {
         if (FOWPlusService.isVoid(game, position)) return new HashSet<>();
 
         Set<String> adjacentPositions = traverseAdjacencies(game, false, position);
@@ -592,7 +612,7 @@ public final class FoWHelper {
             }
         }
 
-        Set<String> wormholeAdjacencies = getWormholeAdjacencies(game, position, player, false, forDistance);
+        Set<String> wormholeAdjacencies = getWormholeAdjacencies(game, position, player, false, forDistance, inbound);
         adjacentPositions.addAll(wormholeAdjacencies);
 
         Set<String> otherAdjacencies = getNonWormholeAdjacencies(game, player, position);
@@ -1016,11 +1036,11 @@ public final class FoWHelper {
      * Also takes into account player abilities and agendas
      */
     static Set<String> getWormholeAdjacencies(Game game, String position, Player player, boolean neighbors) {
-        return getWormholeAdjacencies(game, position, player, neighbors, false);
+        return getWormholeAdjacencies(game, position, player, neighbors, false, false);
     }
 
     private static Set<String> getWormholeAdjacencies(
-            Game game, String position, Player player, boolean neighbors, boolean forDistance) {
+            Game game, String position, Player player, boolean neighbors, boolean forDistance, boolean inbound) {
         Set<String> adjacentPositions = new HashSet<>();
         Tile tile = game.getTileByPosition(position);
         if (tile == null || tile.getTileID() == null) {
@@ -1031,7 +1051,10 @@ public final class FoWHelper {
         boolean absol_recon = ButtonHelper.isLawInPlay(game, "absol_recon");
         List<String> creussFlagshipColors = Tile.creussFlagshipColors(game);
         Set<Wormhole> wormholes = EnumSet.noneOf(Wormhole.class);
-        wormholes.addAll(tile.getWormholes(creussFlagshipColors));
+        wormholes.addAll(
+                inbound
+                        ? tile.getArrivalWormholes(creussFlagshipColors)
+                        : tile.getDepartureWormholes(creussFlagshipColors));
 
         boolean hasQuantumEntanglement = player != null && player.hasAbility("quantum_entanglement");
         boolean alphaBetaLinked = hasQuantumEntanglement || wh_recon || absol_recon;
@@ -1121,7 +1144,9 @@ public final class FoWHelper {
                 && game.getActiveSystem().equals(game.getStoredValue("ghostagent_active"));
         boolean alphaOrBeta = wormholes.contains(Wormhole.ALPHA) || wormholes.contains(Wormhole.BETA);
         for (Tile target : game.getTileMap().values()) {
-            List<Wormhole> targetWormholes = target.getWormholes(creussFlagshipColors);
+            List<Wormhole> targetWormholes = inbound
+                    ? target.getDepartureWormholes(creussFlagshipColors)
+                    : target.getArrivalWormholes(creussFlagshipColors);
             if (!Collections.disjoint(wormholes, targetWormholes)
                     || ghostAgent && !targetWormholes.isEmpty()
                     || hasLazaxGateFoldingBr && alphaOrBeta && hasUncontrolledLegendaryPlanet(player, target)) {
