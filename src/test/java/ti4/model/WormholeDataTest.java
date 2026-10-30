@@ -124,6 +124,9 @@ class WormholeDataTest extends BaseTi4Test {
                 assertThat(Mapper.isMergeableWormholeToken(token.getImagePath()))
                         .isFalse();
                 assertThat(Mapper.getTokenWormholes(token.getBaseImagePath())).containsExactly(wormhole);
+                // No file exists for the generated image, so /search shows the base token instead.
+                assertThat(token.getRepresentationEmbed().getThumbnail().getUrl())
+                        .contains(token.getBaseImagePath());
             }
         }
     }
@@ -142,6 +145,7 @@ class WormholeDataTest extends BaseTi4Test {
             assertThat(Mapper.getTokenID(oldId)).as(oldId).isEqualTo(image);
         });
         assertThat(Mapper.getTokenID("whlambda")).isEqualTo("token_sigma_lambda.png");
+        assertThat(Mapper.isValidToken(null)).isFalse();
     }
 
     @Test

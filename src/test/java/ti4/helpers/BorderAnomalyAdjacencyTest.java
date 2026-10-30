@@ -69,6 +69,15 @@ class BorderAnomalyAdjacencyTest extends BaseTi4Test {
                             .contains(HOLDER_TILE))
                     .as(type + ": neighbour reaches holder tile")
                     .isEqualTo(neighbourReachesHolder);
+            // "Who can reach X" (space cannon, Smothering, ships joining) must mirror the movement direction.
+            assertThat(FoWHelper.getInboundAdjacentTiles(game, HOLDER_TILE, null, false)
+                            .contains(edge.neighbour))
+                    .as(type + ": holder tile is reached from neighbour")
+                    .isEqualTo(neighbourReachesHolder);
+            assertThat(FoWHelper.getInboundAdjacentTiles(game, edge.neighbour, null, false)
+                            .contains(HOLDER_TILE))
+                    .as(type + ": neighbour is reached from holder tile")
+                    .isEqualTo(holderReachesNeighbour);
         }
     }
 

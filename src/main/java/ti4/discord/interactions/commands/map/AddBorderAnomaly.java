@@ -45,8 +45,10 @@ public class AddBorderAnomaly extends GameStateSubcommand {
         }
         Set<Integer> directions = anomalyType.isWholeHex() ? ALL_SIDES : resolveDirections(event);
         if (directions.isEmpty()) {
-            MessageHelper.sendMessageToChannel(
-                    event.getChannel(), anomalyType.getName() + " needs a side: n, ne, se, s, sw or nw.");
+            if (event.getOption(Constants.PRIMARY_TILE_DIRECTION) == null) {
+                MessageHelper.sendMessageToChannel(
+                        event.getChannel(), anomalyType.getName() + " needs a side: n, ne, se, s, sw or nw.");
+            }
             return;
         }
 
@@ -68,7 +70,11 @@ public class AddBorderAnomaly extends GameStateSubcommand {
         }
         sb.append(anomalyType.getName()).append(" anomalies added: ").append(amountAdded);
         if (anomalyType.isWholeHex()) {
-            sb.append(" (placed on all six sides of each tile)");
+            sb.append(" (placed on all six sides of each tile");
+            if (event.getOption(Constants.PRIMARY_TILE_DIRECTION) != null) {
+                sb.append("; the given direction was ignored");
+            }
+            sb.append(")");
         }
         if (amountAdded > 0 && anomalyType.getAutomation().needsPlayerAttention()) {
             sb.append("\n-# ")

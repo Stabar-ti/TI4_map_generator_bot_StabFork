@@ -73,16 +73,15 @@ final class SpaceTokens {
             TokenModel oneWayToken = Mapper.getOneWayWormholeToken(tokenID);
             String tokenPath =
                     merged != null || oneWayToken != null ? tokenID : ImageResources.tokenOrAttachment(tokenID);
+            if (tokenPath == null) {
+                BotLogger.warning(new LogOrigin(game), "Could not parse token file for: " + tokenID);
+                continue;
+            }
             if (game.isLiberationC4Mode()) {
                 tokenPath = tokenPath.replace("token_creuss", "token_crimsoncreuss");
                 tokenPath = tokenPath.replace("token_crimsoncreussepsilon", "token_creussepsilon");
             }
             String tokenName = Mapper.getTokenKey(tokenID);
-
-            if (tokenPath == null) {
-                BotLogger.warning(new LogOrigin(game), "Could not parse token file for: " + tokenID);
-                continue;
-            }
             if (game.isCptiExploreMode() && tokenPath.toLowerCase().contains("token_frontier")) {
                 tokenPath = tokenPath.replace("token_frontier", "token_frontier_cpti");
             }
@@ -90,7 +89,7 @@ final class SpaceTokens {
             BufferedImage tokenImage = merged != null
                     ? merged.image()
                     : oneWayToken != null ? OneWayWormholeIcon.image(oneWayToken) : ImageHelper.read(tokenPath);
-            if (tokenImage == null) return;
+            if (tokenImage == null) continue;
 
             if (Constants.TOKEN_PLANETS.contains(tokenName)) {
                 Point tokenCenter = TokenPlanetPlacement.getTokenPlanetCenterOfImage(tile, tokenName);

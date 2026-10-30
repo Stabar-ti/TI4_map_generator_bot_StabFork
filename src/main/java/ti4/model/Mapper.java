@@ -1400,6 +1400,7 @@ public class Mapper {
     }
 
     public static boolean isValidToken(String id) {
+        if (id == null) return false;
         return getTokensFromProperties().contains(id) || tokenImagePathByAlias.containsKey(id.toLowerCase());
     }
 

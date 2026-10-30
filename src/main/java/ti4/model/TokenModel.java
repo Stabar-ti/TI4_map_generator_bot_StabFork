@@ -105,8 +105,8 @@ public class TokenModel implements ModelInterface, EmbeddableModel {
         eb.setFooter(sb.toString());
 
         eb.setThumbnail(
-                "https://github.com/AsyncTI4/TI4_map_generator_bot/blob/master/src/main/resources/tokens/" + imagePath
-                        + "?raw=true",
+                "https://github.com/AsyncTI4/TI4_map_generator_bot/blob/master/src/main/resources/tokens/"
+                        + (baseImagePath != null ? baseImagePath : imagePath) + "?raw=true",
                 id);
 
         return eb.build();

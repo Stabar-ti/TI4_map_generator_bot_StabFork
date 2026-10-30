@@ -778,7 +778,7 @@ public class CombatModHelper {
             case "sigma_argent_flagship_2" -> {
                 meetsCondition = ButtonHelper.doesPlayerHaveFSHere("sigma_argent_flagship_2", player, tile);
                 for (String adjPos :
-                        FoWHelper.getAdjacentTilesAndNotThisTile(game, tile.getPosition(), player, false)) {
+                        FoWHelper.getInboundAdjacentTiles(game, tile.getPosition(), player, false, false)) {
                     meetsCondition |= ButtonHelper.doesPlayerHaveFSHere(
                             "sigma_argent_flagship_2", player, game.getTileByPosition(adjPos));
                 }

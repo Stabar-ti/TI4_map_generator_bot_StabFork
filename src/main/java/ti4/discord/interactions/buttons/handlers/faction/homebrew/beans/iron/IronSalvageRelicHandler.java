@@ -255,7 +255,7 @@ public class IronSalvageRelicHandler {
 
     private static boolean hasDestroyerAfb(Game game, Player player, Tile combatTile) {
         return combatTile.getSpaceUnitHolder().getUnitCount(UnitType.Destroyer, player) > 0
-                || FoWHelper.getAdjacentTiles(game, combatTile.getPosition(), player, false, false).stream()
+                || FoWHelper.getInboundAdjacentTiles(game, combatTile.getPosition(), player, false, false).stream()
                         .map(game::getTileByPosition)
                         .filter(java.util.Objects::nonNull)
                         .anyMatch(tile -> tile.getSpaceUnitHolder().getUnitCount(UnitType.Destroyer, player) > 0);
@@ -285,7 +285,7 @@ public class IronSalvageRelicHandler {
         String sourcePosition = positions[1];
         Tile source = game.getTileByPosition(sourcePosition);
         if (destination == null || source == null) return;
-        if (!FoWHelper.getAdjacentTilesAndNotThisTile(game, destination.getPosition(), player, false)
+        if (!FoWHelper.getInboundAdjacentTiles(game, destination.getPosition(), player, false, false)
                 .contains(sourcePosition)) return;
         if (source.getSpaceUnitHolder().getUnitCount(UnitType.Cruiser, player) < 1) return;
         List<RemovedUnit> removed = RemoveUnitService.removeUnit(
@@ -500,7 +500,7 @@ public class IronSalvageRelicHandler {
     private static boolean canUseCruiserSalvage(Game game, Player player, Tile destination) {
         return player.hasRelic("salvage_cruiser")
                 && destination.getSpaceUnitHolder().getUnitCount(UnitType.Cruiser, player) > 0
-                && FoWHelper.getAdjacentTilesAndNotThisTile(game, destination.getPosition(), player, false).stream()
+                && FoWHelper.getInboundAdjacentTiles(game, destination.getPosition(), player, false, false).stream()
                         .map(game::getTileByPosition)
                         .filter(java.util.Objects::nonNull)
                         .anyMatch(tile -> tile.getSpaceUnitHolder().getUnitCount(UnitType.Cruiser, player) > 0);
@@ -521,7 +521,7 @@ public class IronSalvageRelicHandler {
             ButtonInteractionEvent event, Game game, Player player, Tile destination) {
         List<Button> buttons = new ArrayList<>();
         for (String position :
-                FoWHelper.getAdjacentTilesAndNotThisTile(game, destination.getPosition(), player, false)) {
+                FoWHelper.getInboundAdjacentTiles(game, destination.getPosition(), player, false, false)) {
             Tile source = game.getTileByPosition(position);
             if (source == null || source.getSpaceUnitHolder().getUnitCount(UnitType.Cruiser, player) < 1) continue;
             buttons.add(Buttons.green(

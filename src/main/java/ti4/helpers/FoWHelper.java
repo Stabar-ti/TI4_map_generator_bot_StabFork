@@ -586,7 +586,7 @@ public final class FoWHelper {
             boolean inbound) {
         if (FOWPlusService.isVoid(game, position)) return new HashSet<>();
 
-        Set<String> adjacentPositions = traverseAdjacencies(game, false, position);
+        Set<String> adjacentPositions = traverseAdjacencies(game, false, position, -1, new HashSet<>(), inbound);
 
         List<String> adjacentCustomTiles = game.getCustomAdjacentTiles().get(position);
 
@@ -868,7 +868,7 @@ public final class FoWHelper {
      * Does not traverse wormholes
      */
     public static Set<String> traverseAdjacencies(Game game, boolean naturalMapOnly, String position) {
-        return traverseAdjacencies(game, naturalMapOnly, position, -1, new HashSet<>());
+        return traverseAdjacencies(game, naturalMapOnly, position, -1, new HashSet<>(), false);
     }
 
     /**
@@ -878,7 +878,12 @@ public final class FoWHelper {
      * Does not traverse wormholes
      */
     private static Set<String> traverseAdjacencies(
-            Game game, boolean naturalMapOnly, String position, Integer sourceDirection, Set<String> exploredSet) {
+            Game game,
+            boolean naturalMapOnly,
+            String position,
+            Integer sourceDirection,
+            Set<String> exploredSet,
+            boolean inbound) {
         Set<String> tiles = new HashSet<>();
         if (exploredSet.contains(position + sourceDirection)) {
             // We already explored this tile from this direction!
@@ -920,8 +925,10 @@ public final class FoWHelper {
             boolean borderBlocked = false;
             for (BorderAnomalyHolder b : game.getBorderAnomalies()) {
                 if (b == null || b.getTile() == null) continue;
-                if (b.getTile().equals(position) && b.getDirection() == i && b.blocksAdjacencyOut()
-                        || b.getTile().equals(position_) && b.getDirection() == dirFrom && b.blocksAdjacencyIn()) {
+                boolean blocksHere = inbound ? b.blocksAdjacencyIn() : b.blocksAdjacencyOut();
+                boolean blocksThere = inbound ? b.blocksAdjacencyOut() : b.blocksAdjacencyIn();
+                if (b.getTile().equals(position) && b.getDirection() == i && blocksHere
+                        || b.getTile().equals(position_) && b.getDirection() == dirFrom && blocksThere) {
                     borderBlocked = true;
                 }
             }
@@ -944,7 +951,8 @@ public final class FoWHelper {
 
             // explore that tile now!
             int direcetionFrom = naturalMapOnly ? -2 : dirFrom;
-            Set<String> newTiles = traverseAdjacencies(game, naturalMapOnly, position_, direcetionFrom, exploredSet);
+            Set<String> newTiles =
+                    traverseAdjacencies(game, naturalMapOnly, position_, direcetionFrom, exploredSet, inbound);
             tiles.addAll(newTiles);
         }
         return tiles;

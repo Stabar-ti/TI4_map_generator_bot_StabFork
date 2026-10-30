@@ -121,7 +121,7 @@ public class ButtonHelperHeroes {
         buttons.add(Buttons.green(
                 player.factionButtonChecker() + "argentHeroStep2_" + activeSystem.getPosition(),
                 activeSystem.getRepresentationForButtons(game, player)));
-        for (String pos : FoWHelper.getAdjacentTilesAndNotThisTile(game, activeSystem.getPosition(), player, false)) {
+        for (String pos : FoWHelper.getInboundAdjacentTiles(game, activeSystem.getPosition(), player, false, false)) {
             Tile tile = game.getTileByPosition(pos);
             if (CommandCounterHelper.hasCC(player, tile)
                     && !FoWHelper.otherPlayersHaveUnitsInSystem(player, tile, game)) {
