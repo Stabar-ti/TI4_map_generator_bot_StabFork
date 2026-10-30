@@ -1,0 +1,92 @@
+[
+    {
+        "id": "alpha_rat",
+        "imagePath": "token_ratrace_alpha.png",
+        "spaceOrPlanet": "space",
+        "wormholes": [
+            "ALPHA_RAT"
+        ],
+        "source": "other"
+    },
+    {
+        "id": "beta_rat",
+        "imagePath": "token_ratrace_beta.png",
+        "spaceOrPlanet": "space",
+        "wormholes": [
+            "BETA_RAT"
+        ],
+        "source": "other"
+    },
+    {
+        "id": "gamma_rat",
+        "imagePath": "token_ratrace_gamma.png",
+        "spaceOrPlanet": "space",
+        "wormholes": [
+            "GAMMA_RAT"
+        ],
+        "source": "other"
+    },
+    {
+        "id": "delta_rat",
+        "imagePath": "token_ratrace_delta.png",
+        "spaceOrPlanet": "space",
+        "wormholes": [
+            "DELTA_RAT"
+        ],
+        "source": "other"
+    },
+    {
+        "id": "epsilon_rat",
+        "imagePath": "token_ratrace_epsilon.png",
+        "spaceOrPlanet": "space",
+        "wormholes": [
+            "EPSILON_RAT"
+        ],
+        "source": "other"
+    },
+    {
+        "id": "zeta_rat",
+        "imagePath": "token_ratrace_zeta.png",
+        "spaceOrPlanet": "space",
+        "wormholes": [
+            "ZETA_RAT"
+        ],
+        "source": "other"
+    },
+    {
+        "id": "eta_rat",
+        "imagePath": "token_ratrace_eta.png",
+        "spaceOrPlanet": "space",
+        "wormholes": [
+            "ETA_RAT"
+        ],
+        "source": "other"
+    },
+    {
+        "id": "theta_rat",
+        "imagePath": "token_ratrace_theta.png",
+        "spaceOrPlanet": "space",
+        "wormholes": [
+            "THETA_RAT"
+        ],
+        "source": "other"
+    },
+    {
+        "id": "iota_rat",
+        "imagePath": "token_ratrace_iota.png",
+        "spaceOrPlanet": "space",
+        "wormholes": [
+            "IOTA_RAT"
+        ],
+        "source": "other"
+    },
+    {
+        "id": "kappa_rat",
+        "imagePath": "token_ratrace_kappa.png",
+        "spaceOrPlanet": "space",
+        "wormholes": [
+            "KAPPA_RAT"
+        ],
+        "source": "other"
+    }
+]
