@@ -85,7 +85,7 @@ public final class PlayerNeighbourGraph {
 
     private Set<String> extraWormholeAdjacencies(String position, Player player) {
         if (!travelBanInPlay && !player.hasAbility("quantum_entanglement")) return Set.of();
-        return FoWHelper.getWormholeAdjacencies(game, position, player, true);
+        return FoWHelper.getWormholeAdjacencies(game, position, player);
     }
 
     private boolean isInAnyOf(Player player, Set<String> positions) {
