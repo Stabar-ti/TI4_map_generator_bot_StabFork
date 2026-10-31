@@ -1,6 +1,5 @@
 package ti4.helpers.adjacency;
 
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.EnumSet;
 import java.util.HashSet;
@@ -33,6 +32,8 @@ import ti4.service.planet.AsgardLegendaryService;
 /**
  * Frozen copy of FoWHelper.getAdjacentTiles and its helpers as they were before the Adjacency API (2026-10-30).
  * AdjacencyParityTest compares the new API against it. Do not "fix" anything here: it is the baseline.
+ * Intended rule changes since then, each marked "Changed in" below:
+ * - PR-M: custom links read primary -> listed for every purpose (vision already did).
  */
 final class LegacyAdjacency {
 
@@ -44,29 +45,8 @@ final class LegacyAdjacency {
 
         Set<String> adjacentPositions = traverseAdjacencies(game, false, position);
 
-        List<String> adjacentCustomTiles = game.getCustomAdjacentTiles().get(position);
-
-        List<String> adjacentCustomTiles2 = new ArrayList<>();
-        if (adjacentCustomTiles != null) {
-            if (!toShow) {
-                for (String t : adjacentCustomTiles) {
-                    if (game.getCustomAdjacentTiles().get(t) != null
-                            && game.getCustomAdjacentTiles().get(t).contains(position)) {
-                        adjacentCustomTiles2.add(t);
-                    }
-                }
-                adjacentPositions.addAll(adjacentCustomTiles2);
-            } else {
-                adjacentPositions.addAll(adjacentCustomTiles);
-            }
-        }
-        if (!toShow) {
-            for (String primaryTile : game.getCustomAdjacentTiles().keySet()) {
-                if (game.getCustomAdjacentTiles().get(primaryTile).contains(position)) {
-                    adjacentPositions.add(primaryTile);
-                }
-            }
-        }
+        // Changed in PR-M: was listed -> primary for movement and effects, primary -> listed for vision only.
+        adjacentPositions.addAll(game.getCustomAdjacentTiles().getOrDefault(position, List.of()));
 
         Set<String> wormholeAdjacencies = getWormholeAdjacencies(game, position, player, false, forDistance);
         adjacentPositions.addAll(wormholeAdjacencies);

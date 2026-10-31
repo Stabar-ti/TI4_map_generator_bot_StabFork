@@ -242,6 +242,21 @@ class TestBedDataTest extends BaseTi4Test {
         assertTrue(errors.stream().noneMatch(error -> error.contains("at `202`")), String.join("\n", errors));
     }
 
+    @Test
+    void customAdjacenciesAreValidated() {
+        TestBedPreset preset = TestBedPresetService.parse("""
+                {
+                  "you": { "faction": "sol" },
+                  "customAdjacencies": { "000": ["201", "TL"], "nowhere": ["101"], "102": ["moon"] }
+                }""");
+        List<String> errors = TestBedPresetService.validate(preset);
+        assertContains(
+                errors,
+                "`customAdjacencies` position `nowhere` is not a tile position",
+                "`customAdjacencies` target `moon` at `102`");
+        assertTrue(errors.stream().noneMatch(error -> error.contains("at `000`")), String.join("\n", errors));
+    }
+
     // Homebrew card tests switch decks in the preset and stack explores in scripts; wrong slots, unknown decks,
     // decks of the wrong type and unknown explore ids must be caught before a live run.
     @Test

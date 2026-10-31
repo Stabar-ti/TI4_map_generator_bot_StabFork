@@ -22,6 +22,7 @@ import ti4.helpers.NewStuffHelper;
 import ti4.helpers.Units;
 import ti4.helpers.Units.UnitKey;
 import ti4.helpers.Units.UnitType;
+import ti4.helpers.adjacency.Adjacency;
 import ti4.message.MessageHelper;
 import ti4.model.Mapper;
 import ti4.model.PromissoryNoteModel;
@@ -114,8 +115,9 @@ public class ThirtyKCulturalExploreHandler {
 
     private static List<Button> directImportButtons(Game game, Player player, Tile tile) {
         List<Button> buttons = new ArrayList<>();
-        for (Tile adjacent : ThirtyKExploreSupport.tilesInOrAdjacent(game, player, tile)) {
-            if (adjacent == tile) continue;
+        for (String position : Adjacency.of(game, player).forMovement().into(tile.getPosition())) {
+            Tile adjacent = game.getTileByPosition(position);
+            if (adjacent == null) continue;
             for (UnitKey key : adjacent.getSpaceUnitHolder().getUnitKeysForPlayer(player)) {
                 if (!ThirtyKExploreSupport.isShip(player, key)) continue;
                 buttons.add(Buttons.green(

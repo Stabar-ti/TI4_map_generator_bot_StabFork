@@ -78,6 +78,7 @@ To test a component, get it into play with the preset (or mid-script with `do: h
 | Law in play | game `laws` (`id` or `id:elected`) | `"laws": ["arms_reduction"]` |
 | Token or attachment | game `tokens`: tile position or planet; remove one mid-script with `do: removeToken` | `"tokens": { "101": ["frontier"], "mecatolrex": ["dmz"] }`, `{ "do": "removeToken", "key": "318", "value": "frontier" }` |
 | Border anomaly | game `borderAnomalies`: tile position to `<n\|ne\|se\|s\|sw\|nw>:<type>` | `"borderAnomalies": { "202": ["n:spatial_tear"] }` |
+| Custom adjacency (one-way, like `/map add_custom_adjacent_tiles`) | game `customAdjacencies`: primary position to the positions it reaches; list both ways for a two-way link | `"customAdjacencies": { "000": ["201"] }` |
 | Relic fragment | seat `fragments` | `"fragments": ["crf1"]` |
 | Tile outside the map string (maps A-G, corners, Fracture) | game `tiles`: position to tile id | `"tiles": { "a000": "39", "tl": "82" }` |
 | Fog option | game `fowOptions` (fog presets) | `"fowOptions": ["map_connections", "ghost_hexes"]` |
@@ -266,7 +267,7 @@ copy-paste templates.
 | `defaults` | Seat fields for every seat that does not set them. |
 | `start` | `setup` (default), `strategy` or `action` (seats without `sc` get the lowest free card). |
 | `combat` | Positions where a combat check runs after the start phase; needs `start: action`. |
-| `revealedObjectives`, `laws`, `tokens`, `borderAnomalies` | Game state; see [Set up any component](#set-up-any-component). |
+| `revealedObjectives`, `laws`, `tokens`, `borderAnomalies`, `customAdjacencies` | Game state; see [Set up any component](#set-up-any-component). |
 | `tiles` | Extra tiles by position, placed over the map string: maps A-G (`a000`-`g848`), corners, Fracture. |
 | `fowOptions` | Fog options switched on at apply (names as in the FoW options, e.g. `map_connections`). `fow_plus` turns on full FoW+ mode, including the options it forces. |
 | `stored` | Game stored values set at apply. Unlike script `setStored`, values may contain `:` and `,` (sector definitions do). |
@@ -326,7 +327,8 @@ Every step may also have a `label` for the report.
   (commodity value, not the commodities held);
   `game.` + `activeSystem`, `phase`, `round`, `activePlayer`, `speaker`, `playedScs`, `acDiscard`, `agendaDiscard`,
   `laws`, `revealedPos`, `purgedPns`, `exploreDiscard`, `exploreDeck`, `relicDeck`,
-  `decks` (`ac:<id>,so:<id>,relic:<id>,explore:<id>,agenda:<id>`), `borderAnomalies` (`<tile>:<direction>:<type>`);
+  `decks` (`ac:<id>,so:<id>,relic:<id>,explore:<id>,agenda:<id>`), `borderAnomalies` (`<tile>:<direction>:<type>`),
+  `customAdjacencies` (`<primary>><listed>`);
   `tile.<position>.` + `units` (`space:blue_dd=2`), `ccs`, `tokens`, `planets`;
   `planet.<id>.` + `owner`, `units`, `tokens`; `stored:<key>`. Lists are sorted and comma-joined.
 - **Placeholders:** `{ac:<id>}`, `{so:<id>}`, `{pn:<id>}` (the acting seat's hand number), `{<seat>.faction}`,

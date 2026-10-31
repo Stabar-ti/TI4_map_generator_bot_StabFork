@@ -89,6 +89,10 @@ public class TestBedComponentService {
                 game.addBorderAnomaly(entry.getKey(), borderDirection(border), borderType(border));
             }
         }
+        preset.getCustomAdjacencies()
+                .forEach((primary, listed) -> game.addCustomAdjacentTiles(
+                        primary.toLowerCase(),
+                        listed.stream().map(String::toLowerCase).toList()));
     }
 
     static final Map<String, DeckType> DECK_SLOTS = Map.of(

@@ -28,6 +28,7 @@ import ti4.game.Tile;
 import ti4.game.UnitHolder;
 import ti4.helpers.Units.UnitKey;
 import ti4.helpers.Units.UnitType;
+import ti4.helpers.adjacency.Adjacency;
 import ti4.helpers.thundersedge.DSHelperBreakthroughs;
 import ti4.logging.BotLogger;
 import ti4.message.MessageHelper;
@@ -1742,7 +1743,7 @@ public class ButtonHelperHeroes {
             for (Player p2 : game.getRealPlayersNNeutral()) {
                 if (FoWHelper.playerHasShipsInSystem(p2, tile1)) {
                     boolean adjacentPeeps = false;
-                    for (String pos2 : FoWHelper.getAdjacentTiles(game, pos1, p2, false)) {
+                    for (String pos2 : Adjacency.of(game, p2).forMovement().from(pos1)) {
                         if (pos1.equalsIgnoreCase(pos2)) {
                             continue;
                         }

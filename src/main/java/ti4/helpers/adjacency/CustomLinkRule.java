@@ -9,20 +9,12 @@ final class CustomLinkRule implements AdjacencyRule {
 
     @Override
     public void from(AdjacencyContext context, String position, Set<String> adjacent) {
-        if (context.isVision()) {
-            adjacent.addAll(listedBy(context, position));
-        } else {
-            adjacent.addAll(primariesListing(context, position));
-        }
+        adjacent.addAll(listedBy(context, position));
     }
 
     @Override
     public void into(AdjacencyContext context, String position, Set<String> sources) {
-        if (context.isVision()) {
-            sources.addAll(primariesListing(context, position));
-        } else {
-            sources.addAll(listedBy(context, position));
-        }
+        sources.addAll(primariesListing(context, position));
     }
 
     private static List<String> listedBy(AdjacencyContext context, String primary) {

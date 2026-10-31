@@ -48,6 +48,7 @@ import ti4.game.UnitHolder;
 import ti4.helpers.Units.UnitKey;
 import ti4.helpers.Units.UnitState;
 import ti4.helpers.Units.UnitType;
+import ti4.helpers.adjacency.Adjacency;
 import ti4.helpers.thirtyk.ThirtyKActionCardHooks;
 import ti4.helpers.thirtyk.ThirtyKExploreHooks;
 import ti4.helpers.thirtyk.ThirtyKSecretHooks;
@@ -1354,7 +1355,7 @@ public final class ButtonHelperModifyUnits {
     public static List<Button> getRalnelCommanderButtons(Player player, Game game, String pos1) {
         String factionChecker = player.factionButtonChecker();
         List<Button> buttons = new ArrayList<>();
-        for (String pos2 : FoWHelper.getAdjacentTiles(game, pos1, player, false, false)) {
+        for (String pos2 : Adjacency.of(game, player).forMovement().from(pos1)) {
             Tile targetTile = game.getTileByPosition(pos2);
             if (!canRetreatTo(game, player, targetTile, true, false)) {
                 continue; // skip invalid systems
@@ -1377,7 +1378,7 @@ public final class ButtonHelperModifyUnits {
         if (feint) {
             skilledS += "feint";
         }
-        Set<String> positions = FoWHelper.getAdjacentTiles(game, pos1, player, false);
+        Set<String> positions = Adjacency.of(game, player).forMovement().from(pos1);
         Tile helheimTile = game.getTileFromPlanet("helheim");
         if (player.hasPlanet("helheim")
                 && helheimTile != null

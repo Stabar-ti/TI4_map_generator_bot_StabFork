@@ -20,7 +20,10 @@ class AddCustomAdjacentTile extends GameStateSubcommand {
         super(Constants.ADD_CUSTOM_ADJACENT_TILES, "Add Custom Adjacent Tiles.", true, true);
         addOptions(new OptionData(OptionType.STRING, Constants.PRIMARY_TILE, "Primary Tile").setRequired(true));
         addOptions(new OptionData(OptionType.STRING, Constants.ADJACENT_TILES, "Adjacent Tiles").setRequired(true));
-        addOptions(new OptionData(OptionType.BOOLEAN, Constants.TWO_WAY, "Are added tiles two way connection"));
+        addOptions(new OptionData(
+                OptionType.BOOLEAN,
+                Constants.TWO_WAY,
+                "Also link the adjacent tiles back to the primary (default: primary reaches them only)"));
     }
 
     @Override

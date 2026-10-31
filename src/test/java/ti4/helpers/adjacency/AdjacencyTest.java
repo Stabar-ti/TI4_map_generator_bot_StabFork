@@ -109,6 +109,34 @@ class AdjacencyTest extends BaseTi4Test {
         }
     }
 
+    // /map add_custom_adjacent_tiles primary:P adjacent:X links P -> X; movement follows it in every mode.
+    @Test
+    void customLinkRunsFromPrimaryToListed() {
+        try (var harness = TestGameHarness.fromSourceGame("game-with-border-anomalies")) {
+            Game game = harness.load();
+            game.setFowMode(false);
+            String far = AdjacencyScenarios.positions(game).stream()
+                    .filter(position -> !HOLDER.equals(position))
+                    .filter(position -> !Adjacency.of(game).either(HOLDER).contains(position))
+                    .findFirst()
+                    .orElseThrow();
+            game.addCustomAdjacentTiles(HOLDER, List.of(far));
+
+            for (boolean oneWay : new boolean[] {false, true}) {
+                game.setOneWayAdjacency(oneWay);
+                Adjacency movement = Adjacency.of(game).forMovement();
+                assertThat(movement.from(HOLDER)).contains(far);
+                assertThat(movement.into(far)).contains(HOLDER);
+                assertThat(movement.from(far)).doesNotContain(HOLDER);
+            }
+            for (Adjacency adjacency :
+                    List.of(Adjacency.of(game).forEffects(), Adjacency.of(game).forVision())) {
+                assertThat(adjacency.from(HOLDER)).contains(far);
+                assertThat(adjacency.from(far)).doesNotContain(HOLDER);
+            }
+        }
+    }
+
     @Test
     void selfIsOnlyIncludedWhenAsked() {
         try (var harness = TestGameHarness.fromSourceGame("game-with-border-anomalies")) {

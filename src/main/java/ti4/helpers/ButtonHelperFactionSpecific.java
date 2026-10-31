@@ -49,6 +49,7 @@ import ti4.game.UnitHolder;
 import ti4.helpers.DiceHelper.Die;
 import ti4.helpers.Units.UnitKey;
 import ti4.helpers.Units.UnitType;
+import ti4.helpers.adjacency.Adjacency;
 import ti4.helpers.thundersedge.DSHelperBreakthroughs;
 import ti4.logging.BotLogger;
 import ti4.message.MessageHelper;
@@ -3390,7 +3391,7 @@ public final class ButtonHelperFactionSpecific {
     public static List<Button> getRalnelPullButtons(Player player, Game game, Tile tile, UnitHolder planet) {
         List<Button> buttons = new ArrayList<>();
         String planetId = planet.getName();
-        for (String pos2 : FoWHelper.getAdjacentTiles(game, tile.getPosition(), player, false, true)) {
+        for (String pos2 : Adjacency.of(game, player).forMovement().withSelf().into(tile.getPosition())) {
             Tile tile2 = game.getTileByPosition(pos2);
             for (Planet planetUnit2 : tile2.getPlanetUnitHolders()) {
                 Planet planetReal2 = planetUnit2;
