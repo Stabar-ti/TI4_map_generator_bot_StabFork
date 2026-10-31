@@ -19,6 +19,7 @@ class AdjacencyTest extends BaseTi4Test {
     void gravityWaveMakesTheHolderReachTheNeighbourOneWay() {
         try (var harness = TestGameHarness.fromSourceGame("game-with-border-anomalies")) {
             Game game = harness.load();
+            game.setOneWayAdjacency(true);
             String neighbour = gravityWaveNeighbour(game);
             Adjacency adjacency = Adjacency.of(game);
 
@@ -28,6 +29,83 @@ class AdjacencyTest extends BaseTi4Test {
             assertThat(adjacency.into(HOLDER)).doesNotContain(neighbour);
             assertThat(adjacency.either(neighbour)).contains(HOLDER);
             assertThat(adjacency.either(HOLDER)).contains(neighbour);
+        }
+    }
+
+    // With one-way adjacency off (the default outside fog), a one-way link only restricts movement.
+    @Test
+    void offModeKeepsMovementOneWayAndEverythingElseBothWays() {
+        try (var harness = TestGameHarness.fromSourceGame("game-with-border-anomalies")) {
+            Game game = harness.load();
+            game.setFowMode(false);
+            String neighbour = gravityWaveNeighbour(game);
+
+            assertThat(Adjacency.of(game).forMovement().from(neighbour)).doesNotContain(HOLDER);
+            assertThat(Adjacency.of(game).forMovement().into(HOLDER)).doesNotContain(neighbour);
+            for (Adjacency adjacency :
+                    List.of(Adjacency.of(game).forEffects(), Adjacency.of(game).forVision())) {
+                assertThat(adjacency.from(neighbour)).contains(HOLDER);
+                assertThat(adjacency.into(HOLDER)).contains(neighbour);
+                assertThat(adjacency.isAdjacent(neighbour, HOLDER)).isTrue();
+            }
+        }
+    }
+
+    @Test
+    void fogFollowsDirectionEvenWithTheToggleOff() {
+        try (var harness = TestGameHarness.fromSourceGame("game-with-border-anomalies")) {
+            Game game = harness.load();
+            game.setFowMode(true);
+            game.setOneWayAdjacency(false);
+            String neighbour = gravityWaveNeighbour(game);
+
+            assertThat(Adjacency.of(game).forEffects().from(neighbour)).doesNotContain(HOLDER);
+            assertThat(Adjacency.of(game).forVision().from(neighbour)).doesNotContain(HOLDER);
+        }
+    }
+
+    // A border that blocks both ways stays blocked in off mode: the union of two missing links is still missing.
+    @Test
+    void offModeKeepsTwoWayBlocks() {
+        try (var harness = TestGameHarness.fromSourceGame("game-with-border-anomalies")) {
+            Game game = harness.load();
+            game.setFowMode(false);
+            String neighbour = gravityWaveNeighbour(game);
+            game.setBorderAnomalies(new ArrayList<>());
+            game.addBorderAnomaly(HOLDER, directionOf(neighbour), "spatial_tear");
+
+            assertThat(Adjacency.of(game).forEffects().from(HOLDER)).doesNotContain(neighbour);
+            assertThat(Adjacency.of(game).forEffects().from(neighbour)).doesNotContain(HOLDER);
+        }
+    }
+
+    // Hyperlane tiles are not systems: they stay out of reach in off mode, and from/into still mirror each other.
+    @Test
+    void offModeIsSymmetricBetweenSystemsAndLeavesHyperlaneTilesEmpty() {
+        try (var harness = TestGameHarness.fromSourceGame("pbd15036")) {
+            Game game = harness.load();
+            game.setFowMode(false);
+            Adjacency adjacency = Adjacency.of(game).forEffects();
+            List<String> positions = AdjacencyScenarios.positions(game);
+            List<String> problems = new ArrayList<>();
+            for (String a : positions) {
+                boolean aIsHyperlane = game.getTileByPosition(a).getTileModel().isHyperlane();
+                if (aIsHyperlane && !adjacency.from(a).isEmpty()) problems.add(a + " is a hyperlane tile with links");
+                for (String b : positions) {
+                    boolean bIsHyperlane =
+                            game.getTileByPosition(b).getTileModel().isHyperlane();
+                    if (adjacency.from(a).contains(b) != adjacency.into(b).contains(a)) {
+                        problems.add(a + "->" + b + " from/into disagree");
+                    }
+                    if (!aIsHyperlane
+                            && !bIsHyperlane
+                            && adjacency.from(a).contains(b)
+                                    != adjacency.from(b).contains(a)) {
+                        problems.add(a + "<->" + b + " not symmetric");
+                    }
+                }
+            }
+            assertThat(problems).isEmpty();
         }
     }
 
@@ -71,5 +149,9 @@ class AdjacencyTest extends BaseTi4Test {
             }
         }
         throw new AssertionError("Test map has no plain neighbour for " + HOLDER);
+    }
+
+    private static int directionOf(String neighbour) {
+        return MapPositionMapper.getAdjacentTilePositions(HOLDER).indexOf(neighbour);
     }
 }

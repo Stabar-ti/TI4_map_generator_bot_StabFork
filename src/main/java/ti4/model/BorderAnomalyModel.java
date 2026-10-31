@@ -55,6 +55,11 @@ public class BorderAnomalyModel implements ModelInterface {
     }
 
     @JsonIgnore
+    public boolean isOneWay() {
+        return blocksAdjacencyIn() != blocksAdjacencyOut();
+    }
+
+    @JsonIgnore
     public boolean declaresAdjacencyRules() {
         return blocksAdjacencyIn() || blocksAdjacencyOut();
     }

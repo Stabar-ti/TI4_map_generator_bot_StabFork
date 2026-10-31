@@ -37,7 +37,10 @@ enum AdjacencyScenarios {
         this.setup = setup;
     }
 
+    // The fixtures are normal games; switching one-way adjacency on keeps every purpose direction-aware, which is
+    // what the legacy implementation did and what the transpose check needs to be meaningful.
     void apply(Game game) {
+        game.setOneWayAdjacency(true);
         setup.accept(game);
     }
 

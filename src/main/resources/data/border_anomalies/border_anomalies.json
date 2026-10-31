@@ -16,7 +16,7 @@
         "source": "other",
         "rules": { "adjacency": { "blocksIn": true, "blocksOut": false } },
         "automation": "FULL",
-        "automationNotes": "Systems are not adjacent when crossing into the bordered system over this edge."
+        "automationNotes": "Units cannot move into the bordered system over this edge. Other effects only follow that direction when one-way adjacency is on (always in fog); otherwise the systems stay adjacent both ways."
     },
     {
         "id": "nebula",

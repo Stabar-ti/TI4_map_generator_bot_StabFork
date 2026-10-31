@@ -7,6 +7,7 @@ import java.util.Map;
 import java.util.Set;
 import ti4.game.Game;
 import ti4.game.Player;
+import ti4.game.Tile;
 import ti4.service.fow.FOWPlusService;
 
 public final class Adjacency {
@@ -76,22 +77,55 @@ public final class Adjacency {
     }
 
     public Set<String> from(String position) {
-        return withSelfIfAsked(position, fromCache.computeIfAbsent(position, this::computeFrom));
+        return withSelfIfAsked(position, followsDirection() ? outbound(position) : fromBothWays(position));
     }
 
     public Set<String> into(String position) {
-        return withSelfIfAsked(position, intoCache.computeIfAbsent(position, this::computeInto));
+        return withSelfIfAsked(position, followsDirection() ? inbound(position) : intoBothWays(position));
     }
 
     public Set<String> either(String position) {
-        Set<String> either = from(position);
-        either.addAll(into(position));
-        return either;
+        Set<String> either = fromBothWays(position);
+        either.addAll(intoBothWays(position));
+        return withSelfIfAsked(position, either);
     }
 
     public boolean isAdjacent(String position, String otherPosition) {
         if (position.equals(otherPosition)) return !isVoid(position);
         return from(position).contains(otherPosition);
+    }
+
+    private boolean followsDirection() {
+        return context.isMovement() || context.getGame().usesOneWayAdjacency();
+    }
+
+    private Set<String> outbound(String position) {
+        return fromCache.computeIfAbsent(position, this::computeFrom);
+    }
+
+    private Set<String> inbound(String position) {
+        return intoCache.computeIfAbsent(position, this::computeInto);
+    }
+
+    private Set<String> fromBothWays(String position) {
+        Set<String> adjacent = new HashSet<>(outbound(position));
+        if (!isHyperlaneTile(position)) {
+            adjacent.addAll(inbound(position));
+        }
+        return adjacent;
+    }
+
+    private Set<String> intoBothWays(String position) {
+        Set<String> sources = new HashSet<>(inbound(position));
+        outbound(position).stream().filter(source -> !isHyperlaneTile(source)).forEach(sources::add);
+        return sources;
+    }
+
+    private boolean isHyperlaneTile(String position) {
+        Tile tile = context.getGame().getTileByPosition(position);
+        return tile != null
+                && tile.getTileModel() != null
+                && tile.getTileModel().isHyperlane();
     }
 
     private Set<String> computeFrom(String position) {

@@ -12,6 +12,7 @@ import ti4.game.Game;
 import ti4.helpers.Constants;
 import ti4.helpers.Helper;
 import ti4.message.MessageHelper;
+import ti4.service.map.OneWayAdjacencyHintService;
 
 class AddCustomAdjacentTile extends GameStateSubcommand {
 
@@ -46,7 +47,9 @@ class AddCustomAdjacentTile extends GameStateSubcommand {
         }
         game.addCustomAdjacentTiles(primaryTile, customTiles);
         OptionMapping twoWayOption = event.getOption(Constants.TWO_WAY);
-        if (twoWayOption != null && twoWayOption.getAsBoolean()) {
+        if (twoWayOption == null || !twoWayOption.getAsBoolean()) {
+            OneWayAdjacencyHintService.hintOnce(game, event.getChannel());
+        } else {
             for (String tile : tiles) {
                 List<String> customReverseTiles =
                         new ArrayList<>(game.getCustomAdjacentTiles().getOrDefault(tile, Collections.emptyList()));

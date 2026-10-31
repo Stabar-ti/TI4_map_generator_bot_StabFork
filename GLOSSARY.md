@@ -314,6 +314,10 @@ A team mode in which Players are paired and share some benefits.
 **Community mode**:
 A mode where a Game is played by a community role rather than individually assigned Players.
 
+**One-way adjacency**:
+A Game setting for one-way links (gravity-wave borders, one-way custom adjacencies, one-way wormholes). When off, the default outside Fog of War, a one-way link only limits movement and counts as Adjacency both ways for everything else. When on, and always in Fog of War, the side that acts needs the link: a PDS fires only along it, and a Player sees only where they could move.
+_Avoid_: Directional mode
+
 **TIGL**:
 The Twilight Imperium Global Ladder, whose competitive Games report results and move Players through ranks.
 _Avoid_: Ladder game
