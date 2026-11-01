@@ -1197,6 +1197,7 @@ public final class ButtonHelperModifyUnits {
                         for (String pos : FoWHelper.getAdjacentTiles(game, tile.getPosition(), p2, false, true)) {
                             if (game.getTileByPosition(pos).getSpaceUnitHolder().getUnitCount(UnitType.Carrier, p2)
                                     > 0) {
+                                // TODO: break? Carriers in two systems in range capture one fighter twice.
                                 CaptureUnitService.executeCapture(event, game, p2, units.getFirst());
                             }
                         }
