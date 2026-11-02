@@ -110,6 +110,13 @@ class WormholeDataTest extends BaseTi4Test {
                 .forEach(token -> plainTypes.addAll(Mapper.getTokenWormholes(token.getImagePath())));
         assertThat(plainTypes).contains(Wormhole.ALPHA, Wormhole.OMEGA, Wormhole.LAMBDA, Wormhole.KAPPA_RAT);
 
+        // Lambda has no token_whlambda.png, so the wormhole view relies on this lookup for its icon.
+        assertThat(Mapper.getWormholeTokenImagePath(Wormhole.LAMBDA)).isEqualTo("token_sigma_lambda.png");
+        for (Wormhole wormhole : Wormhole.values()) {
+            assertThat(Mapper.getOneWayWormholeToken(Mapper.getWormholeTokenImagePath(wormhole)))
+                    .as("display image of " + wormhole)
+                    .isNull();
+        }
         for (Wormhole wormhole : plainTypes) {
             assertThat(Mapper.getToken(wormhole.tokenId()))
                     .as(wormhole.tokenId())

@@ -112,17 +112,6 @@ class WormholeAdjacencyTest extends BaseTi4Test {
     }
 
     @Test
-    void oneWayTokensAreNeverATypesDisplayImage() {
-        // Lambda has no token_whlambda.png, so the wormhole view relies on this lookup for its icon.
-        assertThat(Mapper.getWormholeTokenImagePath(Wormhole.LAMBDA)).isEqualTo("token_sigma_lambda.png");
-        for (Wormhole wormhole : Wormhole.values()) {
-            assertThat(Mapper.getOneWayWormholeToken(Mapper.getWormholeTokenImagePath(wormhole)))
-                    .as(wormhole.name())
-                    .isNull();
-        }
-    }
-
-    @Test
     void reconstructionKeepsTheDirectionOfAOneWayAlpha() {
         try (var harness = TestGameHarness.fromSourceGame("game-with-border-anomalies")) {
             Game game = harness.load();
