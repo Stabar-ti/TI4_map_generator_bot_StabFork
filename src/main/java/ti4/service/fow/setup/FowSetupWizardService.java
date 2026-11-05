@@ -658,7 +658,7 @@ public final class FowSetupWizardService {
     @ButtonHandler("fowSetupDealSO")
     public static void dealSO(ButtonInteractionEvent event, Game game) {
         if (!requireGM(event, game)) return;
-        DrawSecretService.dealSOToAll(event, 2, game);
+        DrawSecretService.dealStartingSecretObjectives(event, game);
     }
 
     @ButtonHandler("fowSetupStartGame")

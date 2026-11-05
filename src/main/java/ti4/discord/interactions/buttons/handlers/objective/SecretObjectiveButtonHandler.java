@@ -160,7 +160,7 @@ class SecretObjectiveButtonHandler {
             return;
         }
 
-        DrawSecretService.dealSOToAll(event, 2, game);
+        DrawSecretService.dealStartingSecretObjectives(event, game);
         ButtonHelper.deleteMessage(event);
     }
 
@@ -176,7 +176,7 @@ class SecretObjectiveButtonHandler {
         event.getMessageChannel()
                 .deleteMessageById(dealButtonMessageId)
                 .queue(Consumers.nop(), BotLogger::catchRestError);
-        DrawSecretService.dealSOToAll(event, 2, game);
+        DrawSecretService.dealStartingSecretObjectives(event, game);
         ButtonHelper.deleteMessage(event);
     }
 

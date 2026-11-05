@@ -34,6 +34,8 @@ import ti4.service.info.SecretObjectiveInfoService;
 import ti4.service.leader.CommanderUnlockCheckService;
 import ti4.service.leader.HeroUnlockCheckService;
 import ti4.service.leader.UnlockLeaderService;
+import ti4.service.objectives.SecretsOnlyService;
+import ti4.service.objectives.fog.FogSecrets;
 
 @UtilityClass
 public class SecretObjectiveHelper {
@@ -42,6 +44,15 @@ public class SecretObjectiveHelper {
             GenericInteractionCreateEvent event, Game game, Player player, int soID, MessageChannel channel) {
         if (EndedGameScoringGuardService.sendPromptIfGameEnded(game, channel)) {
             return false;
+        }
+        if (game.isSecretsOnlyMode() && SecretsOnlyService.hasAlreadyScored(player, soID)) {
+            MessageHelper.sendMessageToChannel(
+                    channel,
+                    "You have already scored that secret objective, and no player may score the same one twice.");
+            return false;
+        }
+        if (game.isSecretsOnlyMode()) {
+            SecretsOnlyService.recordScore(game, player, soID);
         }
         Set<String> alreadyScoredSO = new HashSet<>(player.getSecretsScored().keySet());
         boolean scored = game.scoreSecretObjective(player.getUserID(), soID);
@@ -201,6 +212,9 @@ public class SecretObjectiveHelper {
                 List<Button> buttons = ActionCardHelper.getDiscardActionCardButtonsWithSuffix(player, "retain");
                 MessageHelper.sendMessageToChannelWithButtons(player.getCardsInfoThread(), msg, buttons);
             }
+        }
+        if (game.isSecretsOnlyMode()) {
+            message.append("-# It has been shuffled back into the secret objective deck.\n");
         }
         if (event != null
                 && channel.getName().equalsIgnoreCase(event.getChannel().getName())) {
@@ -431,7 +445,7 @@ public class SecretObjectiveHelper {
 
     private static String getSecretObjectiveProgress(Game game, String id) {
         int threshold = ListPlayerInfoService.getObjectiveThreshold(id, game);
-        if (threshold == 0) {
+        if (threshold == 0 || FogSecrets.isFogSecret(id)) {
             return "";
         }
         StringBuilder sb = new StringBuilder("> ");

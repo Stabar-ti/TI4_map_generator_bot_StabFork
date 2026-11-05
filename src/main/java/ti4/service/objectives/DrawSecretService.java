@@ -69,6 +69,17 @@ public class DrawSecretService {
         }
     }
 
+    public static void dealStartingSecretObjectives(GenericInteractionCreateEvent event, Game game) {
+        if (!game.isSecretsOnlyMode()) {
+            dealSOToAll(event, 2, game);
+            return;
+        }
+        SecretsOnlyService.offerStartingSecretObjectives(game);
+        if (game.getRound() == 1) {
+            RoundOneService.roundOne(event, game);
+        }
+    }
+
     public static void dealSOToAll(GenericInteractionCreateEvent event, int count, Game game) {
         if (count > 0) {
             for (Player player : game.getRealPlayers()) {

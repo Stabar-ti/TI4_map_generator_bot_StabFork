@@ -34,6 +34,8 @@ import ti4.model.UnitModel;
 import ti4.service.emoji.ExploreEmojis;
 import ti4.service.emoji.TileEmojis;
 import ti4.service.emoji.UnitEmojis;
+import ti4.service.objectives.SecretsOnlyService;
+import ti4.service.objectives.fog.FogSecrets;
 import ti4.service.unit.CheckUnitContainmentService;
 
 @UtilityClass
@@ -130,8 +132,15 @@ public class ListPlayerInfoService {
             case "control_borderlands_omegaphase" -> 4;
             case "imperium_rex_omegaphase" -> 0;
 
-            default -> ThirtyKSecrets.threshold(objID);
+            default -> homebrewSecretThreshold(objID, game);
         };
+    }
+
+    private static int homebrewSecretThreshold(String objID, Game game) {
+        if (FogSecrets.isFogSecret(objID)) return FogSecrets.threshold(objID, game);
+        int secretsOnlyThreshold = SecretsOnlyService.threshold(objID);
+        if (secretsOnlyThreshold > 0) return secretsOnlyThreshold;
+        return ThirtyKSecrets.threshold(objID);
     }
 
     record ObjectiveResult(boolean canFullyMeet, int closenessScore) {}
@@ -517,6 +526,8 @@ public class ListPlayerInfoService {
             }
         }
         if (ThirtyKCards.isSecretObjective(objID)) return ThirtyKSecrets.progress(objID, game, player);
+        if (FogSecrets.isFogSecret(objID)) return FogSecrets.progress(objID, game, player);
+        if (SecretsOnlyService.threshold(objID) > 0) return SecretsOnlyService.progress(objID, game, player);
         switch (objID) {
             case "push_boundaries", "push_boundaries_omegaphase" -> {
                 int aboveN = 0;

@@ -904,7 +904,16 @@ public class ExploreService {
                     FoWHelper.pingAllPlayersWithFullStats(game, event, player, "Drew 5 action cards.");
                 }
             }
-            case "dv1", "dv2" -> {
+            case "dv1",
+                    "dv2",
+                    "sodossierc1",
+                    "sodossierc2",
+                    "sodossierh1",
+                    "sodossierh2",
+                    "sodossieri1",
+                    "sodossieri2",
+                    "sodossierf1",
+                    "sodossierf2" -> {
                 message = new StringBuilder("Drew a secret objective.");
                 game.drawSecretObjective(player.getUserID());
                 if (game.isFowMode()) {
