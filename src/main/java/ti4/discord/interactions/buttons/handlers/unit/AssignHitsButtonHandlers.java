@@ -32,7 +32,6 @@ import ti4.message.MessageHelper;
 import ti4.model.UnitModel;
 import ti4.service.fow.FOWCombatThreadMirroring;
 import ti4.service.leader.CommanderUnlockCheckService;
-import ti4.service.objectives.fog.FogSecretHooks;
 import ti4.service.regex.RegexService;
 import ti4.service.unit.DestroyUnitService;
 import ti4.service.unit.ParseUnitService;
@@ -80,7 +79,6 @@ class AssignHitsButtonHandlers {
                             VanguardUnitHandler.recordSpaceCombatHitAssignment(game, player, tile, amt);
                         }
                         ThirtyKSecretHooks.afterCombatHits(game, player, tile, holder, assignHitsType);
-                        FogSecretHooks.afterCombatHits(game, player, tile, holder, assignHitsType);
                         ThirtyKExploreHooks.afterSpaceCombatHits(event, game, player, tile, assignHitsType);
                         ThirtyKActionCardHooks.afterCombatHitsAssigned(game, tile, assignHitsType);
                     }
@@ -118,7 +116,6 @@ class AssignHitsButtonHandlers {
                         case "All" -> {
                             DestroyUnitService.destroyAllPlayerUnitsInSystem(event, game, player, tile, combat);
                             ThirtyKSecretHooks.afterCombatHits(game, player, tile, null, assignHitsType);
-                            FogSecretHooks.afterCombatHits(game, player, tile, null, assignHitsType);
                             ThirtyKExploreHooks.afterSpaceCombatHits(event, game, player, tile, assignHitsType);
                             ThirtyKActionCardHooks.afterCombatHitsAssigned(game, tile, assignHitsType);
                             msg += tile.getRepresentationForButtons(game, player);
@@ -137,7 +134,6 @@ class AssignHitsButtonHandlers {
                                 }
                             }
                             ThirtyKSecretHooks.afterCombatHits(game, player, tile, space, assignHitsType);
-                            FogSecretHooks.afterCombatHits(game, player, tile, space, assignHitsType);
                             ThirtyKExploreHooks.afterSpaceCombatHits(event, game, player, tile, assignHitsType);
                             ThirtyKActionCardHooks.afterCombatHitsAssigned(game, tile, assignHitsType);
                             msg += "the space area of " + tile.getRepresentationForButtons(game, player);

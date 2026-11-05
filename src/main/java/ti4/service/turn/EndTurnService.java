@@ -55,7 +55,6 @@ import ti4.service.leader.CommanderUnlockCheckService;
 import ti4.service.leader.PlayHeroService;
 import ti4.service.leader.agent.modules.homebrew.EdynAgent;
 import ti4.service.leader.agent.modules.homebrew.beans.ValhavnAgent;
-import ti4.service.objectives.fog.FogSecretHooks;
 import ti4.service.option.FOWOptionService.FOWOption;
 import ti4.service.planet.AsgardLegendaryService;
 import ti4.service.planet.JotunheimLegendaryService;
@@ -159,7 +158,6 @@ public class EndTurnService {
         game.removeStoredValue("safeHarborUsed");
         game.removeStoredValue("heartWarnedThisTurn");
         ThirtyKTurnState.clearEndOfTurn(game);
-        FogSecretHooks.onTurnEnd(game, player);
         game.removeStoredValue(LostLegciesExploreHandler.IMMEDIATE_ASSEMBLY_PRODUCTION + player.getFaction());
         String fieldTestTech = game.getStoredValue("fieldTestTech" + player.getFaction());
         if (!fieldTestTech.isEmpty()) {

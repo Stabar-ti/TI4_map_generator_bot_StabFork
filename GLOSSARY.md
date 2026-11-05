@@ -338,10 +338,6 @@ _Avoid_: SO-only, secret race
 **Secret objective offer**:
 In Secrets Only, the cards a Player is shown to keep some from (2 of 4 at setup, 1 of 2 each status phase). Offered cards leave the deck until the Player picks; the rest are shuffled back.
 
-**Fog secret objectives**:
-A set of 32 homebrew secret objectives any Fog of War game can shuffle into its deck with the "Fog secret objectives" FoW option. They reward scouting (systems a Player has found, meaning in their fog memory or current vision), hiding (nothing in another Player's view) and watching (another Player's units in your view). Status ones are checked by the bot; action and agenda ones are offered with a score button when the bot sees the moment happen.
-_Avoid_: FoW SOs, vision secrets
-
 **Alliance mode**:
 A team mode in which Players are paired and share some benefits.
 

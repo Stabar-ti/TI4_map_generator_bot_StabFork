@@ -35,7 +35,6 @@ import ti4.service.leader.CommanderUnlockCheckService;
 import ti4.service.leader.HeroUnlockCheckService;
 import ti4.service.leader.UnlockLeaderService;
 import ti4.service.objectives.SecretsOnlyService;
-import ti4.service.objectives.fog.FogSecrets;
 
 @UtilityClass
 public class SecretObjectiveHelper {
@@ -445,7 +444,7 @@ public class SecretObjectiveHelper {
 
     private static String getSecretObjectiveProgress(Game game, String id) {
         int threshold = ListPlayerInfoService.getObjectiveThreshold(id, game);
-        if (threshold == 0 || FogSecrets.isFogSecret(id)) {
+        if (threshold == 0) {
             return "";
         }
         StringBuilder sb = new StringBuilder("> ");
