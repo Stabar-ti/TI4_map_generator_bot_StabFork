@@ -83,7 +83,8 @@ public final class SystemContextImage {
             Set<String> tilesWithExtra = ExtrasStepTiles.positions(game);
 
             tiles.stream().sorted().forEach(key -> addTile(graphics, tileMap.get(key), TileStep.Tile));
-            tilesWithExtra.forEach(key -> addTile(graphics, tileMap.get(key), TileStep.Extras));
+            TileLayers extrasLayers = layers.drawnAt(origins(tileMap));
+            tilesWithExtra.forEach(key -> addTile(extrasLayers, graphics, tileMap.get(key), TileStep.Extras));
             tiles.stream().sorted().forEach(key -> addTile(graphics, tileMap.get(key), TileStep.Units));
             tiles.stream().sorted().forEach(key -> addTile(graphics, tileMap.get(key), TileStep.TileNumber));
 
@@ -139,24 +140,43 @@ public final class SystemContextImage {
         return tileSet;
     }
 
+    private Map<String, Point> origins(Map<String, Tile> tileMap) {
+        Map<String, Point> origins = new HashMap<>();
+        tileMap.keySet().forEach(position -> {
+            Point origin = tileOrigin(position);
+            if (origin != null) origins.put(position, origin);
+        });
+        return origins;
+    }
+
+    @Nullable
+    private Point tileOrigin(String position) {
+        Point positionPoint = MapPositionMapper.getTilePosition(position);
+        if (positionPoint == null) {
+            return null;
+        }
+        Point focusPoint = MapPositionMapper.getTilePosition(focus);
+        int offsetY = focusPoint == null ? 0 : -1 * focusPoint.y + (MARGIN_Y / 2) + (rings * TileGeometry.TILE_HEIGHT);
+        int offsetX = focusPoint == null ? 0 : -1 * focusPoint.x + (MARGIN_X / 2) + (rings * RING_WIDTH);
+        return new Point(
+                positionPoint.x + offsetX - TileGeometry.TILE_PADDING,
+                positionPoint.y + offsetY - TileGeometry.TILE_PADDING);
+    }
+
     private void addTile(Graphics2D graphics, Tile tile, TileStep step) {
+        addTile(layers, graphics, tile, step);
+    }
+
+    private void addTile(TileLayers tileLayers, Graphics2D graphics, Tile tile, TileStep step) {
         if (tile == null || tile.getTileID() == null) {
             return;
         }
         try {
-            Point positionPoint = MapPositionMapper.getTilePosition(tile.getPosition());
-            if (positionPoint == null) {
+            Point origin = tileOrigin(tile.getPosition());
+            if (origin == null) {
                 throw new Exception("Could not map tile to a position on the map: " + game.getName());
             }
-
-            Point focusPoint = MapPositionMapper.getTilePosition(focus);
-            int offsetY =
-                    focusPoint == null ? 0 : -1 * focusPoint.y + (MARGIN_Y / 2) + (rings * TileGeometry.TILE_HEIGHT);
-            int offsetX = focusPoint == null ? 0 : -1 * focusPoint.x + (MARGIN_X / 2) + (rings * RING_WIDTH);
-            int tileX = positionPoint.x + offsetX - TileGeometry.TILE_PADDING;
-            int tileY = positionPoint.y + offsetY - TileGeometry.TILE_PADDING;
-
-            layers.paint(tile, step, graphics, tileX, tileY);
+            tileLayers.paint(tile, step, graphics, origin.x, origin.y);
         } catch (Exception exception) {
             BotLogger.error("Tile Error, when building map: " + tile.getTileID(), exception);
         }

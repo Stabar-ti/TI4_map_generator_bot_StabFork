@@ -4,6 +4,7 @@ import static ti4.image.tile.TileGeometry.LAYER_SIZE;
 
 import java.awt.AlphaComposite;
 import java.awt.Graphics2D;
+import java.awt.Point;
 import java.awt.Rectangle;
 import java.awt.geom.AffineTransform;
 import java.awt.image.BufferedImage;
@@ -53,8 +54,18 @@ public final class TileLayers {
     }
 
     public TileLayers withDisplayType(@Nullable DisplayType displayType) {
-        return new TileLayers(
-                new TileScene(scene.game(), displayType, scene.viewer(), new RenderWarnings(), scene.hyperlanes()));
+        return new TileLayers(new TileScene(
+                scene.game(), displayType, scene.viewer(), new RenderWarnings(), scene.hyperlanes(), scene.layout()));
+    }
+
+    public TileLayers drawnAt(Map<String, Point> origins) {
+        return new TileLayers(new TileScene(
+                scene.game(),
+                scene.displayType(),
+                scene.viewer(),
+                scene.warnings(),
+                scene.hyperlanes(),
+                Map.copyOf(origins)));
     }
 
     TileScene scene() {

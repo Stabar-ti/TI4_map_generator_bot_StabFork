@@ -70,7 +70,8 @@ final class BoardSection {
 
         sortedTiles.forEach(key -> addTile(tileMap.get(key), TileStep.Tile));
         GhostHexes.draw(ctx, g2, tileMap.keySet());
-        tilesWithExtra.forEach(key -> addTile(tileMap.get(key), TileStep.Extras));
+        TileLayers extrasLayers = tilesWithExtra.isEmpty() ? tileLayers : tileLayers.drawnAt(origins(tileMap));
+        tilesWithExtra.forEach(key -> addTile(extrasLayers, tileMap.get(key), TileStep.Extras));
         sortedTiles.forEach(key -> addTile(tileMap.get(key), TileStep.Units));
         if (!game.getTileDistances().isEmpty()) {
             sortedTiles.forEach(key -> addTile(tileMap.get(key), TileStep.Distance));
@@ -130,7 +131,21 @@ final class BoardSection {
         };
     }
 
+    private Map<String, Point> origins(Map<String, Tile> tileMap) {
+        Map<String, Point> origins = new HashMap<>();
+        tileMap.keySet().forEach(position -> {
+            Point positionPoint = MapPositionMapper.getTilePosition(position);
+            Point origin = positionPoint == null ? null : board.tileOrigin(position, positionPoint);
+            if (origin != null) origins.put(position, origin);
+        });
+        return origins;
+    }
+
     private void addTile(Tile tile, TileStep step) {
+        addTile(tileLayers, tile, step);
+    }
+
+    private void addTile(TileLayers layers, Tile tile, TileStep step) {
         if (tile == null || tile.getTileID() == null) {
             return;
         }
@@ -149,7 +164,7 @@ final class BoardSection {
                 return;
             }
 
-            tileLayers.paint(tile, step, g2, origin.x, origin.y);
+            layers.paint(tile, step, g2, origin.x, origin.y);
         } catch (Exception exception) {
             BotLogger.error(
                     "Tile Error, when building map `" + game.getName() + "`, tile: " + tile.getTileID(), exception);

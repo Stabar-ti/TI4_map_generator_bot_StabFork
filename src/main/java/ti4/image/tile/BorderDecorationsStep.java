@@ -6,8 +6,11 @@ import static ti4.image.tile.TileGeometry.TILE_WIDTH;
 
 import java.awt.Color;
 import java.awt.Graphics2D;
+import java.awt.Point;
+import java.awt.Rectangle;
 import java.awt.Shape;
 import java.awt.geom.AffineTransform;
+import java.awt.geom.Area;
 import java.awt.geom.Path2D;
 import java.awt.image.BufferedImage;
 import java.util.LinkedHashMap;
@@ -17,6 +20,7 @@ import java.util.Set;
 import java.util.TreeSet;
 import javax.annotation.Nullable;
 import ti4.game.Game;
+import ti4.game.Player;
 import ti4.game.Tile;
 import ti4.image.io.Fonts;
 import ti4.image.io.ImageHelper;
@@ -27,6 +31,8 @@ import ti4.model.BorderAnomalyIds;
 import ti4.model.BorderAnomalyModel;
 import ti4.model.MapPositionMapper;
 import ti4.model.Mapper;
+import ti4.model.TileHelper;
+import ti4.model.TileModel;
 import ti4.service.map.BridgeMatrix;
 import ti4.service.map.HyperlaneBridges;
 
@@ -66,7 +72,9 @@ final class BorderDecorationsStep implements TileStepPainter {
         for (int side : laneSides) {
             if (drawn.sides().contains(side)) continue;
             if (blocksAHiddenLane(scene, tile.getPosition(), side, neighbours.get(side))) {
-                drawDecoration(side, null, layer.g(), ImageResources.border(tear.getImagePath()));
+                Graphics2D behind = behindPlanets(scene, tile, Set.of(side), layer.g());
+                drawDecoration(side, null, behind, ImageResources.border(tear.getImagePath()), EdgeHalf.WHOLE);
+                behind.dispose();
             }
         }
     }
@@ -98,7 +106,7 @@ final class BorderDecorationsStep implements TileStepPainter {
         int direction = 0;
         for (String secondaryTile : adj) {
             if (secondaryTile != null) {
-                drawDecoration(direction, secondaryTile, layer.g(), adjacencyArrowImagePath());
+                drawDecoration(direction, secondaryTile, layer.g(), adjacencyArrowImagePath(), EdgeHalf.WHOLE);
             }
             direction++;
         }
@@ -107,28 +115,143 @@ final class BorderDecorationsStep implements TileStepPainter {
     private static void drawBorderAnomalies(TileScene scene, TileLayer layer) {
         Game game = scene.game();
         Tile tile = layer.tile();
-        List<String> orderedAdjacentPositions = MapPositionMapper.getAdjacentTilePositions(tile.getPosition());
+        String position = tile.getPosition();
         Map<BorderAnomalyModel, Set<Integer>> wholeHexEdges = new LinkedHashMap<>();
         game.getBorderAnomalies().forEach(borderAnomalyHolder -> {
             BorderAnomalyModel anomalyModel = borderAnomalyHolder.getModel();
-            if (anomalyModel == null
-                    || !borderAnomalyHolder.getTile().equals(tile.getPosition())
-                    || !isVisible(scene, tile, borderAnomalyHolder, orderedAdjacentPositions)) {
+            if (anomalyModel == null) {
                 return;
             }
-            if (anomalyModel.isWholeHex()) {
-                wholeHexEdges
-                        .computeIfAbsent(anomalyModel, model -> new TreeSet<>())
-                        .add(borderAnomalyHolder.getDirection());
-            } else {
-                drawDecoration(
-                        borderAnomalyHolder.getDirection(),
-                        null,
-                        layer.g(),
-                        ImageResources.border(anomalyModel.getImagePath()));
+            String across = acrossFrom(borderAnomalyHolder);
+            if (borderAnomalyHolder.getTile().equals(position)) {
+                if (!isVisible(scene, tile, across)) return;
+                if (anomalyModel.isWholeHex()) {
+                    wholeHexEdges
+                            .computeIfAbsent(anomalyModel, model -> new TreeSet<>())
+                            .add(borderAnomalyHolder.getDirection());
+                } else {
+                    drawHoldersSide(scene, layer, borderAnomalyHolder, anomalyModel, across);
+                }
+            } else if (position.equals(across) && !anomalyModel.isWholeHex() && scene.knowsLayout()) {
+                drawFarSide(scene, layer, borderAnomalyHolder, anomalyModel);
             }
         });
-        wholeHexEdges.forEach((anomalyModel, directions) -> drawWholeHex(layer.g(), anomalyModel, directions));
+        wholeHexEdges.forEach((anomalyModel, directions) -> {
+            Graphics2D behind = behindPlanets(scene, tile, directions, layer.g());
+            drawWholeHex(behind, anomalyModel, directions);
+            behind.dispose();
+        });
+    }
+
+    private static void drawHoldersSide(
+            TileScene scene,
+            TileLayer layer,
+            BorderAnomalyHolder holder,
+            BorderAnomalyModel anomalyModel,
+            @Nullable String across) {
+        int direction = holder.getDirection();
+        String imagePath = ImageResources.border(anomalyModel.getImagePath());
+        if (!scene.knowsLayout()) {
+            Graphics2D behind = behindPlanets(scene, layer.tile(), Set.of(direction), layer.g());
+            drawDecoration(direction, null, behind, imagePath, EdgeHalf.WHOLE);
+            behind.dispose();
+            return;
+        }
+        EdgeHalf half = drawnSideBySide(scene, holder.getTile(), across) ? EdgeHalf.HOLDER : EdgeHalf.WHOLE;
+        drawOnThisTile(layer, new Point(0, 0), direction, imagePath, half);
+    }
+
+    private static void drawFarSide(
+            TileScene scene, TileLayer layer, BorderAnomalyHolder holder, BorderAnomalyModel anomalyModel) {
+        String position = layer.tile().getPosition();
+        Tile holderTile = scene.game().getTileByPosition(holder.getTile());
+        Point holderOffset = gridOffset(position, holder.getTile());
+        if (holderOffset == null || !isVisible(scene, holderTile, position)) {
+            return;
+        }
+        EdgeHalf half = drawnSideBySide(scene, holder.getTile(), position) ? EdgeHalf.FAR : EdgeHalf.WHOLE;
+        drawOnThisTile(
+                layer, holderOffset, holder.getDirection(), ImageResources.border(anomalyModel.getImagePath()), half);
+    }
+
+    private static void drawOnThisTile(
+            TileLayer layer, Point holderOffset, int direction, String imagePath, EdgeHalf half) {
+        Area planets = new Area();
+        addPlanets(planets, layer.tile().getTileModel(), new Point(0, 0));
+        Graphics2D behind = clippedAround(layer.g(), planets);
+        behind.translate(holderOffset.x, holderOffset.y);
+        drawDecoration(direction, null, behind, imagePath, half);
+        behind.dispose();
+    }
+
+    @Nullable
+    private static String acrossFrom(BorderAnomalyHolder holder) {
+        List<String> neighbours = MapPositionMapper.getAdjacentTilePositions(holder.getTile());
+        int direction = holder.getDirection();
+        return direction < 0 || direction >= neighbours.size() ? null : neighbours.get(direction);
+    }
+
+    private static boolean drawnSideBySide(TileScene scene, String holder, @Nullable String across) {
+        Point holderOrigin = scene.drawnAt(holder);
+        Point acrossOrigin = across == null ? null : scene.drawnAt(across);
+        Point onTheGrid = across == null ? null : gridOffset(holder, across);
+        return holderOrigin != null
+                && acrossOrigin != null
+                && onTheGrid != null
+                && acrossOrigin.x - holderOrigin.x == onTheGrid.x
+                && acrossOrigin.y - holderOrigin.y == onTheGrid.y;
+    }
+
+    @Nullable
+    private static Point gridOffset(String from, String to) {
+        Point here = MapPositionMapper.getTilePosition(from);
+        Point there = MapPositionMapper.getTilePosition(to);
+        return here == null || there == null ? null : new Point(there.x - here.x, there.y - here.y);
+    }
+
+    private static Graphics2D behindPlanets(TileScene scene, Tile tile, Set<Integer> directions, Graphics2D g) {
+        Area planets = new Area();
+        addPlanets(planets, tile.getTileModel(), new Point(0, 0));
+        List<String> neighbours = MapPositionMapper.getAdjacentTilePositions(tile.getPosition());
+        for (int direction : directions) {
+            if (direction >= neighbours.size()) continue;
+            String neighbour = neighbours.get(direction);
+            Point offset = gridOffset(tile.getPosition(), neighbour);
+            if (offset != null) addPlanets(planets, drawnTileModel(scene, neighbour), offset);
+        }
+        return clippedAround(g, planets);
+    }
+
+    private static Graphics2D clippedAround(Graphics2D g, Area planets) {
+        Graphics2D behind = (Graphics2D) g.create();
+        if (!planets.isEmpty()) {
+            Area uncovered = new Area(new Rectangle(
+                    -TILE_WIDTH, -TILE_HEIGHT, 3 * TILE_WIDTH + 2 * TILE_PADDING, 3 * TILE_HEIGHT + 2 * TILE_PADDING));
+            uncovered.subtract(planets);
+            behind.clip(uncovered);
+        }
+        return behind;
+    }
+
+    private static void addPlanets(Area planets, @Nullable TileModel tileModel, Point offset) {
+        Shape shapes = PlanetOcclusion.of(tileModel);
+        AffineTransform toLayer =
+                AffineTransform.getTranslateInstance(TILE_PADDING + offset.x, TILE_PADDING + offset.y);
+        planets.add(new Area(toLayer.createTransformedShape(shapes)));
+    }
+
+    @Nullable
+    private static TileModel drawnTileModel(TileScene scene, String position) {
+        Tile tile = scene.game().getTileByPosition(position);
+        if (tile == null) {
+            return null;
+        }
+        if (!scene.hidesFogged(tile)) {
+            return tile.getTileModel();
+        }
+        Player player = scene.fowPlayer();
+        String rememberedId = player == null ? null : player.getFogTiles().get(position);
+        return rememberedId == null ? null : TileHelper.getTileById(rememberedId);
     }
 
     private static void drawWholeHex(
@@ -163,18 +286,27 @@ final class BorderDecorationsStep implements TileStepPainter {
         return wedges;
     }
 
-    private static boolean isVisible(
-            TileScene scene, Tile tile, BorderAnomalyHolder anomaly, List<String> orderedAdjacentPositions) {
-        return !scene.hidesFogged(tile)
-                || scene.viewer().positionsInReach().contains(orderedAdjacentPositions.get(anomaly.getDirection()));
+    private static boolean isVisible(TileScene scene, @Nullable Tile holderTile, @Nullable String across) {
+        boolean holderShown = holderTile == null ? !scene.isPrivateView() : !scene.hidesFogged(holderTile);
+        return holderShown || scene.viewer().positionsInReach().contains(across);
     }
 
     private static String adjacencyArrowImagePath() {
         return ImageResources.border("adjacency_arrow.png");
     }
 
+    private enum EdgeHalf {
+        WHOLE,
+        HOLDER,
+        FAR
+    }
+
     private static void drawDecoration(
-            int direction, @Nullable String secondaryTile, Graphics2D tileGraphics, String decorationImagePath) {
+            int direction,
+            @Nullable String secondaryTile,
+            Graphics2D tileGraphics,
+            String decorationImagePath,
+            EdgeHalf half) {
         if (decorationImagePath == null) {
             return;
         }
@@ -200,6 +332,9 @@ final class BorderDecorationsStep implements TileStepPainter {
         }
 
         tileGraphics.rotate(Math.toRadians(direction * 60), centerX, HEX_CENTER_Y);
+        if (half == EdgeHalf.HOLDER) tileGraphics.clip(new Rectangle(-TILE_WIDTH, 0, 3 * TILE_WIDTH, TILE_HEIGHT));
+        if (half == EdgeHalf.FAR)
+            tileGraphics.clip(new Rectangle(-TILE_WIDTH, -TILE_HEIGHT, 3 * TILE_WIDTH, TILE_HEIGHT));
         if (secondaryTile != null) centerX -= 20;
         tileGraphics.drawImage(decoration, null, centerX - imageCenterX, -imageCenterY);
         tileGraphics.setTransform(originalTileTransform);

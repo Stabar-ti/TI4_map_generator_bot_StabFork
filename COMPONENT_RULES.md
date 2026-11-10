@@ -29,6 +29,10 @@ into `BorderAnomalyModel` by `Mapper`.
   `BorderDecorationsStep` draws their hex-sized image once, centered and unrotated, clipped to the
   edges that hold it and are visible (fog), so a partial one only shows its own edges. Rules added
   later apply per edge like any other border.
+- **Border tokens pass behind planets.** `BorderDecorationsStep` clips every border image (and the
+  fog Spatial Tear) around the `PlanetOcclusion` shapes of its own tile and of the neighbour across
+  each edge it covers, so planets, values and names stay readable. In fog it uses the tile the
+  player sees there (their remembered tile, or none).
 - **Adding or changing a type means updating `BorderAnomalyModelTest`.** `Mapper` only logs JSON
   import errors, and Jackson ignores misspelt keys, so the test asserts the exact ids and rule values.
 

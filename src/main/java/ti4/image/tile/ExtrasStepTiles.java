@@ -1,10 +1,12 @@
 package ti4.image.tile;
 
 import java.util.HashSet;
+import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 import java.util.TreeSet;
 import ti4.game.Game;
+import ti4.model.MapPositionMapper;
 
 public final class ExtrasStepTiles {
 
@@ -25,7 +27,13 @@ public final class ExtrasStepTiles {
 
     private static Set<String> borderAnomalyTiles(Game game) {
         Set<String> tiles = new HashSet<>();
-        game.getBorderAnomalies().stream().filter(Objects::nonNull).forEach(border -> tiles.add(border.getTile()));
+        game.getBorderAnomalies().stream().filter(Objects::nonNull).forEach(border -> {
+            tiles.add(border.getTile());
+            List<String> neighbours = MapPositionMapper.getAdjacentTilePositions(border.getTile());
+            if (border.getDirection() >= 0 && border.getDirection() < neighbours.size()) {
+                tiles.add(neighbours.get(border.getDirection()));
+            }
+        });
         return tiles;
     }
 }
