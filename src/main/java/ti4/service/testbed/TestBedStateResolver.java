@@ -95,7 +95,8 @@ public class TestBedStateResolver {
             "commodityValue",
             "exhaustedPlanetAbilities",
             "followedAll",
-            "megagameGroup");
+            "megagameGroup",
+            "betas");
 
     @Nullable
     public static String validatePath(String path) {
@@ -207,6 +208,7 @@ public class TestBedStateResolver {
     private static String seatField(Player seat, String field) {
         return switch (field) {
             case "tg" -> String.valueOf(seat.getTg());
+            case "betas" -> TestBedBetas.enabled(seat);
             case "commodities" -> String.valueOf(seat.getCommodities());
             case "ccs" -> seat.getTacticalCC() + "/" + seat.getFleetCC() + "/" + seat.getStrategicCC();
             case "tacticalCcs" -> String.valueOf(seat.getTacticalCC());

@@ -335,6 +335,16 @@ public class TestBedScriptService {
                 }
             }
             case "setActivePlayer" -> requireSeat(step, label, errors);
+            case "beta" -> {
+                requireSeat(step, label, errors);
+                if (YOU.equals(step.getAs())) {
+                    errors.add(label + ": `beta` only works on virtual seats; use `/beta` for your own account.");
+                }
+                requireValue(step.getKey(), "key", label, errors);
+                requireValue(step.getValue(), "value", label, errors);
+                String problem = TestBedBetas.problem(step.getKey(), step.getValue());
+                if (problem != null) errors.add(label + ": " + problem);
+            }
             case "sendAnonComms" -> {
                 requireSeat(step, label, errors);
                 requireValue(step.getValue(), "value", label, errors);

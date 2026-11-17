@@ -309,7 +309,7 @@ and ids fail with every error listed at once; problems that only show while appl
 | `note` | `{ "note": "round 2 starts" }` |
 | `press` | `{ "as": "sol", "press": "strategicAction_3", "in": "main" }` |
 | `pressId` | `{ "as": "nekro", "pressId": "sc_follow_3" }` |
-| `do` | `startPhase` (value), `setActivePlayer` (as), `setStored` (key, value), `removeStored` (key), `runCron` (value), `hand` (as: seat or `all`; hand: seat fields; when it gives cards the seat's cards info is re-sent so the new hand buttons appear), `actAs` (as or `you`), `sendAnonComms` (as: sender, value: receiver seat; relays a fixed test message through anonymous comms from the sender's inbox), `stackExplore` (value: explore id; moves it from the deck or discard to the top of the explore deck), `stackAgenda` (value: agenda id; moves it from the deck or discard to the top of the agenda deck), `removeToken` (key: tile position or planet, value: token or attachment as in the preset `tokens` field; fails if it is not there), `setGameOption` (key and value as in the preset `gameOptions` field), `placeTile` (key: position, value: tile id; places or replaces the tile, maps A-G only in fog games) |
+| `do` | `startPhase` (value), `setActivePlayer` (as), `setStored` (key, value), `removeStored` (key), `runCron` (value), `hand` (as: seat or `all`; hand: seat fields; when it gives cards the seat's cards info is re-sent so the new hand buttons appear), `actAs` (as or `you`), `sendAnonComms` (as: sender, value: receiver seat; relays a fixed test message through anonymous comms from the sender's inbox), `stackExplore` (value: explore id; moves it from the deck or discard to the top of the explore deck), `stackAgenda` (value: agenda id; moves it from the deck or discard to the top of the agenda deck), `removeToken` (key: tile position or planet, value: token or attachment as in the preset `tokens` field; fails if it is not there), `setGameOption` (key and value as in the preset `gameOptions` field), `placeTile` (key: position, value: tile id; places or replaces the tile, maps A-G only in fog games), `beta` (as: a virtual seat, key: a `/beta` name such as `cleaner_ui`, value: `true` or `false`; the setting belongs to the seat's user id, so `reset` does not undo it) |
 | `wait` | `{ "wait": 5 }` (seconds) |
 | `expect` | one of the checks below |
 
@@ -318,7 +318,7 @@ Every step may also have a `label` for the report.
 | Check | Example | Passes when |
 | --- | --- | --- |
 | State | `{ "state": "hacan.tg", "equals": "3" }` | equals (as text, case ignored), or contains every `contains` and no `notContains`; `matches` (regex) must also find a match |
-| Messages | `{ "in": "hacan:cards-info", "contains": "Reminder", "count": 1 }` | among messages since the last `press` or `do`; also `notContains`, `noFactionLeak`, `matches` (regex), `attachment` (file name contains), `buttons`, `noButtons`, `since` |
+| Messages | `{ "in": "hacan:cards-info", "contains": "Reminder", "count": 1 }` | among messages since the last `press` or `do` (text, embeds and Components V2 text; an edited message is checked as it is now); also `notContains`, `noFactionLeak`, `matches` (regex), `attachment` (file name contains), `buttons`, `noButtons`, `since` |
 | Reply | `{ "ephemeral": "these buttons are for someone else" }` | a reply to the previous press contains it |
 | Modal | `{ "modal": "tradeModal_" }` | the previous press opened a modal whose id starts with it |
 
@@ -333,7 +333,7 @@ Every step may also have a `label` for the report.
   `megagameGroup` (the seat's SC group letter), `acs` (count), `acIds`, `sos` (count), `soIds`, `pns`, `pnsInPlay`,
   `sosScored`, `posScored`, `fragments`, `breakthroughs`, `leaders`, `techs`, `exhaustedTechs`, `purgedTechs`,
   `relics`, `exhaustedRelics`, `planets`, `exhaustedPlanets`, `exhaustedPlanetAbilities`, `commodityValue`
-  (commodity value, not the commodities held);
+  (commodity value, not the commodities held), `betas` (its `/beta` features switched on, e.g. `cleaner_ui`);
   `game.` + `activeSystem`, `phase`, `round`, `activePlayer`, `speaker`, `megagameSpeakers` (`A=sol,B=xxcha`),
   `playedScs`, `acDiscard`, `agendaDiscard`,
   `laws`, `revealedPos`, `purgedPns`, `exploreDiscard`, `exploreDeck`, `relicDeck`, `soDeck` (secret objectives

@@ -1,0 +1,21 @@
+{
+  "name": "cleaner-ui-tech-2p",
+  "description": "Cleaner UI research panel: Jol-Nar holds Technology (7) and acts first, with skip planets of every color and an influence-heavy spread, so the pick, pay and receipt views and the skips line all show.",
+  "fog": false,
+  "you": { "faction": "sol", "home": "301", "sc": 8 },
+  "seats": [
+    {
+      "faction": "jolnar",
+      "home": "304",
+      "sc": 7,
+      "techs": ["gd", "sdn"],
+      "planets": ["wellon", "lazar", "meharxull", "meer", "tarmann", "gral", "thibah", "mr", "lodor", "starpoint"]
+    }
+  ],
+  "defaults": { "tg": 3, "commodities": 2, "ccs": "3/3/2" },
+  "start": "action",
+  "shortcuts": [
+    { "label": "Jol-Nar: Cleaner UI on", "steps": [ { "do": "beta", "as": "jolnar", "key": "cleaner_ui", "value": "true" } ] },
+    { "label": "Jol-Nar: Cleaner UI off", "steps": [ { "do": "beta", "as": "jolnar", "key": "cleaner_ui", "value": "false" } ] }
+  ]
+}

@@ -10,6 +10,8 @@ import java.util.List;
 import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.components.actionrow.ActionRow;
 import net.dv8tion.jda.api.components.buttons.Button;
+import net.dv8tion.jda.api.components.container.Container;
+import net.dv8tion.jda.api.components.textdisplay.TextDisplay;
 import net.dv8tion.jda.api.components.tree.MessageComponentTree;
 import net.dv8tion.jda.api.entities.Message;
 import net.dv8tion.jda.api.entities.MessageEmbed;
@@ -87,6 +89,21 @@ class TestBedScriptRunnerTest {
                 List.of("Roll", "Combat", "Round 1", "Space combat", "Hits", "Total hits 2", "rolled by sol")) {
             assertTrue(text.contains(part), part);
         }
+    }
+
+    // Components V2 panels have no plain content; their text lives in TextDisplays, nested inside containers.
+    @Test
+    void messageTextIncludesComponentsV2TextDisplays() {
+        Container panel =
+                Container.of(TextDisplay.of("### Build in 304"), TextDisplay.of("Producing a total of 2 units"));
+        Message message = mock(Message.class);
+        when(message.getContentRaw()).thenReturn("");
+        when(message.isUsingComponentsV2()).thenReturn(true);
+        when(message.getComponentTree()).thenReturn(MessageComponentTree.of(List.of(panel)));
+
+        String text = TestBedScriptRunner.messageText(message);
+        assertTrue(text.contains("### Build in 304"), text);
+        assertTrue(text.contains("Producing a total of 2 units"), text);
     }
 
     @Test

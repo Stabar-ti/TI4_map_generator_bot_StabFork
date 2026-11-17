@@ -9,6 +9,7 @@ import lombok.experimental.UtilityClass;
 import ti4.discord.interactions.commands.admin.AdminCommand;
 import ti4.discord.interactions.commands.agenda.AgendaCommand;
 import ti4.discord.interactions.commands.async.AsyncCommand;
+import ti4.discord.interactions.commands.beta.BetaCommand;
 import ti4.discord.interactions.commands.bothelper.BothelperCommand;
 import ti4.discord.interactions.commands.bothelper.BothelperCommand2;
 import ti4.discord.interactions.commands.breakthrough.BreakthroughCommand;
@@ -146,6 +147,7 @@ public class SlashCommandManager {
                     new FrankenCommand2(),
                     new PlanetCommand(),
                     new UserCommand(),
+                    new BetaCommand(),
                     new LazaxCommand(),
                     new TiglCommand(),
                     new AsyncCommand(),

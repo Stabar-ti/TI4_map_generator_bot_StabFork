@@ -1,0 +1,13 @@
+{
+  "name": "cleaner-ui-2p",
+  "description": "Two seats in the action phase for the Cleaner UI beta: Hacan builds at home (304, Space Dock on Arretze).",
+  "fog": false,
+  "you": { "faction": "sol", "home": "301", "sc": 1 },
+  "seats": [ { "faction": "hacan", "home": "304", "sc": 5 } ],
+  "defaults": { "tg": 3, "commodities": 2, "ccs": "3/3/2" },
+  "start": "action",
+  "shortcuts": [
+    { "label": "Hacan: Cleaner UI on", "steps": [ { "do": "beta", "as": "hacan", "key": "cleaner_ui", "value": "true" } ] },
+    { "label": "Hacan: Cleaner UI off", "steps": [ { "do": "beta", "as": "hacan", "key": "cleaner_ui", "value": "false" } ] }
+  ]
+}

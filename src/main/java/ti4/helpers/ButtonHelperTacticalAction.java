@@ -112,6 +112,7 @@ import ti4.model.UnitModel;
 import ti4.service.agenda.IsPlayerElectedService;
 import ti4.service.breakthrough.EidolonMaximumService;
 import ti4.service.breakthrough.VoidTetherService;
+import ti4.service.build.BuildPanel;
 import ti4.service.combat.CombatEventRecorder;
 import ti4.service.combat.StartCombatService;
 import ti4.service.emoji.FactionEmojis;
@@ -431,34 +432,16 @@ public final class ButtonHelperTacticalAction {
     public static void buildWithTacticalAction(
             Player player, Game game, ButtonInteractionEvent event, String buttonID) {
         String pos = buttonID.replace("tacticalActionBuild_", "");
-        List<Button> buttons =
-                Helper.getPlaceUnitButtons(event, player, game, game.getTileByPosition(pos), "tacticalAction", "place");
-        String message = player.getRepresentation() + " Use the buttons to produce units. ";
-        String message3 = "You have "
-                + Helper.getProductionValue(player, game, game.getTileByPosition(pos), false)
-                + " PRODUCTION value in this system.\n";
-        String fleetSummary = ButtonHelper.fleetAndCapacitySummary(player, game, game.getTileByPosition(pos));
-        if (!fleetSummary.isEmpty()) {
-            message3 += fleetSummary + "\n";
+        Tile tile = game.getTileByPosition(pos);
+        List<Button> buttons = Helper.getPlaceUnitButtons(event, player, game, tile, "tacticalAction", "place");
+        String spendable = ButtonHelper.getListOfStuffAvailableToSpend(player, game, true);
+        String header = "### Build in " + tile.getRepresentationForButtons(game, player);
+        if (!BuildPanel.post(
+                event.getChannel(), player, game, header, panelInfo(player, game, tile, spendable), buttons)) {
+            MessageHelper.sendMessageToChannel(event.getChannel(), productionInfo(player, game, tile) + spendable);
+            MessageHelper.sendMessageToChannelWithButtons(
+                    event.getChannel(), player.getRepresentation() + " Use the buttons to produce units. ", buttons);
         }
-        if (player.hasUnit("myrr_dreadnought") || player.hasUnit("myrr_dreadnought2")) {
-            message3 += MyrrUnitsHandler.getReplicatorProductionReminder(player, game.getTileByPosition(pos));
-        }
-        if (Helper.getProductionValue(player, game, game.getTileByPosition(pos), false) > 0
-                && game.playerHasLeaderUnlockedOrAlliance(player, "cabalcommander")) {
-            message3 = message3
-                    + "You also have That Which Molds Flesh, the Vuil'raith commander, which allows you to produce 2 "
-                    + UnitEmojis.fighter + "/" + UnitEmojis.infantry + " that don't count towards PRODUCTION limit.\n";
-        }
-        if (Helper.getProductionValue(player, game, game.getTileByPosition(pos), false) > 0
-                && IsPlayerElectedService.isPlayerElected(game, player, "prophecy")) {
-            message3 +=
-                    "Reminder that you have _Prophecy of Ixth_ and should produce at least 2 fighters if you wish to keep it. Its removal is not automated.\n";
-        }
-        MessageHelper.sendMessageToChannel(
-                event.getChannel(), message3 + ButtonHelper.getListOfStuffAvailableToSpend(player, game, true));
-
-        MessageHelper.sendMessageToChannelWithButtons(event.getChannel(), message, buttons);
         if (player.hasUnit("tf-productionbiomes")
                 && ButtonHelper.getTilesOfPlayersSpecificUnits(game, player, UnitType.Spacedock)
                         .contains(game.getTileByPosition(pos))) {
@@ -470,6 +453,44 @@ public final class ButtonHelperTacticalAction {
             MessageHelper.sendMessageToChannelWithButtons(player.getCorrectChannel(), msg, buttons2);
         }
         ButtonHelper.deleteMessage(event);
+    }
+
+    private static String panelInfo(Player player, Game game, Tile tile, String spendable) {
+        int productionValue = Helper.getProductionValue(player, game, tile, false);
+        return "**PRODUCTION " + productionValue + "**\n" + productionReminders(player, game, tile, productionValue)
+                + "-# " + spendable;
+    }
+
+    private static String productionInfo(Player player, Game game, Tile tile) {
+        int productionValue = Helper.getProductionValue(player, game, tile, false);
+        StringBuilder info =
+                new StringBuilder("You have ").append(productionValue).append(" PRODUCTION value in this system.\n");
+        String fleetSummary = ButtonHelper.fleetAndCapacitySummary(player, game, tile);
+        if (!fleetSummary.isEmpty()) {
+            info.append(fleetSummary).append("\n");
+        }
+        return info.append(productionReminders(player, game, tile, productionValue))
+                .toString();
+    }
+
+    private static String productionReminders(Player player, Game game, Tile tile, int productionValue) {
+        StringBuilder info = new StringBuilder();
+        if (player.hasUnit("myrr_dreadnought") || player.hasUnit("myrr_dreadnought2")) {
+            info.append(MyrrUnitsHandler.getReplicatorProductionReminder(player, tile));
+        }
+        if (productionValue > 0 && game.playerHasLeaderUnlockedOrAlliance(player, "cabalcommander")) {
+            info.append(
+                            "You also have That Which Molds Flesh, the Vuil'raith commander, which allows you to produce 2 ")
+                    .append(UnitEmojis.fighter)
+                    .append("/")
+                    .append(UnitEmojis.infantry)
+                    .append(" that don't count towards PRODUCTION limit.\n");
+        }
+        if (productionValue > 0 && IsPlayerElectedService.isPlayerElected(game, player, "prophecy")) {
+            info.append(
+                    "Reminder that you have _Prophecy of Ixth_ and should produce at least 2 fighters if you wish to keep it. Its removal is not automated.\n");
+        }
+        return info.toString();
     }
 
     public static void resolveAfterMovementEffects(

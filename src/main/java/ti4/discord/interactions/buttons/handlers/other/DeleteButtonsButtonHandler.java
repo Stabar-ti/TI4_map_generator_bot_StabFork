@@ -58,6 +58,7 @@ import ti4.service.abilities.MahactTokenService;
 import ti4.service.breakthrough.AutoFactoriesService;
 import ti4.service.breakthrough.EidolonMaximumService;
 import ti4.service.breakthrough.TheIconService;
+import ti4.service.build.BuildPanel;
 import ti4.service.combat.StartCombatService;
 import ti4.service.emoji.FactionEmojis;
 import ti4.service.emoji.TechEmojis;
@@ -72,6 +73,7 @@ import ti4.service.leader.agent.modules.homebrew.GledgeAgent;
 import ti4.service.leader.agent.modules.homebrew.LunariumAgent;
 import ti4.service.leader.agent.modules.homebrew.MortheusAgent;
 import ti4.service.leader.agent.modules.homebrew.RohDhnaAgent;
+import ti4.service.payment.PaymentPanel;
 import ti4.service.turn.StartTurnService;
 import ti4.spring.service.gameevent.GameEventDraft;
 import ti4.spring.service.gameevent.GameEventService;
@@ -86,6 +88,9 @@ class DeleteButtonsButtonHandler {
         String buttonLabel = event.getButton().getLabel();
         buttonID = buttonID.replace("deleteButtons_", "");
         String editedMessage = event.getMessage().getContentRaw();
+        boolean panel = PaymentPanel.isPanel(event.getMessage())
+                && ("Done Producing Units".equalsIgnoreCase(buttonLabel)
+                        || "Done Exhausting Planets".equalsIgnoreCase(buttonLabel));
         if (("Done Gaining Command Tokens".equalsIgnoreCase(buttonLabel)
                         || "Done Redistributing Command Tokens".equalsIgnoreCase(buttonLabel)
                         || "Done Losing Command Tokens".equalsIgnoreCase(buttonLabel)
@@ -217,12 +222,15 @@ class DeleteButtonsButtonHandler {
                 }
                 BlueReverieTechHelper.offerProductionBiomes(game, player);
             }
-            if ("Done Exhausting Planets".equalsIgnoreCase(buttonLabel)
+            if ("Done Exhausting Planets".equalsIgnoreCase(buttonLabel) && panel) {
+                editedMessage = PaymentPanel.spentText(event, player, game);
+            } else if ("Done Exhausting Planets".equalsIgnoreCase(buttonLabel)
                     && player.hasAbility("amalgamation")
                     && !game.getStoredValue("amalgAmount").isEmpty()) {
                 editedMessage = Helper.buildSpentThingsMessage(player, game, "res");
             }
-            if (!"Done Producing Units".equalsIgnoreCase(buttonLabel)) {
+            if (!"Done Producing Units".equalsIgnoreCase(buttonLabel)
+                    && !panelShowsSummary(event, player, game, panel, ButtonHelper.getStratName(buttonID, game))) {
                 ButtonHelper.sendMessageToRightStratThread(player, game, editedMessage, buttonID);
             }
             if ("skarnathBuild".equalsIgnoreCase(buttonID)) {
@@ -235,6 +243,9 @@ class DeleteButtonsButtonHandler {
                 return;
             }
             if ("Done Producing Units".equalsIgnoreCase(buttonLabel)) {
+                if (panel) {
+                    editedMessage = Helper.buildProducedUnitsMessage(player, game);
+                }
                 CommanderUnlockCheckService.checkPlayer(player, "revenantponthous");
                 RevenantLeadersHandler.offerRevPonthousCommander(game, player, tile);
                 SvartalfheimLegendaryButtonHandler.offerAndvarisArtificing(event, game, player);
@@ -276,7 +287,12 @@ class DeleteButtonsButtonHandler {
                     unitsMap.merge(unitId, entry.getValue(), Integer::sum);
                 }
                 Player productionPlayer = player;
-                if (unitsMap.isEmpty()) {
+                if (panelShowsSummary(event, player, game, panel, buttonID)) {
+                    if (!unitsMap.isEmpty()) {
+                        DeepTechHandler.offerItLooksBack(
+                                game, productionPlayer, event.getMessage().getJumpUrl());
+                    }
+                } else if (unitsMap.isEmpty()) {
                     ButtonHelper.sendMessageToRightStratThread(player, game, editedMessage, buttonID);
                 } else {
                     ButtonHelper.sendMessageToRightStratThread(
@@ -449,7 +465,12 @@ class DeleteButtonsButtonHandler {
                     }
                 }
                 buttons.add(doneExhausting);
-                MessageHelper.sendMessageToChannelWithButtons(event.getChannel(), message2, buttons);
+                if (!panel || !BuildPanel.showPayment(event, player, game, buttons)) {
+                    if (panel) {
+                        PaymentPanel.close(event);
+                    }
+                    MessageHelper.sendMessageToChannelWithButtons(event.getChannel(), message2, buttons);
+                }
                 if (tile != null
                         && player.hasAbility("rally_to_the_cause")
                         && player.getHomeSystemTile() == tile
@@ -567,6 +588,18 @@ class DeleteButtonsButtonHandler {
         if ("spitItOut".equalsIgnoreCase(buttonID) && !"Done Exhausting Planets".equalsIgnoreCase(buttonLabel)) {
             MessageHelper.sendMessageToChannel(player.getCorrectChannel(), editedMessage);
         }
-        ButtonHelper.deleteMessage(event);
+        if (!panel) {
+            ButtonHelper.deleteMessage(event);
+        } else if ("Done Exhausting Planets".equalsIgnoreCase(buttonLabel)) {
+            PaymentPanel.showReceipt(event, editedMessage);
+        }
+    }
+
+    private static boolean panelShowsSummary(
+            ButtonInteractionEvent event, Player player, Game game, boolean panel, String stratName) {
+        return panel
+                && ButtonHelper.getRightStratChannel(player, game, stratName)
+                        .getId()
+                        .equals(event.getChannel().getId());
     }
 }

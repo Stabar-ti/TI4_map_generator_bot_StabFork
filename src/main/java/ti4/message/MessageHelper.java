@@ -63,6 +63,7 @@ import ti4.helpers.Helper;
 import ti4.helpers.StringHelper;
 import ti4.logging.BotLogger;
 import ti4.logging.LogOrigin;
+import ti4.message.componentsV2.PanelEdits;
 import ti4.service.actioncard.SabotageService;
 import ti4.service.agenda.IsPlayerElectedService;
 import ti4.service.breakthrough.VisionariaSelectService;
@@ -70,6 +71,7 @@ import ti4.service.button.ReactionService;
 import ti4.service.emoji.ApplicationEmojiService;
 import ti4.service.game.GameNameService;
 import ti4.service.game.GameUndoNameService;
+import ti4.service.payment.PanelLabels;
 import ti4.service.testbed.TestBedService;
 
 @UtilityClass
@@ -163,15 +165,28 @@ public class MessageHelper {
     public static void sendMessageToChannelWithButtons(
             MessageChannel channel, String messageText, List<Button> buttons) {
         if (channel == null) return;
+        sendMessageToChannelWithEmbedsAndButtons(
+                channel, messageText, null, withUndoButtonIfActionsChannel(channel, buttons));
+    }
+
+    public static List<Button> withUndoButtonIfActionsChannel(MessageChannel channel, List<Button> buttons) {
         String gameName = GameNameService.getGameNameFromChannel(channel);
         if (GameManager.isValid(gameName)
                 && buttons instanceof ArrayList
                 && !buttons.isEmpty()
                 && !(channel instanceof ThreadChannel)
                 && channel.getName().contains("actions")) {
-            buttons = addUndoButtonToList(buttons, gameName);
+            return addUndoButtonToList(buttons, gameName);
         }
-        sendMessageToChannelWithEmbedsAndButtons(channel, messageText, null, buttons);
+        return buttons;
+    }
+
+    public static void whenThreadIsOpen(MessageChannel channel, Runnable send) {
+        if (channel instanceof ThreadChannel thread && thread.isArchived() && !thread.isLocked()) {
+            thread.getManager().setArchived(false).queue(v -> send.run(), BotLogger::catchRestError);
+            return;
+        }
+        send.run();
     }
 
     public static void sendMessageToChannelWithButtonsAndNoUndo(
@@ -533,6 +548,10 @@ public class MessageHelper {
 
     public static void editMessageWithActionRowsAndFiles(
             ButtonInteractionEvent event, String message, List<ActionRow> rows, List<FileUpload> files) {
+        if (PanelEdits.isV2(event.getMessage())) {
+            PanelEdits.replaceRows(event, PanelLabels.tidyRows(rows));
+            return;
+        }
         if (message.length() > 2000) {
             message = message.substring(0, 1920) + "\nMessage shortened due to exceeding max char limit. Sorry.";
         }

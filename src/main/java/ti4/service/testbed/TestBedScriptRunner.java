@@ -15,6 +15,7 @@ import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
 import javax.annotation.Nullable;
 import net.dv8tion.jda.api.components.buttons.Button;
+import net.dv8tion.jda.api.components.textdisplay.TextDisplay;
 import net.dv8tion.jda.api.entities.Member;
 import net.dv8tion.jda.api.entities.Message;
 import net.dv8tion.jda.api.entities.MessageEmbed;
@@ -57,7 +58,8 @@ public final class TestBedScriptRunner {
             "stackAgenda",
             "removeToken",
             "setGameOption",
-            "placeTile");
+            "placeTile",
+            "beta");
 
     private enum Status {
         PASS,
@@ -513,6 +515,15 @@ public final class TestBedScriptRunner {
                 String problem = TestBedComponentService.placeTile(game, step.getKey(), step.getValue());
                 if (problem != null) problems.add(problem);
             }
+            case "beta" -> {
+                Player seat = seat(game, step.getAs());
+                if (seat == null) {
+                    problems.add("no seat `" + step.getAs() + "`");
+                    return;
+                }
+                String problem = TestBedBetas.set(seat, step.getKey(), step.getValue());
+                if (problem != null) problems.add(problem);
+            }
             case "setActivePlayer" -> {
                 Player seat = seat(game, step.getAs());
                 if (seat == null) {
@@ -763,6 +774,11 @@ public final class TestBedScriptRunner {
 
     static String messageText(Message message) {
         StringBuilder text = new StringBuilder(message.getContentRaw());
+        if (message.isUsingComponentsV2()) {
+            for (TextDisplay display : message.getComponentTree().findAll(TextDisplay.class)) {
+                appendLine(text, display.getContent());
+            }
+        }
         for (MessageEmbed embed : message.getEmbeds()) {
             appendLine(
                     text, embed.getAuthor() == null ? null : embed.getAuthor().getName());

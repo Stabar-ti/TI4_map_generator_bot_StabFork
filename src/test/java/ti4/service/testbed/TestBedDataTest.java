@@ -330,6 +330,19 @@ class TestBedDataTest extends BaseTi4Test {
                   ] }"""));
         assertContains(placeTileErrors, "`999x` is not a tile position", "unknown tile `notatile`");
         assertEquals(2, placeTileErrors.size(), String.join("\n", placeTileErrors));
+
+        // beta flips a user setting on a virtual seat: a known beta, true/false, and never the developer's own account.
+        List<String> betaErrors = TestBedScriptService.validate(TestBedScriptService.parse("""
+                { "preset": "30k-2p",
+                  "steps": [
+                    { "do": "beta", "as": "hacan", "key": "not_a_beta", "value": "true" },
+                    { "do": "beta", "as": "hacan", "key": "cleaner_ui", "value": "maybe" },
+                    { "do": "beta", "as": "you", "key": "cleaner_ui", "value": "true" },
+                    { "do": "beta", "as": "hacan", "key": "cleaner_ui", "value": "false" }
+                  ] }"""));
+        assertContains(
+                betaErrors, "unknown beta `not_a_beta`", "must be `true` or `false`", "only works on virtual seats");
+        assertEquals(3, betaErrors.size(), String.join("\n", betaErrors));
     }
 
     // Short forms parse, typos in field names are rejected, steps survive the JSON round trip the runner uses, and

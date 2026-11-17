@@ -46,6 +46,8 @@ public class ListTechService {
     private static final Pattern G = Pattern.compile("G");
     private static final Pattern X = Pattern.compile("X");
     private static final String PROPAGATION_CHOICE = "propagationChoice_";
+    public static final String EXTRACTION_SCIENCE_REMINDER =
+            "You have _Extraction Science_; while researching, you may treat 1 of your technology specialties as any color.";
 
     private record SpecialtyConversion(String planet, String specialty) {}
 
@@ -242,6 +244,9 @@ public class ListTechService {
         }
         ButtonHelperCommanders.yinCommanderSummary(player, game);
         ButtonHelperCommanders.veldyrCommanderSummary(player, game);
+        if (TechPanel.showTypes(event, buttons)) {
+            return;
+        }
         String message = player.getRepresentation() + ", what type of technology do you wish to get?";
         MessageHelper.sendMessageToChannelWithButtons(player.getCardsInfoThread(), message, buttons);
     }
@@ -292,15 +297,16 @@ public class ListTechService {
         }
         String message = player.getRepresentation() + ", please choose which technology you wish to get.";
         if (MigoPromissoryHandler.hasExtractionScience(player, game)) {
-            String reminder =
-                    "You have _Extraction Science_; while researching, you may treat 1 of your technology specialties as any color.";
             if (game.isFowMode()) {
-                MessageHelper.sendMessageToChannel(player.getCorrectChannel(), reminder);
+                MessageHelper.sendMessageToChannel(player.getCorrectChannel(), EXTRACTION_SCIENCE_REMINDER);
             } else {
-                message += "\n-# " + reminder;
+                message += "\n-# " + EXTRACTION_SCIENCE_REMINDER;
             }
         }
 
+        if (TechPanel.showTechs(event, player, game, buttons)) {
+            return;
+        }
         if (!techType.contains("allTechResearchable")) {
             ButtonHelper.deleteMessage(event);
         } else {
@@ -308,7 +314,9 @@ public class ListTechService {
                     " The buttons shown correspond to technologies that the bot believes you meet the prerequisites for."
                             + " To get a technology that isn't shown, please use the \"Get Other Technology\" button.";
         }
-        MessageHelper.sendMessageToChannelWithButtons(channel, message, buttons);
+        if (!TechPanel.post(channel, player, game, buttons)) {
+            MessageHelper.sendMessageToChannelWithButtons(channel, message, buttons);
+        }
     }
 
     public static List<Button> getTechButtons(List<TechnologyModel> techs, Player player) {

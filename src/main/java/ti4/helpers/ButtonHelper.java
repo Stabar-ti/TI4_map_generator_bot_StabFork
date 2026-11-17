@@ -131,6 +131,7 @@ import ti4.image.tile.SystemContextImage;
 import ti4.logging.BotLogger;
 import ti4.logging.LogOrigin;
 import ti4.message.MessageHelper;
+import ti4.message.componentsV2.PanelEdits;
 import ti4.model.ColorModel;
 import ti4.model.ExploreModel;
 import ti4.model.FactionModel;
@@ -199,6 +200,7 @@ import ti4.service.megagame.MegagameGroupService;
 import ti4.service.megagame.MegagameScThreads;
 import ti4.service.megagame.MegagameWarnings;
 import ti4.service.milty.MiltyDraftTile;
+import ti4.service.payment.PaymentPanel;
 import ti4.service.planet.AddPlanetService;
 import ti4.service.planet.PlanetService;
 import ti4.service.tech.ShowTechDeckService;
@@ -4142,7 +4144,7 @@ public class ButtonHelper {
         int uniqueId = event.getButton().getUniqueId();
 
         MessageComponentTree updatedTree =
-                removeButtonsSafely(event.getMessage().getComponentTree(), b -> b.getUniqueId() == uniqueId);
+                removeButtonsSafely(PanelEdits.tree(event), b -> b.getUniqueId() == uniqueId);
 
         deleteButtonAndDeleteMessageIfEmpty(event, updatedTree, deleteMessage);
     }
@@ -4164,7 +4166,7 @@ public class ButtonHelper {
     public static void deleteButtonAndDeleteMessageIfEmpty(
             ButtonInteractionEvent event, String customButtonId, boolean deleteMessage) {
         MessageComponentTree updatedTree =
-                removeButtonsSafely(event.getMessage().getComponentTree(), b -> customButtonId.equals(b.getCustomId()));
+                removeButtonsSafely(PanelEdits.tree(event), b -> customButtonId.equals(b.getCustomId()));
 
         deleteButtonAndDeleteMessageIfEmpty(event, updatedTree, deleteMessage);
     }
@@ -4178,8 +4180,10 @@ public class ButtonHelper {
                         && !id.contains("ultimateUndo")
                         && !id.contains("cabalHeroAll"));
 
-        if (deleteMessage && !hasRealButton) {
+        if (deleteMessage && !hasRealButton && !PaymentPanel.isPanel(event.getMessage())) {
             event.getHook().deleteOriginal().queue(Consumers.nop(), BotLogger::catchRestError);
+        } else if (PanelEdits.isV2(event.getMessage())) {
+            PanelEdits.edit(event, updatedTree);
         } else {
             event.getMessage().editMessageComponents(updatedTree).queue(Consumers.nop(), BotLogger::catchRestError);
         }
@@ -4221,7 +4225,9 @@ public class ButtonHelper {
             return;
         }
         String exhaustedMessage = event.getMessage().getContentRaw();
-        if ("".equalsIgnoreCase(exhaustedMessage)) {
+        if (PaymentPanel.isPanel(event.getMessage())) {
+            exhaustedMessage = PaymentPanel.undoMarker(event.getMessage());
+        } else if ("".equalsIgnoreCase(exhaustedMessage)) {
             exhaustedMessage = "Updated";
         }
         if (event.getMessageChannel() instanceof ThreadChannel) {
@@ -9713,21 +9719,18 @@ public class ButtonHelper {
             String stratName,
             @Nullable List<Button> buttons,
             @Nullable Consumer<Message> sentMessageConsumer) {
+        MessageHelper.sendMessageToChannelWithEmbedsAndButtons(
+                getRightStratChannel(player, game, stratName), message, null, buttons, sentMessageConsumer);
+    }
+
+    public static MessageChannel getRightStratChannel(@Nullable Player player, Game game, String stratName) {
         ThreadChannel threadChannel_ = MegagameGroupService.isActive(game) && player != null
                 ? MegagameScThreads.forPlayer(game, player, stratName)
                 : getRightStratThread(game, stratName);
         if (threadChannel_ != null) {
-            MessageHelper.sendMessageToChannelWithEmbedsAndButtons(
-                    threadChannel_, message, null, buttons, sentMessageConsumer);
-            return;
+            return threadChannel_;
         }
-        if (player != null) {
-            MessageHelper.sendMessageToChannelWithEmbedsAndButtons(
-                    player.getCorrectChannel(), message, null, buttons, sentMessageConsumer);
-        } else {
-            MessageHelper.sendMessageToChannelWithEmbedsAndButtons(
-                    game.getActionsChannel(), message, null, buttons, sentMessageConsumer);
-        }
+        return player != null ? player.getCorrectChannel() : game.getActionsChannel();
     }
 
     public static void offerCodexButtons(GenericInteractionCreateEvent event, Player player, Game game) {

@@ -917,6 +917,34 @@ public final class Helper {
         return getPlanetExhaustButtons(player, game, "both");
     }
 
+    static Comparator<String> spendOrder(Game game, boolean payingInfluence, boolean countsHigherValue) {
+        ToIntFunction<String> paid =
+                planet -> payingInfluence ? getPlanetInfluence(planet, game) : getPlanetResources(planet, game);
+        ToIntFunction<String> other =
+                planet -> payingInfluence ? getPlanetResources(planet, game) : getPlanetInfluence(planet, game);
+        if (countsHigherValue) {
+            return Comparator.comparingInt(
+                            (String planet) -> Math.max(paid.applyAsInt(planet), other.applyAsInt(planet)))
+                    .reversed();
+        }
+        return Comparator.comparingInt((String planet) -> paid.applyAsInt(planet) - other.applyAsInt(planet))
+                .thenComparingInt(paid)
+                .reversed();
+    }
+
+    static String spendLabel(String planet, Game game, Set<String> homePlanets) {
+        String label = getPlanetRepresentation(planet, game);
+        return homePlanets.contains(planet) ? label + " (home)" : label;
+    }
+
+    private static Set<String> homePlanets(Player player) {
+        Tile home = player.getHomeSystemTile();
+        if (home == null) {
+            return Set.of();
+        }
+        return home.getPlanetUnitHolders().stream().map(UnitHolder::getName).collect(Collectors.toSet());
+    }
+
     public static List<Button> getPlanetExhaustButtons(Player player, Game game, String whatIsItFor) {
         if (game.getStoredValue("resetSpend").isEmpty()) {
             player.resetSpentThings();
@@ -928,29 +956,12 @@ public final class Helper {
         List<Button> planetButtons = new ArrayList<>();
         List<String> planets = new ArrayList<>(player.getReadiedPlanets());
         // Helper.getPlanetInfluence(planet, game);
-        if ("inf".equalsIgnoreCase(whatIsItFor)) {
-            boolean countResourcesAsInfluence = WildlifePreservationLLButtonHandler.isActive(game, player);
-            planets = planets.stream()
-                    .sorted((p1, p2) -> Integer.compare(
-                            countResourcesAsInfluence
-                                    ? Math.max(getPlanetResources(p2, game), getPlanetInfluence(p2, game))
-                                    : getPlanetInfluence(p2, game),
-                            countResourcesAsInfluence
-                                    ? Math.max(getPlanetResources(p1, game), getPlanetInfluence(p1, game))
-                                    : getPlanetInfluence(p1, game)))
-                    .collect(Collectors.toList());
-        } else {
-            boolean countInfluenceAsResources = EmergencyAppropriationsLLButtonHandler.isActive(game, player);
-            planets = planets.stream()
-                    .sorted((p1, p2) -> Integer.compare(
-                            countInfluenceAsResources
-                                    ? Math.max(getPlanetResources(p2, game), getPlanetInfluence(p2, game))
-                                    : getPlanetResources(p2, game),
-                            countInfluenceAsResources
-                                    ? Math.max(getPlanetResources(p1, game), getPlanetInfluence(p1, game))
-                                    : getPlanetResources(p1, game)))
-                    .collect(Collectors.toList());
-        }
+        boolean payingInfluence = whatIsItFor.contains("inf");
+        boolean countsHigherValue = payingInfluence
+                ? WildlifePreservationLLButtonHandler.isActive(game, player)
+                : EmergencyAppropriationsLLButtonHandler.isActive(game, player);
+        planets.sort(spendOrder(game, payingInfluence, countsHigherValue));
+        Set<String> homePlanets = homePlanets(player);
         for (String planet : planets) {
 
             if (planet.contains("custodia") || planet.contains("ghoti")) {
@@ -977,11 +988,11 @@ public final class Helper {
             }
             if ("none".equalsIgnoreCase(techType.toString()) || "".equalsIgnoreCase(techType.toString())) {
                 Button button =
-                        Buttons.red("spend_" + planet + "_" + whatIsItFor, getPlanetRepresentation(planet, game));
+                        Buttons.red("spend_" + planet + "_" + whatIsItFor, spendLabel(planet, game, homePlanets));
                 planetButtons.add(button);
             } else {
                 Button techB =
-                        Buttons.red("spend_" + planet + "_" + whatIsItFor, getPlanetRepresentation(planet, game));
+                        Buttons.red("spend_" + planet + "_" + whatIsItFor, spendLabel(planet, game, homePlanets));
                 switch (techType.toString()) {
                     case "propulsion" -> techB = techB.withEmoji(TechEmojis.PropulsionTech.asEmoji());
                     case "warfare" -> techB = techB.withEmoji(TechEmojis.WarfareTech.asEmoji());
@@ -1404,6 +1415,9 @@ public final class Helper {
         SharedResourcesLLButtonHandler.clear(game, player);
     }
 
+    public static final String SPENT_THINGS_LEAD = " exhausted the following: \n";
+    public static final String NOT_ENOUGH_SPENT_WARNING = "### WARNING: Have not spent enough resources yet";
+
     public static String buildSpentThingsMessage(Player player, Game game, String resOrInfOrBoth) {
         String message = buildSpentThingsMessage(player, game, resOrInfOrBoth, false);
         if (message.length() <= Message.MAX_CONTENT_LENGTH) {
@@ -1424,7 +1438,7 @@ public final class Helper {
                 ? planet -> getPlanetRepresentation(planet, game)
                 : planet -> getPlanetRepresentationPlusEmojiPlusInfluence(planet, game);
         List<String> spentThings = player.getSpentThingsThisWindow();
-        StringBuilder msg = new StringBuilder(player.getRepresentationNoPing() + " exhausted the following: \n");
+        StringBuilder msg = new StringBuilder(player.getRepresentationNoPing() + SPENT_THINGS_LEAD);
         int res = 0;
         int inf = 0;
         if (resOrInfOrBoth.contains("tech")) {
@@ -1813,7 +1827,7 @@ public final class Helper {
                 int amount = Integer.parseInt(game.getStoredValue("producedUnitCostFor" + player.getFaction()));
                 msg.append(" (preceding build cost ").append(amount).append(" resources)");
                 if (amount > res) {
-                    msg.append(".\n### WARNING: Have not spent enough resources yet");
+                    msg.append(".\n").append(NOT_ENOUGH_SPENT_WARNING);
                 }
             }
             msg.append(".");
@@ -1862,15 +1876,7 @@ public final class Helper {
     public static String buildProducedUnitsMessage(Player player, Game game) {
         Map<String, Integer> producedUnits = player.getCurrentProducedUnits();
         StringBuilder msg = new StringBuilder();
-        List<String> uniquePlaces = new ArrayList<>();
-        Tile activeSystem = game.getTileByPosition(game.getActiveSystem());
-        for (String unit : producedUnits.keySet()) {
-            String tilePos = unit.split("_")[1];
-            String planetOrSpace = unit.split("_")[2];
-            if (!uniquePlaces.contains(tilePos + "_" + planetOrSpace)) {
-                uniquePlaces.add(tilePos + "_" + planetOrSpace);
-            }
-        }
+        List<String> uniquePlaces = ProductionLimit.producedPlaces(producedUnits.keySet());
         Tile tile = null;
         for (String uniquePlace : uniquePlaces) {
             String tilePos2 = uniquePlace.split("_")[0];
@@ -1897,10 +1903,7 @@ public final class Helper {
                 String unit = entry.getKey();
                 String tilePos = unit.split("_")[1];
                 String planetOrSpace = unit.split("_")[2];
-                String un = unit.split("_")[0];
-                UnitKey unitKey = Mapper.getUnitKey(AliasHandler.resolveUnit(un), player.getColor());
-                UnitModel removedUnit =
-                        player.getUnitsByAsyncID(unitKey.asyncID()).getFirst();
+                UnitModel removedUnit = producedUnitModel(player, unit);
                 if (uniquePlace.equalsIgnoreCase(tilePos + "_" + planetOrSpace)) {
                     if (entry.getValue() < 10) {
                         localPlace
@@ -1932,75 +1935,29 @@ public final class Helper {
                     .append(cost == 1 ? "" : "s")
                     .append(".");
         } else {
-            int solBtLimit = 0;
-            if (player.hasUnlockedBreakthrough("solbt")) {
-                solBtLimit = player.getSpentThingsThisWindow().stream()
-                        .map(str -> str.split("_"))
-                        .filter(arr -> "solBtBuild".equalsIgnoreCase(arr[0]))
-                        .map(arr -> arr[2])
-                        .map(Integer::parseInt)
-                        .findAny()
-                        .orElse(0);
-            }
-            if (solBtLimit > 0) {
+            Optional<ProductionLimit> productionLimit = ProductionLimit.of(player, game, tile);
+            if (productionLimit.isPresent()) {
+                ProductionLimit limit = productionLimit.get();
                 msg.append("Producing a total of ")
                         .append(unitCount)
-                        .append(" units (_Bellum Gloriosum_ limit is ")
-                        .append(solBtLimit)
+                        .append(" units (")
+                        .append(limit.label())
+                        .append(" limit is ")
+                        .append(limit.limit())
                         .append(")")
                         .append(" for a total cost of ")
                         .append(cost)
                         .append(" resource")
                         .append(cost == 1 ? "" : "s")
                         .append(".");
-                if (solBtLimit < unitCount) {
-                    msg.append("\n### Warning! Exceeding _Bellum Gloriosum_ limit of ")
-                            .append(solBtLimit)
+                if (limit.isExceededBy(unitCount)) {
+                    msg.append("\n### Warning! Exceeding ")
+                            .append(limit.label())
+                            .append(" limit of ")
+                            .append(limit.limit())
                             .append("!");
                 }
-            } else if (activeSystem != null
-                    && ((tile == activeSystem && getProductionValue(player, game, tile, false) > 0)
-                            || XinTechHandler.getVeiledNetworkingStarProductionValue(player, game, tile) > 0)) {
-                if (!player.hasUnit("arborec_mech")
-                        && !player.hasUnit("arborec_infantry")
-                        && !player.hasUnit("tf-lataniwarrior")
-                        && !player.hasUnit("deepwrought_mech")
-                        && !player.hasUnit("arborec_infantry2")) {
-
-                    int productionLimit;
-                    productionLimit = Math.max(
-                            getProductionValue(player, game, tile, false),
-                            XinTechHandler.getVeiledNetworkingStarProductionValue(player, game, tile));
-                    boolean warM = player.getSpentThingsThisWindow().contains("warmachine");
-                    if (warM) {
-                        productionLimit += 4;
-                    }
-                    for (String spent : player.getSpentThingsThisWindow()) {
-                        if (spent.startsWith("liquidation")
-                                && !spent.replace("liquidation", "").isEmpty()) {
-                            productionLimit -= Integer.parseInt(spent.replace("liquidation", ""));
-                        }
-                    }
-                    if (game.playerHasLeaderUnlockedOrAlliance(player, "cabalcommander")) {
-                        productionLimit += 2;
-                    }
-                    msg.append("Producing a total of ")
-                            .append(unitCount)
-                            .append(" units (PRODUCTION limit is ")
-                            .append(productionLimit)
-                            .append(")")
-                            .append(" for a total cost of ")
-                            .append(cost)
-                            .append(" resource")
-                            .append(cost == 1 ? "" : "s")
-                            .append(".");
-                    if (productionLimit < unitCount) {
-                        msg.append("\n### Warning! Exceeding PRODUCTION limit of ")
-                                .append(productionLimit)
-                                .append("!");
-                    }
-                }
-            } else {
+            } else if (!ProductionLimit.producesInActiveSystem(player, game, tile)) {
                 msg.append("Producing a total of ")
                         .append(unitCount)
                         .append(" units for a total cost of ")
@@ -2010,38 +1967,52 @@ public final class Helper {
                         .append(".");
             }
         }
+        for (String note : productionDiscountNotes(player, game)) {
+            msg.append('\n').append(note);
+        }
+        return msg.toString();
+    }
+
+    public static UnitModel producedUnitModel(Player player, String producedUnitKey) {
+        String unit = producedUnitKey.split("_")[0];
+        UnitKey unitKey = Mapper.getUnitKey(AliasHandler.resolveUnit(unit), player.getColor());
+        return player.getUnitsByAsyncID(unitKey.asyncID()).getFirst();
+    }
+
+    public static List<String> productionDiscountNotes(Player player, Game game) {
+        List<String> notes = new ArrayList<>();
         if (ArcanumBreakthroughHandler.hasPowerWordWishProductionDiscount(game, player)) {
-            msg.append("\n-1 from Power Word: Wish");
+            notes.add("-1 from Power Word: Wish");
         }
         if (ThurvialiLeadersHandler.hasThurvialiHeroProductionDiscount(game, player)) {
-            msg.append("\n-4 from Synergistic Radiance");
+            notes.add("-4 from Synergistic Radiance");
         }
         if (player.hasPlanet("skarnath")
                 && player.getExhaustedPlanetsAbilities().contains("skarnath")) {
             int neighborDiscount =
                     ThronesThroneHandler.getSkarnathDiscount(game, player, player.getCurrentProducedUnits());
             if (neighborDiscount > 0) {
-                msg.append("\n-").append(neighborDiscount).append(" from Throne of Envy");
+                notes.add("-" + neighborDiscount + " from Throne of Envy");
             }
         }
-        if (game.isMonumentsMode()) {
-            if (MonumentsService.isMonumentOnBoard(game, player, "rohdhna_monument")) {
-                Tile monumentTile = MonumentsService.getMonumentTile(game, player, "rohdhna_monument");
-
-                boolean productionIsInMonumentSystem = monumentTile != null
-                        && !producedUnits.isEmpty()
-                        && producedUnits.keySet().stream().anyMatch(producedUnit -> {
-                            String[] parts = producedUnit.split("_", 3);
-                            return parts.length == 3
-                                    && monumentTile.getPosition().equals(parts[1]);
-                        });
-
-                if (productionIsInMonumentSystem) {
-                    msg.append("\n-2 from Zha'Ren Foundry");
-                }
-            }
+        if (game.isMonumentsMode() && producesInZhaRenFoundrySystem(player, game)) {
+            notes.add("-2 from Zha'Ren Foundry");
         }
-        return msg.toString();
+        return notes;
+    }
+
+    private static boolean producesInZhaRenFoundrySystem(Player player, Game game) {
+        if (!MonumentsService.isMonumentOnBoard(game, player, "rohdhna_monument")) {
+            return false;
+        }
+        Tile monumentTile = MonumentsService.getMonumentTile(game, player, "rohdhna_monument");
+        Map<String, Integer> producedUnits = player.getCurrentProducedUnits();
+        return monumentTile != null
+                && !producedUnits.isEmpty()
+                && producedUnits.keySet().stream().anyMatch(producedUnit -> {
+                    String[] parts = producedUnit.split("_", 3);
+                    return parts.length == 3 && monumentTile.getPosition().equals(parts[1]);
+                });
     }
 
     public static void resetProducedUnits(Player player, Game game, GenericInteractionCreateEvent event) {

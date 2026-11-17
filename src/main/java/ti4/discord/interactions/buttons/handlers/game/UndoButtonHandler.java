@@ -22,6 +22,7 @@ import ti4.logging.BotLogger;
 import ti4.logging.LogOrigin;
 import ti4.message.MessageHelper;
 import ti4.service.game.MegagameUndoService;
+import ti4.service.payment.PaymentPanel;
 
 @UtilityClass
 class UndoButtonHandler {
@@ -69,8 +70,11 @@ class UndoButtonHandler {
                 ? 0
                 : numbers.stream().mapToInt(value -> value).max().orElseThrow(NoSuchElementException::new);
 
-        if (highestNumBefore.equalsIgnoreCase(String.valueOf(maxNumber - 1))
-                || highestNumBefore.equalsIgnoreCase(String.valueOf(maxNumber + 1))) {
+        boolean restoresThisPanel = PaymentPanel.isUndoMarkerFor(
+                game.getSavedMessage(), event.getMessage().getId());
+        if (!restoresThisPanel
+                && (highestNumBefore.equalsIgnoreCase(String.valueOf(maxNumber - 1))
+                        || highestNumBefore.equalsIgnoreCase(String.valueOf(maxNumber + 1)))) {
             ButtonHelper.deleteMessage(event);
         }
 

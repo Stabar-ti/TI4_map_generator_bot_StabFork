@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import lombok.Getter;
 import net.dv8tion.jda.api.events.interaction.component.ButtonInteractionEvent;
 import ti4.helpers.ButtonHelper;
+import ti4.service.payment.PaymentPanel;
 
 @Getter
 public class ButtonContext extends ListenerContext {
@@ -48,6 +49,7 @@ public class ButtonContext extends ListenerContext {
             return;
         }
         if (game != null && player != null) {
+            PaymentPanel.refreshAfterPress(getEvent(), player, game);
             ButtonHelper.saveButtons(getEvent(), game, player);
         }
         super.save();

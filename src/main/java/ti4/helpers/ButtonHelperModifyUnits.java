@@ -67,6 +67,7 @@ import ti4.model.TileHelper;
 import ti4.model.UnitModel;
 import ti4.service.agenda.IsPlayerElectedService;
 import ti4.service.agenda.MonumentsAgendaService;
+import ti4.service.build.BuildPanel;
 import ti4.service.combat.CombatRollService;
 import ti4.service.combat.CombatRollType;
 import ti4.service.combat.StartCombatService;
@@ -2473,6 +2474,8 @@ public final class ButtonHelperModifyUnits {
                 successMessage = "Placed 2 infantry on " + Helper.getPlanetRepresentation(planetName, game) + ".";
                 MessageHelper.sendMessageToChannel(event.getMessageChannel(), successMessage);
                 event.getMessage().delete().queue(Consumers.nop(), BotLogger::catchRestError);
+            } else if (BuildPanel.isPanel(event.getMessage())) {
+                BuildPanel.refreshProduced(event, player, game);
             } else {
                 event.getMessage()
                         .editMessage(Helper.buildProducedUnitsMessage(player, game))

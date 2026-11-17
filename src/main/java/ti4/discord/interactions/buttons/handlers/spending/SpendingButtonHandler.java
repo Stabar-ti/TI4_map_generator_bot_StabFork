@@ -33,8 +33,10 @@ import ti4.helpers.StringHelper;
 import ti4.helpers.thirtyk.ThirtyKExploreHooks;
 import ti4.logging.BotLogger;
 import ti4.message.MessageHelper;
+import ti4.message.componentsV2.PanelEdits;
 import ti4.model.Mapper;
 import ti4.service.leader.agent.AgentLifecycle;
+import ti4.service.payment.PanelLabels;
 import ti4.service.unit.AddUnitService;
 
 @UtilityClass
@@ -193,6 +195,7 @@ class SpendingButtonHandler {
         int separator = pageArgs.lastIndexOf("_page");
         String whatIsItFor = pageArgs.substring(0, separator);
         int page = Integer.parseInt(pageArgs.substring(separator + "_page".length()));
+        game.setStoredValue("resetSpend", "no");
         showSpendButtons(event, player, game, whatIsItFor, event.getMessage().getContentRaw(), page);
     }
 
@@ -214,6 +217,13 @@ class SpendingButtonHandler {
                 continue;
             }
             fixedButtons.add(button);
+        }
+        if (PanelEdits.isV2(event.getMessage())) {
+            PanelEdits.replaceRows(
+                    event,
+                    ActionRow.partitionOf(
+                            PanelLabels.tidy(spendButtonPage(spendButtons, fixedButtons, whatIsItFor, page))));
+            return;
         }
         event.getMessage()
                 .editMessage(message)

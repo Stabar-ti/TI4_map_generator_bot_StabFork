@@ -24,6 +24,7 @@ import ti4.message.GameMessageManager;
 import ti4.message.MessageHelper;
 import ti4.service.game.GameUndoNameService;
 import ti4.service.info.CardsInfoService;
+import ti4.service.payment.PaymentPanel;
 import ti4.spring.websocket.GameWebStatePipeline;
 
 @UtilityClass
@@ -117,7 +118,7 @@ class GameUndoService {
             }
             GameWebStatePipeline.queue(loadedGame);
 
-            generateSavedButtons(Objects.requireNonNullElse(savedButtonsGame, gameToUndo));
+            generateSavedButtons(Objects.requireNonNullElse(savedButtonsGame, gameToUndo), loadedGame);
             sendAnyChangedCardsInfo(gameToUndo, loadedGame);
             GameMessageManager.removeAfter(gameName, loadedGame.getLastModifiedDate());
 
@@ -208,8 +209,11 @@ class GameUndoService {
         ButtonHelper.findOrCreateThreadWithMessage(game, gameName + "-undo-log", sb.toString());
     }
 
-    private static void generateSavedButtons(Game game) {
+    private static void generateSavedButtons(Game game, Game restored) {
         try {
+            if (PaymentPanel.restoreAfterUndo(game, restored)) {
+                return;
+            }
             if (!game.getSavedButtons().isEmpty()
                     && game.getSavedChannel() != null
                     && !game.getPhaseOfGame().contains("status")) {

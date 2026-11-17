@@ -46,6 +46,7 @@ public class UserSettings {
     private boolean activityTracking = true;
     private boolean prefersPassOnWhensAfters;
     private boolean prefersPrePassOnSC = true;
+    private boolean prefersCleanerUi;
     private Boolean prefersWrongButtonEphemeral;
     private int autoNoSaboInterval;
     private String whisperPref = "No Preference";

@@ -1188,7 +1188,9 @@ public class PlayerTechService {
             MessageHelper.sendMessageToChannelWithButtons(player.getCardsInfoThread(), message2, buttons2);
         }
 
-        ButtonHelper.deleteMessage(event);
+        if (!TechPanel.afterResearch(event, techM)) {
+            ButtonHelper.deleteMessage(event);
+        }
     }
 
     private static void payForTech(
@@ -1288,7 +1290,7 @@ public class PlayerTechService {
             buttons.add(Buttons.gray("yinCommanderStep1_", "Remove Infantry via Yin Commander", FactionEmojis.Yin));
         }
         buttons.add(Buttons.red("deleteButtons_technology", "Done Exhausting Planets"));
-        if (!player.hasAbility("propagation")) {
+        if (!player.hasAbility("propagation") && !TechPanel.showPayment(event, player, game, techM, buttons)) {
             MessageHelper.sendMessageToChannelWithButtons(event.getChannel(), message2, buttons);
         }
         if (ButtonHelper.isLawInPlay(game, "revolution")) {
