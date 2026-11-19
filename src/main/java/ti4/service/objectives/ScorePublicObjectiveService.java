@@ -24,11 +24,13 @@ import ti4.helpers.StatusHelper;
 import ti4.helpers.thirtyk.ThirtyKExploreHooks;
 import ti4.message.MessageHelper;
 import ti4.model.Mapper;
+import ti4.model.PublicObjectiveModel;
 import ti4.service.emoji.CardEmojis;
 import ti4.service.fow.FowScoringStatusService;
 import ti4.service.game.EndedGameScoringGuardService;
 import ti4.service.info.ListPlayerInfoService;
 import ti4.service.leader.HeroUnlockCheckService;
+import ti4.service.payment.PaymentPanel;
 
 @UtilityClass
 public class ScorePublicObjectiveService {
@@ -92,6 +94,19 @@ public class ScorePublicObjectiveService {
             }
         }
         Helper.checkEndGame(game, player);
+    }
+
+    static String objectivePayType(String poName) {
+        String name = poName.toLowerCase();
+        return name.contains("sway the council") || name.contains("manipulate galactic law") ? "inf" : "both";
+    }
+
+    static String objectiveCost(String poName, String objectiveId) {
+        PublicObjectiveModel objective = Mapper.getPublicObjective(objectiveId);
+        if (objective == null || objective.getText() == null) {
+            return "**" + poName + "**";
+        }
+        return "**" + poName + "**\n-# " + objective.getText();
     }
 
     private static String getNameNEMoji(Game game, int poID) {
@@ -210,7 +225,8 @@ public class ScorePublicObjectiveService {
                         "\n-# NB: Xxekir Grom, the Xxcha hero, treats the combined value of each planet you exhaust as"
                                 + " __both__ its resources and its influence, so one planet can count toward the resource and the influence requirement of this objective.";
             }
-            List<Button> buttons = ButtonHelper.getExhaustButtonsWithTG(game, player, "both");
+            String payType = objectivePayType(poName);
+            List<Button> buttons = ButtonHelper.getExhaustButtonsWithTG(game, player, payType);
             List<Integer> unfollowedSCs = player.getUnfollowedSCs();
             if (unfollowedSCs != null
                     && !unfollowedSCs.contains(1)
@@ -226,12 +242,20 @@ public class ScorePublicObjectiveService {
                         player.addSpentThing(planet);
                     }
                 }
-                message2 += "\n" + Helper.buildSpentThingsMessage(player, game, "both");
-                buttons = ButtonHelper.getExhaustButtonsWithTG(game, player, "both");
+                message2 += "\n" + Helper.buildSpentThingsMessage(player, game, payType);
+                buttons = ButtonHelper.getExhaustButtonsWithTG(game, player, payType);
             }
             Button DoneExhausting = Buttons.DONE_EXHAUSTING_PLANETS_DELETE_BUTTONS;
             buttons.add(DoneExhausting);
-            MessageHelper.sendMessageToChannelWithButtons(player.getCorrectChannel(), message2, buttons);
+            if (!PaymentPanel.post(
+                    player.getCorrectChannel(),
+                    player,
+                    game,
+                    "### Scoring an objective",
+                    objectiveCost(poName, idC),
+                    buttons)) {
+                MessageHelper.sendMessageToChannelWithButtons(player.getCorrectChannel(), message2, buttons);
+            }
         }
         if (poName.contains("Negotiate Trade Routes")) {
             int oldtg = player.getTg();

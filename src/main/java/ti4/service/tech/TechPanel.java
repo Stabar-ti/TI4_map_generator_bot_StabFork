@@ -38,20 +38,27 @@ public class TechPanel {
     static final String PICK_HINT =
             "-# Shows the technologies you meet the prerequisites for. Use \"Get Other Technology\" for the rest.";
     static final String TYPE_HINT = "-# Choose the type of technology.";
+    static final String TOO_MANY_HINT = "-# Too many technologies to show at once. Choose a type first.";
     static final String PAY_DONE_ID = "deleteButtons_technology";
     private static final List<String> SPECIALTY_ORDER = List.of("propulsion", "biotic", "cybernetic", "warfare");
 
     public static boolean post(MessageChannel channel, Player player, Game game, List<Button> buttons) {
+        return post(channel, player, game, pickText(player, game), buttons);
+    }
+
+    public static boolean postTypes(MessageChannel channel, Player player, Game game, List<Button> typeButtons) {
+        return post(channel, player, game, TOO_MANY_HINT, typeButtons);
+    }
+
+    static List<MessageTopLevelComponent> compose(Player player, Game game, String hint, List<Button> buttons) {
+        return PaymentPanel.compose(HEADER, info(player, game), RESEARCH, hint, buttons, false);
+    }
+
+    private static boolean post(MessageChannel channel, Player player, Game game, String hint, List<Button> buttons) {
         if (channel == null || !CleanerUi.isOn(player)) {
             return false;
         }
-        List<MessageTopLevelComponent> panel = PaymentPanel.compose(
-                HEADER,
-                info(player, game),
-                RESEARCH,
-                pickText(player, game),
-                PaymentPanel.prepare(channel, buttons),
-                false);
+        List<MessageTopLevelComponent> panel = compose(player, game, hint, PaymentPanel.prepare(channel, buttons));
         if (panel.isEmpty()) {
             return false;
         }

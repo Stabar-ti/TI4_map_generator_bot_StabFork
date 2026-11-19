@@ -62,6 +62,7 @@ import ti4.service.leader.agent.modules.homebrew.bluereverie.KaltrimAgent;
 import ti4.service.megagame.MegagameFollowGuard;
 import ti4.service.megagame.MegagameGroupService;
 import ti4.service.objectives.ScorePublicObjectiveService;
+import ti4.service.strategycard.LeadershipPanel;
 import ti4.service.strategycard.PlayStrategyCardService;
 import ti4.service.strategycard.StrategyCardMessageService;
 import ti4.service.unit.AddUnitService;
@@ -1659,41 +1660,21 @@ public final class ButtonHelperSCs {
         }
         int ccCount = Helper.getCCCount(game, player.getColor());
         int limit = player.getCommandTokenLimit();
-        if (!game.isFowMode()) {
-            MessageHelper.sendMessageToChannel(
-                    player.getCardsInfoThread(),
-                    "You have " + StringHelper.pluralize(limit - ccCount, "command token")
-                            + " in your reinforcements that you could gain, and "
-                            + StringHelper.pluralize(player.getTg(), "trade good") + " to spend.");
-            MessageHelper.sendMessageToChannelWithButtons(player.getCardsInfoThread(), message, buttons);
-        } else {
-            MessageHelper.sendMessageToChannel(
-                    player.getPrivateChannel(),
-                    "You have " + StringHelper.pluralize(limit - ccCount, "command token")
-                            + " in your reinforcements that you could gain, and "
-                            + StringHelper.pluralize(player.getTg(), "trade good") + " to spend.");
-            MessageHelper.sendMessageToChannelWithButtons(player.getPrivateChannel(), message, buttons);
-        }
-        // MessageHelper.sendMessageToEventChannelWithEphemeralButtons(event, message, buttons);
+        MessageChannel channel = game.isFowMode() ? player.getPrivateChannel() : player.getCardsInfoThread();
+        String reinforcements = "You have " + StringHelper.pluralize(limit - ccCount, "command token")
+                + " in your reinforcements that you could gain, and "
+                + StringHelper.pluralize(player.getTg(), "trade good") + " to spend.";
         ReactionService.addReaction(event, game, player);
-        message = player.getRepresentationUnfogged() + ", your current command tokens are "
+        String gainMessage = player.getRepresentationUnfogged() + ", your current command tokens are "
                 + player.getCCRepresentation() + ". Use buttons to gain command tokens.";
         game.setStoredValue("originalCCsFor" + player.getFaction(), player.getCCRepresentation());
         ThirtyKRelicHooks.onLeadershipGain(game, player);
-        Button getTactic = Buttons.green(player.factionButtonChecker() + "increase_tactic_cc", "Gain 1 Tactic Token");
-        Button getFleet = Buttons.green(player.factionButtonChecker() + "increase_fleet_cc", "Gain 1 Fleet Token");
-        Button getStrat =
-                Buttons.green(player.factionButtonChecker() + "increase_strategy_cc", "Gain 1 Strategy Token");
-        Button doneGainingCC =
-                Buttons.red(player.factionButtonChecker() + "deleteButtons_leadership", "Done Gaining Command Tokens");
-        Button resetCC = Buttons.gray(player.factionButtonChecker() + "resetCCs", "Reset Command Tokens");
-        List<Button> buttons2 = Arrays.asList(getTactic, getFleet, getStrat, doneGainingCC, resetCC);
-        // MessageHelper.sendMessageToEventChannelWithEphemeralButtons(event, message, buttons2);
-        if (!game.isFowMode()) {
-            MessageHelper.sendMessageToChannelWithButtons(player.getCardsInfoThread(), message, buttons2);
-        } else {
-            MessageHelper.sendMessageToChannelWithButtons(player.getPrivateChannel(), message, buttons2);
+        if (LeadershipPanel.post(channel, player, game, "### " + scModel.getName(), buttons)) {
+            return;
         }
+        MessageHelper.sendMessageToChannel(channel, reinforcements);
+        MessageHelper.sendMessageToChannelWithButtons(channel, message, buttons);
+        MessageHelper.sendMessageToChannelWithButtons(channel, gainMessage, LeadershipPanel.gainButtons(player));
     }
 
     public static boolean addUsedSCPlayer(String messageID, Game game, Player player) {

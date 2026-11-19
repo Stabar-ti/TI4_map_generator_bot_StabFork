@@ -270,6 +270,10 @@ public class TestBedScriptService {
                 if (step.getWait() < 0) errors.add(label + ": `wait` may not be negative.");
             }
             case "expect" -> validateExpect(step.getExpect(), label, errors);
+            case "look" -> {
+                if (step.getLook().isBlank()) errors.add(label + ": `look` needs the thing to look at.");
+                if (step.getIn() != null) validateScope(step.getIn(), label, errors);
+            }
             default -> {}
         }
     }

@@ -226,6 +226,17 @@ public class ListTechService {
         }
         NetrunnersPromissoryHandler.sendSharedNetworkAccessReminder(game, player);
 
+        List<Button> buttons = techTypeButtons(techTypes, techPrefix, techSuffix);
+        ButtonHelperCommanders.yinCommanderSummary(player, game);
+        ButtonHelperCommanders.veldyrCommanderSummary(player, game);
+        if (TechPanel.showTypes(event, buttons)) {
+            return;
+        }
+        String message = player.getRepresentation() + ", what type of technology do you wish to get?";
+        MessageHelper.sendMessageToChannelWithButtons(player.getCardsInfoThread(), message, buttons);
+    }
+
+    static List<Button> techTypeButtons(List<TechnologyType> techTypes, String techPrefix, String techSuffix) {
         List<Button> buttons = new ArrayList<>();
         for (TechnologyType type : techTypes) {
             String id = techPrefix + type.toString() + techSuffix;
@@ -242,13 +253,7 @@ public class ListTechService {
                 default -> {}
             }
         }
-        ButtonHelperCommanders.yinCommanderSummary(player, game);
-        ButtonHelperCommanders.veldyrCommanderSummary(player, game);
-        if (TechPanel.showTypes(event, buttons)) {
-            return;
-        }
-        String message = player.getRepresentation() + ", what type of technology do you wish to get?";
-        MessageHelper.sendMessageToChannelWithButtons(player.getCardsInfoThread(), message, buttons);
+        return buttons;
     }
 
     @ButtonHandler(value = "getAllTechOfType_", save = false)
@@ -314,9 +319,16 @@ public class ListTechService {
                     " The buttons shown correspond to technologies that the bot believes you meet the prerequisites for."
                             + " To get a technology that isn't shown, please use the \"Get Other Technology\" button.";
         }
-        if (!TechPanel.post(channel, player, game, buttons)) {
+        if (!TechPanel.post(channel, player, game, buttons)
+                && !(techType.contains("allTechResearchable")
+                        && TechPanel.postTypes(channel, player, game, typeButtonsFor(player, payType)))) {
             MessageHelper.sendMessageToChannelWithButtons(channel, message, buttons);
         }
+    }
+
+    private static List<Button> typeButtonsFor(Player player, String payType) {
+        String suffix = "normal".equals(payType) ? "" : "_" + payType;
+        return techTypeButtons(TechnologyType.mainFive, player.factionButtonChecker() + "getAllTechOfType_", suffix);
     }
 
     public static List<Button> getTechButtons(List<TechnologyModel> techs, Player player) {

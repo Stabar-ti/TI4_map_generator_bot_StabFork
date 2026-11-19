@@ -10,7 +10,7 @@ import ti4.model.TestBedPreset.Seat;
 @Data
 public class TestBedScript {
 
-    public static final List<String> VERBS = List.of("note", "press", "pressId", "do", "wait", "expect");
+    public static final List<String> VERBS = List.of("note", "press", "pressId", "do", "wait", "expect", "look");
     public static final List<String> ACTIONS = List.of(
             "startPhase",
             "setActivePlayer",
@@ -53,6 +53,7 @@ public class TestBedScript {
         private Seat hand;
         private Double wait;
         private Expect expect;
+        private String look;
         private Double settleSeconds;
         private Integer timeoutSeconds;
         private Boolean stopOnFail;
@@ -65,6 +66,7 @@ public class TestBedScript {
             if (action != null) verbs.add("do");
             if (wait != null) verbs.add("wait");
             if (expect != null) verbs.add("expect");
+            if (look != null) verbs.add("look");
             return verbs;
         }
 
@@ -77,6 +79,7 @@ public class TestBedScript {
             if (action != null) return actor + action + (value == null ? "" : " " + value);
             if (wait != null) return "wait " + wait + "s";
             if (expect != null) return "expect " + expect.describe();
+            if (look != null) return "look: " + look;
             return "empty step";
         }
     }

@@ -80,6 +80,9 @@ format reference. This file covers how you work with it.
 - **Know what a script cannot see:** messages from before it started (including everything the preset did),
   modal contents, select menus, reactions and slash commands. Combat threads are visible through the
   `<seat>:combat` scope. Check the rest through state, or list it for the developer to verify by hand.
+- **Ask the developer with `look`** for what only a person can judge (colours, layout, emoji, wording, threads no
+  scope reaches): one concrete question per step, placed right after the step that shows it, with `in` pointing at
+  the channel so the ping links to the message. Automate everything else; a look is not a replacement for a check.
 - **Timing:** `press` waits for its button and positive checks retry, both for up to `timeoutSeconds`
   (default 20), and finish as soon as the message lands. Absence checks (`notContains`, `noFactionLeak`,
   `noButtons`) keep watching until nothing new arrives for a second. A press fails if the handler threw or the

@@ -27,10 +27,12 @@ import ti4.helpers.Helper;
 import ti4.helpers.NewStuffHelper;
 import ti4.logging.BotLogger;
 import ti4.message.MessageHelper;
+import ti4.message.componentsV2.CleanerUi;
 import ti4.message.componentsV2.ComponentPanel;
 import ti4.message.componentsV2.PanelEdits;
 import ti4.message.componentsV2.PanelView;
 import ti4.service.build.BuildPanel;
+import ti4.service.strategycard.LeadershipPanel;
 import ti4.service.tech.TechPanel;
 
 @UtilityClass
@@ -40,11 +42,14 @@ public class PaymentPanel {
     public static final int SPENT = 9003;
     public static final int INFO_DIVIDER = 9004;
     public static final int SPENT_DIVIDER = 9005;
+    public static final int COST = 9008;
     public static final String PAYMENT = "**Payment**";
     public static final String PAID = "**Paid**";
     private static final String UNDO_MARKER = "panel:";
     private static final String BUILD_KIND = "build";
     private static final String TECH_KIND = "tech";
+    private static final String LEADERSHIP_KIND = "leadership";
+    private static final String PAY_KIND = "pay";
     private static final int MAX_SPENT_LENGTH = 1500;
     private static final String RESET_SPEND_PREFIX = "resetSpend_";
     private static final String DEFAULT_PAY_TYPE = "res";
@@ -53,20 +58,71 @@ public class PaymentPanel {
 
     public static List<MessageTopLevelComponent> compose(
             String header, String info, int slotId, String slotText, List<Button> buttons, boolean warning) {
+        return compose(header, info, slotId, slotText, null, buttons, warning);
+    }
+
+    public static List<MessageTopLevelComponent> compose(
+            String header,
+            String info,
+            int slotId,
+            String slotText,
+            String spentText,
+            List<Button> buttons,
+            boolean warning) {
         List<ContainerChildComponent> body = new ArrayList<>();
         if (StringUtils.isNotBlank(info)) {
             body.add(TextDisplay.of(info).withUniqueId(INFO));
             body.add(Separator.createDivider(Separator.Spacing.SMALL).withUniqueId(INFO_DIVIDER));
         }
         body.add(TextDisplay.of(slotText).withUniqueId(slotId));
+        if (spentText != null) {
+            addSpentSlot(body, TextDisplay.of(paymentText(PAYMENT, spentText)).withUniqueId(SPENT));
+        }
         body.addAll(rows(buttons));
+        boolean accent = warning || isUnderpaid(spentText);
         List<MessageTopLevelComponent> components =
-                ComponentPanel.compose(header, null, PanelView.of(body, List.of(), warning), List.of());
+                ComponentPanel.compose(header, null, PanelView.of(body, List.of(), accent), List.of());
         return ComponentPanel.fits(components) ? components : List.of();
     }
 
+    public static boolean post(
+            MessageChannel channel, Player player, Game game, String header, String purpose, List<Button> buttons) {
+        return postPayment(channel, player, game, header, COST, purpose, buttons);
+    }
+
+    public static boolean postPayment(
+            MessageChannel channel,
+            Player player,
+            Game game,
+            String header,
+            int slotId,
+            String slotText,
+            List<Button> buttons) {
+        if (channel == null || !CleanerUi.isOn(player)) {
+            return false;
+        }
+        List<Button> prepared = prepare(channel, buttons);
+        String spent = Helper.buildSpentThingsMessage(player, game, payType(prepared));
+        List<MessageTopLevelComponent> allButtons = compose(header, null, slotId, slotText, spent, prepared, false);
+        List<MessageTopLevelComponent> panel = allButtons.isEmpty()
+                ? compose(header, null, slotId, slotText, spent, firstPaymentPage(prepared), false)
+                : allButtons;
+        if (panel.isEmpty()) {
+            return false;
+        }
+        MessageHelper.whenThreadIsOpen(channel, () -> ComponentPanel.post(channel, panel));
+        return true;
+    }
+
     public static boolean isPanel(Message message) {
-        return BuildPanel.isPanel(message) || TechPanel.isPanel(message);
+        return BuildPanel.isPanel(message)
+                || TechPanel.isPanel(message)
+                || LeadershipPanel.isPanel(message)
+                || isPaymentOnly(message);
+    }
+
+    private static boolean isPaymentOnly(Message message) {
+        return PanelEdits.isV2(message) && hasSlot(message.getComponentTree(), COST);
     }
 
     public static boolean isPanel(ButtonInteractionEvent event) {
@@ -240,7 +296,17 @@ public class PaymentPanel {
     }
 
     public static String undoMarker(Message message) {
-        return undoMarker(TechPanel.isPanel(message) ? TECH_KIND : BUILD_KIND, message.getId());
+        return undoMarker(kindOf(message), message.getId());
+    }
+
+    private static String kindOf(Message message) {
+        if (TechPanel.isPanel(message)) {
+            return TECH_KIND;
+        }
+        if (LeadershipPanel.isPanel(message)) {
+            return LEADERSHIP_KIND;
+        }
+        return isPaymentOnly(message) ? PAY_KIND : BUILD_KIND;
     }
 
     public static String undoMarker(String kind, String messageId) {
@@ -267,9 +333,7 @@ public class PaymentPanel {
             return true;
         }
         List<Button> saved = prepare(channel, ButtonHelper.getSavedButtons(savedButtonsGame));
-        UnaryOperator<Container> restore = TECH_KIND.equals(marker[0])
-                ? TechPanel.restoredView(player, restored, saved)
-                : BuildPanel.restoredView(player, restored, rows(saved));
+        UnaryOperator<Container> restore = restoredView(marker[0], player, restored, saved);
         channel.retrieveMessageById(marker[1])
                 .queue(
                         message -> {
@@ -279,6 +343,18 @@ public class PaymentPanel {
                         },
                         BotLogger::catchRestError);
         return true;
+    }
+
+    private static UnaryOperator<Container> restoredView(String kind, Player player, Game game, List<Button> saved) {
+        return switch (kind) {
+            case TECH_KIND -> TechPanel.restoredView(player, game, saved);
+            case LEADERSHIP_KIND -> LeadershipPanel.restoredView(player, game, saved);
+            case PAY_KIND -> {
+                String spent = Helper.buildSpentThingsMessage(player, game, payType(saved));
+                yield container -> payView(container, spent, rows(saved));
+            }
+            default -> BuildPanel.restoredView(player, game, rows(saved));
+        };
     }
 
     public static List<Button> prepare(MessageChannel channel, List<Button> buttons) {

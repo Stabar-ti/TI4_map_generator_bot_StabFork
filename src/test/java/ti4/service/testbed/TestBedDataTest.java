@@ -141,7 +141,9 @@ class TestBedDataTest extends BaseTi4Test {
                     { "expect": { "in": "mian", "contains": "x" } },
                     { "expect": { "in": "main", "contains": "x", "since": "yesterday" } },
                     { "expect": { "in": "main", "matches": "(" } },
-                    { "expect": { "state": "tile.101.mood", "equals": "x" } }
+                    { "expect": { "state": "tile.101.mood", "equals": "x" } },
+                    { "look": " " },
+                    { "look": "the panel", "in": "mian" }
                   ] }"""));
         assertContains(
                 expectErrors,
@@ -152,7 +154,9 @@ class TestBedDataTest extends BaseTi4Test {
                 "step 6: scope `mian` is neither main, actions, gm nor a seat",
                 "step 7: `since` must be",
                 "step 8: `matches` is not a valid regex",
-                "step 9: unknown tile. field `mood`");
+                "step 9: unknown tile. field `mood`",
+                "step 10: `look` needs the thing to look at",
+                "step 11: scope `mian` is neither main, actions, gm nor a seat");
     }
 
     // Script authors (often agents) learn the vocabulary from DEVELOPER_TESTBED.md; anything the code accepts but the

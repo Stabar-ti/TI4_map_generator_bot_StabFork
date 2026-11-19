@@ -17,11 +17,13 @@ import net.dv8tion.jda.api.entities.channel.middleman.MessageChannel;
 import net.dv8tion.jda.api.events.interaction.component.ButtonInteractionEvent;
 import org.apache.commons.lang3.StringUtils;
 import ti4.game.Game;
+import ti4.game.Planet;
 import ti4.game.Player;
 import ti4.game.Tile;
 import ti4.helpers.ButtonHelper;
 import ti4.helpers.Helper;
 import ti4.helpers.ProductionLimit;
+import ti4.helpers.StringHelper;
 import ti4.message.MessageHelper;
 import ti4.message.componentsV2.CleanerUi;
 import ti4.message.componentsV2.ComponentPanel;
@@ -33,6 +35,8 @@ public class BuildPanel {
 
     public static final int PRODUCED = 9002;
     public static final String NOTHING_PRODUCED = "-# Nothing produced yet.";
+    private static final String AFTER_PLANETS = ", and ";
+    private static final String NO_READIED_PLANETS = " No readied planets ";
 
     public static boolean post(
             MessageChannel channel, Player player, Game game, String header, String info, List<Button> buttons) {
@@ -50,6 +54,35 @@ public class BuildPanel {
         }
         MessageHelper.whenThreadIsOpen(channel, () -> ComponentPanel.post(channel, panel));
         return true;
+    }
+
+    public static String spendableSummary(Player player, Game game, String spendable) {
+        List<Planet> ready = player.getReadiedPlanets().stream()
+                .map(planet -> game.getPlanetsInfo().get(planet))
+                .filter(Objects::nonNull)
+                .toList();
+        int resources = ready.stream().mapToInt(Planet::getResources).sum();
+        int influence = ready.stream().mapToInt(Planet::getInfluence).sum();
+        return spendableSummary(ready.size(), resources, influence, spendable);
+    }
+
+    static String spendableSummary(int planets, int resources, int influence, String spendable) {
+        String ready = planets == 0
+                ? "No planets ready"
+                : StringHelper.pluralize(planets, "planet") + " ready (" + resources + " resources, " + influence
+                        + " influence)";
+        int restAt = spendable.indexOf(AFTER_PLANETS);
+        if (restAt >= 0) {
+            return ready + " and " + spendable.substring(restAt + AFTER_PLANETS.length());
+        }
+        int noPlanetsAt = spendable.indexOf(NO_READIED_PLANETS);
+        if (noPlanetsAt >= 0) {
+            return ready + " "
+                    + spendable
+                            .substring(noPlanetsAt + NO_READIED_PLANETS.length())
+                            .trim();
+        }
+        return ready + ".";
     }
 
     public static List<MessageTopLevelComponent> compose(

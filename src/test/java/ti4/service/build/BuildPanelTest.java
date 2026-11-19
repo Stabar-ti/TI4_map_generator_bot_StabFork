@@ -24,6 +24,20 @@ class BuildPanelTest {
             "Stabar" + Helper.SPENT_THINGS_LEAD + "> Jord\nfor a total spend of 4 resources.";
 
     @Test
+    void spendableListShrinksToPlanetTotalsButKeepsTradeGoodsAndExtras() {
+        String spendable =
+                "You have available to you to spend: <:a:1> Arretze 2/0, <:h:2> Hercant 1/1, and 3 trade goods."
+                        + " You also have _Sarween Tools_. As such, you may spend up to 7 during the PRODUCTION.";
+        assertThat(BuildPanel.spendableSummary(2, 3, 1, spendable))
+                .isEqualTo("2 planets ready (3 resources, 1 influence) and 3 trade goods."
+                        + " You also have _Sarween Tools_. As such, you may spend up to 7 during the PRODUCTION.");
+
+        assertThat(BuildPanel.spendableSummary(
+                        0, 0, 0, "You have available to you to spend:  No readied planets and 3 trade goods."))
+                .isEqualTo("No planets ready and 3 trade goods.");
+    }
+
+    @Test
     void composesHeaderInfoProducedAndTheButtonsInsideOneContainer() {
         List<Button> buttons = buttons(7);
 

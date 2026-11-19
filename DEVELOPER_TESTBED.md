@@ -229,6 +229,11 @@ check that step by hand once. When it passes twice, keep it in
 `data/testbed/local/scripts/` or share it in `data/testbed/scripts/`; `/testbed run script:all` runs it with the
 others.
 
+**Manual looks.** Some things only a person can judge: colours, layout, how a panel reads on a phone, emoji. Put a
+`look` step right after the step that shows it. The run pings you with the question and a link, then waits for your
+answer, so you can start a script and only come back when it needs your eyes. Your verdicts and notes land in the
+report like any other step.
+
 **Not possible yet:** filling in modals, select menus, typing messages into combat threads, reactions and slash
 commands. Dice can be fixed with `testBedDice` ([Combat](#combat)).
 
@@ -312,6 +317,7 @@ and ids fail with every error listed at once; problems that only show while appl
 | `do` | `startPhase` (value), `setActivePlayer` (as), `setStored` (key, value), `removeStored` (key), `runCron` (value), `hand` (as: seat or `all`; hand: seat fields; when it gives cards the seat's cards info is re-sent so the new hand buttons appear), `actAs` (as or `you`), `sendAnonComms` (as: sender, value: receiver seat; relays a fixed test message through anonymous comms from the sender's inbox), `stackExplore` (value: explore id; moves it from the deck or discard to the top of the explore deck), `stackAgenda` (value: agenda id; moves it from the deck or discard to the top of the agenda deck), `removeToken` (key: tile position or planet, value: token or attachment as in the preset `tokens` field; fails if it is not there), `setGameOption` (key and value as in the preset `gameOptions` field), `placeTile` (key: position, value: tile id; places or replaces the tile, maps A-G only in fog games), `beta` (as: a virtual seat, key: a `/beta` name such as `cleaner_ui`, value: `true` or `false`; the setting belongs to the seat's user id, so `reset` does not undo it) |
 | `wait` | `{ "wait": 5 }` (seconds) |
 | `expect` | one of the checks below |
+| `look` | `{ "look": "The accent turned yellow at 6 units", "in": "hacan" }`: pings you where the script runs, with a link to the newest message in `in`, and waits for **Looks Right**, **Wrong…** (optional note) or **Skip**; right passes, wrong fails (but never stops the run, so the checks after it still run), skip is skipped; no answer in 15 minutes (or `timeoutSeconds`) fails; `script:all` skips looks |
 
 Every step may also have a `label` for the report.
 

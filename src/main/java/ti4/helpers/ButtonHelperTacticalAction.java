@@ -458,7 +458,7 @@ public final class ButtonHelperTacticalAction {
     private static String panelInfo(Player player, Game game, Tile tile, String spendable) {
         int productionValue = Helper.getProductionValue(player, game, tile, false);
         return "**PRODUCTION " + productionValue + "**\n" + productionReminders(player, game, tile, productionValue)
-                + "-# " + spendable;
+                + "-# " + BuildPanel.spendableSummary(player, game, spendable);
     }
 
     private static String productionInfo(Player player, Game game, Tile tile) {

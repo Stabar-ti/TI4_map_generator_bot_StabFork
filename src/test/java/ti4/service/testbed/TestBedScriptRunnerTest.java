@@ -18,6 +18,7 @@ import net.dv8tion.jda.api.entities.MessageEmbed;
 import org.junit.jupiter.api.Test;
 import ti4.model.TestBedPreset;
 import ti4.model.TestBedScript.Expect;
+import ti4.model.TestBedScript.Step;
 import ti4.service.testbed.TestBedScriptRunner.WaitMode;
 
 // Pieces of the script runner that decide how long an expect waits and what it can see.
@@ -43,6 +44,20 @@ class TestBedScriptRunnerTest {
 
     // Positive checks stop as soon as they pass; negative ones keep watching until the channel goes quiet, so late
     // output (map renders, queued sends) is still checked.
+    @Test
+    void aWrongLookNeverStopsTheRun() {
+        Step look = new Step();
+        look.setLook("accent colour");
+        look.setStopOnFail(true);
+        assertFalse(TestBedScriptRunner.stopsOnFail(look, true));
+
+        Step press = new Step();
+        press.setPress("Pass");
+        assertTrue(TestBedScriptRunner.stopsOnFail(press, true));
+        press.setStopOnFail(false);
+        assertFalse(TestBedScriptRunner.stopsOnFail(press, true));
+    }
+
     @Test
     void waitModeFollowsTheKindOfCheck() {
         Expect contains = new Expect();

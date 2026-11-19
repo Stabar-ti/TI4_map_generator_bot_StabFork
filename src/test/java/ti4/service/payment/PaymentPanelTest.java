@@ -5,7 +5,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.IntStream;
+import net.dv8tion.jda.api.components.MessageTopLevelComponent;
 import net.dv8tion.jda.api.components.buttons.Button;
+import net.dv8tion.jda.api.components.textdisplay.TextDisplay;
+import net.dv8tion.jda.api.components.tree.MessageComponentTree;
 import org.junit.jupiter.api.Test;
 import ti4.discord.interactions.buttons.Buttons;
 
@@ -36,6 +39,23 @@ class PaymentPanelTest {
 
         // SpendingButtonHandler.turnSpendPage reads "restech" back out of this id.
         assertThat(ids).contains("spendPage_restech_page1", "resetSpend_restech", "deleteButtons_technology");
+    }
+
+    @Test
+    void paymentOnlyPanelOpensWithItsPurposeAndThePaymentSoFar() {
+        List<MessageTopLevelComponent> panel = PaymentPanel.compose(
+                "### Scoring an objective",
+                null,
+                PaymentPanel.COST,
+                "**Sway the Council**",
+                "nothing spent",
+                List.of(Buttons.green("spend_meer_both", "Meer"), Buttons.gray("resetSpend_both", "Reset")),
+                false);
+
+        List<Integer> slots = MessageComponentTree.of(panel).findAll(TextDisplay.class).stream()
+                .map(TextDisplay::getUniqueId)
+                .toList();
+        assertThat(slots).contains(PaymentPanel.COST, PaymentPanel.SPENT);
     }
 
     @Test

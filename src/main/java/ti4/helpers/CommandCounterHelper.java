@@ -28,6 +28,13 @@ public final class CommandCounterHelper {
     private static final Map<GenericInteractionCreateEvent, Set<String>> VERYDITH_PROMPTS_BY_EVENT =
             new WeakHashMap<>();
 
+    public static String tokenChangeMessage(Player player, Game game) {
+        String originalCCs = game.getStoredValue("originalCCsFor" + player.getFaction());
+        return player.getRepresentation() + " command tokens have gone from " + originalCCs + " -> "
+                + player.getCCRepresentation() + ". Net gain of: " + ButtonHelper.checkNetGain(player, originalCCs)
+                + ".";
+    }
+
     public static void addCC(GenericInteractionCreateEvent event, Game game, String color, Tile tile) {
         addCC(event, game.getPlayerFromColorOrFaction(color), tile);
     }

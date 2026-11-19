@@ -74,6 +74,7 @@ import ti4.service.leader.agent.modules.homebrew.LunariumAgent;
 import ti4.service.leader.agent.modules.homebrew.MortheusAgent;
 import ti4.service.leader.agent.modules.homebrew.RohDhnaAgent;
 import ti4.service.payment.PaymentPanel;
+import ti4.service.strategycard.LeadershipPanel;
 import ti4.service.turn.StartTurnService;
 import ti4.spring.service.gameevent.GameEventDraft;
 import ti4.spring.service.gameevent.GameEventService;
@@ -90,7 +91,11 @@ class DeleteButtonsButtonHandler {
         String editedMessage = event.getMessage().getContentRaw();
         boolean panel = PaymentPanel.isPanel(event.getMessage())
                 && ("Done Producing Units".equalsIgnoreCase(buttonLabel)
-                        || "Done Exhausting Planets".equalsIgnoreCase(buttonLabel));
+                        || "Done Exhausting Planets".equalsIgnoreCase(buttonLabel)
+                        || LeadershipPanel.DONE_GAINING.equalsIgnoreCase(buttonLabel));
+        if (panel && LeadershipPanel.DONE_GAINING.equalsIgnoreCase(buttonLabel)) {
+            editedMessage = CommandCounterHelper.tokenChangeMessage(player, game);
+        }
         if (("Done Gaining Command Tokens".equalsIgnoreCase(buttonLabel)
                         || "Done Redistributing Command Tokens".equalsIgnoreCase(buttonLabel)
                         || "Done Losing Command Tokens".equalsIgnoreCase(buttonLabel)
@@ -102,7 +107,7 @@ class DeleteButtonsButtonHandler {
             String shortCCs = editedMessage.substring(editedMessage.indexOf("command tokens have gone from "));
             shortCCs = shortCCs.replace("command tokens have gone from ", "");
             shortCCs = shortCCs.substring(0, shortCCs.indexOf(' '));
-            if (event.getMessage().getContentRaw().contains("Net gain")) {
+            if (editedMessage.contains("Net gain")) {
                 boolean cyber = false;
                 boolean malevolency = false;
                 int netGain = ButtonHelper.checkNetGain(player, shortCCs);
@@ -590,7 +595,10 @@ class DeleteButtonsButtonHandler {
         }
         if (!panel) {
             ButtonHelper.deleteMessage(event);
-        } else if ("Done Exhausting Planets".equalsIgnoreCase(buttonLabel)) {
+        } else if (LeadershipPanel.DONE_GAINING.equalsIgnoreCase(buttonLabel)) {
+            LeadershipPanel.finish(event, player, game);
+        } else if ("Done Exhausting Planets".equalsIgnoreCase(buttonLabel)
+                && !LeadershipPanel.showGain(event, player, game, editedMessage)) {
             PaymentPanel.showReceipt(event, editedMessage);
         }
     }

@@ -41,6 +41,22 @@ class TechPanelTest extends BaseTi4Test {
     }
 
     @Test
+    void tooManyTechsForOnePanelFallBackToTheTypeChooserWhichAlwaysFits() {
+        List<Button> manyTechs = java.util.stream.IntStream.range(0, 30)
+                .mapToObj(n -> Buttons.gray("FFCC_jolnar_getTech_t" + n, "Technology " + n))
+                .toList();
+        assertThat(TechPanel.compose(jolnar, game, TechPanel.PICK_HINT, manyTechs))
+                .isEmpty();
+
+        List<Button> types =
+                ListTechService.techTypeButtons(TechnologyType.mainFive, "FFCC_jolnar_getAllTechOfType_", "");
+        assertThat(types).hasSize(5);
+        assertThat(types.getFirst().getCustomId()).isEqualTo("FFCC_jolnar_getAllTechOfType_propulsion");
+        assertThat(TechPanel.compose(jolnar, game, TechPanel.TOO_MANY_HINT, types))
+                .isNotEmpty();
+    }
+
+    @Test
     void ownedTechsAreGroupedByColorInTheUsualOrderWithExhaustedOnesStruckThrough() {
         String owned = TechPanel.ownedText(jolnar);
 

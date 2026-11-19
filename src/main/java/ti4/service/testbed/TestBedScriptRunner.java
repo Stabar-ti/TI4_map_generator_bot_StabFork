@@ -7,13 +7,16 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.TreeMap;
+import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
 import javax.annotation.Nullable;
+import net.dv8tion.jda.api.components.actionrow.ActionRow;
 import net.dv8tion.jda.api.components.buttons.Button;
 import net.dv8tion.jda.api.components.textdisplay.TextDisplay;
 import net.dv8tion.jda.api.entities.Member;
@@ -22,6 +25,8 @@ import net.dv8tion.jda.api.entities.MessageEmbed;
 import net.dv8tion.jda.api.entities.channel.middleman.MessageChannel;
 import net.dv8tion.jda.api.events.interaction.GenericInteractionCreateEvent;
 import net.dv8tion.jda.api.utils.FileUpload;
+import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.function.Consumers;
 import ti4.cron.CronManager;
 import ti4.executors.ExecutorServiceManager;
 import ti4.game.Game;
@@ -38,6 +43,7 @@ import ti4.service.fow.AnonymousCommsService;
 import ti4.service.fow.GMService;
 import ti4.service.game.StartPhaseService;
 import ti4.service.info.CardsInfoService;
+import ti4.service.testbed.TestBedLooks.Answer;
 import ti4.service.testbed.TestBedPress.PressResult;
 import ti4.service.testbed.TestBedPress.Recorder;
 import ti4.service.turn.StartTurnService;
@@ -50,6 +56,8 @@ public final class TestBedScriptRunner {
     private static final long QUIET_MILLIS = 1000;
     private static final int MAX_DETAIL = 160;
     private static final int SNAPSHOT_MESSAGES = 5;
+    private static final int LOOK_TIMEOUT_SECONDS = 15 * 60;
+    private static final int MAX_LOOK_TEXT = 1200;
     private static final Set<String> STATE_ONLY_ACTIONS = Set.of(
             "setStored",
             "removeStored",
@@ -82,6 +90,7 @@ public final class TestBedScriptRunner {
     private final Consumer<String> onDone;
 
     private final boolean resetFirst;
+    private final boolean unattended;
     private final List<Result> results = new ArrayList<>();
     private TestBedMessageLog log = TestBedMessageLog.detached(TestBedPress::recentHistory);
     private long startMark;
@@ -101,7 +110,8 @@ public final class TestBedScriptRunner {
             TestBedScript script,
             GenericInteractionCreateEvent origin,
             @Nullable Consumer<String> onDone,
-            boolean resetFirst) {
+            boolean resetFirst,
+            boolean unattended) {
         this.gameName = game.getName();
         this.title = title;
         this.script = script;
@@ -110,11 +120,12 @@ public final class TestBedScriptRunner {
         this.reportChannel = origin.getMessageChannel();
         this.onDone = onDone;
         this.resetFirst = resetFirst;
+        this.unattended = unattended;
     }
 
     public static void start(Game game, TestBedScript script, GenericInteractionCreateEvent origin) {
         TestBedScriptRunner runner =
-                new TestBedScriptRunner(game, titleOf(script), script, origin, null, script.getPreset() != null);
+                new TestBedScriptRunner(game, titleOf(script), script, origin, null, script.getPreset() != null, false);
         ExecutorServiceManager.runAsync("test bed script " + runner.title, runner::runAndReport);
     }
 
@@ -127,7 +138,7 @@ public final class TestBedScriptRunner {
         TestBedScript script = new TestBedScript();
         script.setName(label);
         script.setSteps(steps);
-        TestBedScriptRunner runner = new TestBedScriptRunner(game, label, script, origin, onDone, false);
+        TestBedScriptRunner runner = new TestBedScriptRunner(game, label, script, origin, onDone, false, false);
         ExecutorServiceManager.runAsync("test bed shortcut " + label, runner::runAndReport);
     }
 
@@ -182,7 +193,8 @@ public final class TestBedScriptRunner {
                         .append('\n');
                 continue;
             }
-            TestBedScriptRunner runner = new TestBedScriptRunner(game, titleOf(script), script, origin, null, true);
+            TestBedScriptRunner runner =
+                    new TestBedScriptRunner(game, titleOf(script), script, origin, null, true, true);
             runner.runSafely();
             discord.append(runner.countOf(Status.FAIL) == 0 ? "✅ `" : "❌ `")
                     .append(runner.title)
@@ -261,7 +273,7 @@ public final class TestBedScriptRunner {
             Step step = steps.get(i);
             nextStepChecksReply = i + 1 < steps.size() && checksReply(steps.get(i + 1));
             Status status = runStep(i + 1, step);
-            boolean stop = step.getStopOnFail() != null ? step.getStopOnFail() : script.isStopOnFail();
+            boolean stop = stopsOnFail(step, script.isStopOnFail());
             if (status == Status.FAIL && stop) {
                 trace = "";
                 for (int rest = i + 1; rest < steps.size(); rest++) {
@@ -270,6 +282,11 @@ public final class TestBedScriptRunner {
                 return;
             }
         }
+    }
+
+    static boolean stopsOnFail(Step step, boolean scriptStops) {
+        if (step.getLook() != null) return false;
+        return step.getStopOnFail() != null ? step.getStopOnFail() : scriptStops;
     }
 
     private boolean resetIfAsked() {
@@ -399,6 +416,7 @@ public final class TestBedScriptRunner {
                 case "press", "pressId" -> press(index, step);
                 case "do" -> doAction(index, step);
                 case "expect" -> expect(index, step);
+                case "look" -> look(index, step);
                 default -> add(index, step.describe(), Status.FAIL, "a known verb", verb);
             };
         } catch (Exception e) {
@@ -448,6 +466,65 @@ public final class TestBedScriptRunner {
         if (refusalChecked) detail += "; the next step checks that reply";
         boolean passed = result.pressed() || refusalChecked;
         return add(index, step.describe(), passed ? Status.PASS : Status.FAIL, "pressed", detail);
+    }
+
+    private Status look(int index, Step step) {
+        String describe = step.describe();
+        if (unattended) {
+            return add(index, describe, Status.SKIP, "a developer's look", "suite runs skip looks");
+        }
+        String token = TestBedLooks.open();
+        CompletableFuture<Message> prompt = reportChannel
+                .sendMessage(lookPrompt(index, step))
+                .setComponents(ActionRow.of(TestBedLooks.buttons(token)))
+                .submit();
+        prompt.whenComplete((message, error) -> {
+            if (error != null) TestBedLooks.cancel(token);
+        });
+        int seconds = step.getTimeoutSeconds() != null ? step.getTimeoutSeconds() : LOOK_TIMEOUT_SECONDS;
+        Optional<Answer> answer = TestBedLooks.await(token, seconds * 1000L);
+        if (answer.isEmpty()) {
+            if (prompt.isCompletedExceptionally()) {
+                return add(index, describe, Status.FAIL, "a developer's answer", "the prompt could not be posted");
+            }
+            prompt.thenAccept(
+                    message -> message.editMessage(message.getContentRaw() + "\n-# No answer; counted as failed.")
+                            .setComponents(List.of())
+                            .queue(Consumers.nop(), BotLogger::catchRestError));
+            return add(index, describe, Status.FAIL, "a developer's answer", "no answer within " + seconds + "s");
+        }
+        Answer given = answer.get();
+        String actual =
+                given.verdict().shown() + " by " + given.by() + (given.note().isEmpty() ? "" : ": " + given.note());
+        Status status = switch (given.verdict()) {
+            case RIGHT -> Status.PASS;
+            case WRONG -> Status.FAIL;
+            case SKIP -> Status.SKIP;
+        };
+        return add(index, describe, status, "looks right", actual);
+    }
+
+    private String lookPrompt(int index, Step step) {
+        StringBuilder text = new StringBuilder("🔎 ")
+                .append(developer.getAsMention())
+                .append(" **Take a look** · `")
+                .append(title)
+                .append("` step ")
+                .append(index)
+                .append('\n')
+                .append(StringUtils.abbreviate(step.getLook(), MAX_LOOK_TEXT));
+        String where = lookTarget(step.getIn());
+        if (where != null) text.append('\n').append(where);
+        return text.toString();
+    }
+
+    @Nullable
+    private String lookTarget(@Nullable String scope) {
+        if (scope == null) return null;
+        MessageChannel channel = scopeChannel(current(), scope);
+        if (channel == null) return null;
+        Message latest = log.lastTouchedAfter(channel, startMark);
+        return latest == null ? "In " + channel.getAsMention() : "→ " + latest.getJumpUrl();
     }
 
     private List<MessageChannel> pressChannels(Game game, Player seat, @Nullable String scope) {

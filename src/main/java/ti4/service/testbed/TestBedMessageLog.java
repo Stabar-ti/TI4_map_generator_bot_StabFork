@@ -10,6 +10,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.function.Function;
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.entities.Message;
 import net.dv8tion.jda.api.entities.channel.middleman.MessageChannel;
@@ -130,6 +131,15 @@ final class TestBedMessageLog extends ListenerAdapter implements AutoCloseable {
                 .filter(entry -> entry.touched() > mark)
                 .map(Entry::message)
                 .toList();
+    }
+
+    @Nullable
+    Message lastTouchedAfter(MessageChannel channel, long mark) {
+        return entries(channel.getId()).stream()
+                .filter(entry -> entry.touched() > mark)
+                .max(Comparator.comparingLong(Entry::touched))
+                .map(Entry::message)
+                .orElse(null);
     }
 
     synchronized boolean awaitChange(long seenMark, long timeoutMillis) {
